@@ -1,4 +1,8 @@
 from odoo import fields, models
+from odoo.exceptions import UserError
+
+# Owned by the rack row: change the row, not the location. Only _sync_locations may write them.
+LOCKED_FIELDS = ('name', 'location_id', 'usage')
 
 
 class StockLocation(models.Model):
@@ -11,3 +15,14 @@ class StockLocation(models.Model):
     wh3d_bay = fields.Integer(string='Bay')
     wh3d_level = fields.Integer(string='Level')
     wh3d_position = fields.Integer(string='Position')
+
+    def write(self, vals):
+        if not self.env.context.get('wh3d_sync') and any(f in vals for f in LOCKED_FIELDS):
+            for loc in self.filtered('wh3d_rack_row_id'):
+                current = {'name': loc.name, 'location_id': loc.location_id.id, 'usage': loc.usage}
+                if any(f in vals and vals[f] != current[f] for f in LOCKED_FIELDS):
+                    raise UserError(self.env._(
+                        "Location %(loc)s is managed by rack row %(row)s. Change the rack row instead "
+                        "(Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows).",
+                        loc=loc.name, row=loc.wh3d_rack_row_id.code))
+        return super().write(vals)

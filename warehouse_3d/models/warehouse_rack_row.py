@@ -239,7 +239,7 @@ class WarehouseRackRow(models.Model):
                     if not loc.active:
                         changed['active'] = True
                     if changed:
-                        loc.write(changed)
+                        loc.with_context(wh3d_sync=True).write(changed)
                 if missing:
                     created = Location.create([vals | {
                         'usage': 'internal',

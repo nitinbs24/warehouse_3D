@@ -8,6 +8,7 @@
         'security/ir.model.access.csv',
         'data/res_groups.xml',
         'views/warehouse_rack_row_views.xml',
+        'views/stock_location_views.xml',
         'views/menus.xml',
     ],
     'assets': {

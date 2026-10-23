@@ -198,3 +198,32 @@ existing (archived), with `wh3d_rack_row_id` cleared because of `ondelete='set n
 
 **A name can repeat.** Pallet → shelf renames slot `P05-03-2-A` to `P05-03-2`, the same name as the now
 archived level node. Odoo allows duplicate location names; only the active one shows anywhere.
+
+## T3b: Locking generated locations
+
+Files: `models/stock_location.py` (`write`), `views/stock_location_views.xml`,
+`models/warehouse_rack_row.py` (one `with_context`), `tests/test_location_lock.py`.
+
+**Why.** During the T3 manual check, slot `P15-01-1-A` got its *Parent Location* changed by hand and
+ended up inside slot `P15-07-1-A`. Nothing stopped it; the tree silently stopped matching the row.
+Now the three fields the rack row owns — **name, parent, type** — can only change through the row.
+Everything else on a location (barcode, removal strategy, cycle counting…) stays editable.
+
+**Two layers, on purpose.**
+- *View* (`views/stock_location_views.xml`): an **inherited view** adds a blue "Managed by rack row
+  P15" banner and `readonly="wh3d_rack_row_id"` on the three fields. `inherit_id` + `xpath` /
+  `<field position="attributes">` is how you change someone else's screen without copying it: Odoo
+  merges our small patch into Inventory's form at load time.
+- *Model* (`stock.location.write` override): refuses the change with a `UserError` if it would
+  actually change one of the three. A read-only field in one form doesn't stop other screens (the
+  Locations list allows multi-edit), imports, or scripts — the server check does.
+  Rule of thumb: **views are for convenience, model checks are for safety.**
+
+**Context flags.** `_sync_locations` must still be allowed to rename and move nodes. It writes with
+`loc.with_context(wh3d_sync=True)`; the `write` override skips the check when it sees that flag.
+`with_context(...)` returns the same records carrying extra key/values that every method called on
+them can read via `self.env.context`. (We already used `active_test=False` the same way in T2.)
+
+**Testing a view in Python.** `odoo.tests.Form` simulates the form in Python, applying the view's
+`readonly` / `invisible` rules. Setting a read-only field raises an `AssertionError`, which is how
+`test_form_shows_locked_fields_read_only` checks the screen without a browser.

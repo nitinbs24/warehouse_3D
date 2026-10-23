@@ -70,6 +70,19 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `models/warehouse_rack_row.py`, `tests/test_location_sync.py`
 **Scope:** S
 
+### T3b: Lock generated locations *(added 23 Oct after the T3 manual check)*
+**Description:** A generated slot was re-parented by hand inside another slot. The rack row owns name, parent and type of its locations; lock them so the tree can't drift.
+
+**Acceptance criteria:**
+- [x] On a generated location, writing a different name / parent / type raises `UserError` naming the rack row; same-value writes and all other fields are allowed; ordinary locations are unaffected.
+- [x] Location form shows a "Managed by rack row …" banner and those three fields read-only.
+- [x] Rack row edits (rename, re-parent via `_sync_locations`) still work.
+
+**Verification:** done 23 Oct — `tests/test_location_lock.py` 9 tests; full run `0 failed, 0 error(s) of 47 tests`.
+**Dependencies:** T3
+**Files:** `models/stock_location.py`, `views/stock_location_views.xml`, `models/warehouse_rack_row.py`, `__manifest__.py`, `tests/test_location_lock.py`
+**Scope:** S
+
 ### Checkpoint A
 - [ ] `TEST` green, nothing skipped
 - [ ] Manual: create P05 in the UI → receipt into `P05-03-2-A` → quant visible in Inventory ▸ Reporting ▸ Stock
