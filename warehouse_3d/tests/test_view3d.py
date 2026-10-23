@@ -53,12 +53,37 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_live', login='admin')
 
 
+    def test_editor_draw_select_and_view_in_3d(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, warehouse)
+        self.env['warehouse.layout.area'].create({
+            'name': 'Receiving', 'kind': 'area', 'x': 0.5, 'y': 25.0, 'width': 19.5, 'depth': 13.5,
+            'warehouse_id': warehouse.id})
+        self.start_tour('/odoo', 'warehouse_3d_editor', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""
 
-    def test_screenshot_template_layout(self):
+    def _screenshot(self, url, tour, prefix):
+        # Odoo closes the browser right after a tour; grab the picture just before that.
+        original = ChromeBrowser._wait_code_ok
+
+        def wait_then_screenshot(browser, *args, **kwargs):
+            result = original(browser, *args, **kwargs)
+            browser.take_screenshot(prefix).result(timeout=30)
+            return result
+
+        with patch.object(ChromeBrowser, '_wait_code_ok', wait_then_screenshot):
+            self.start_tour(url, tour, login='admin')
+
+    def test_screenshot_editor(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
+        self._template_layout(warehouse)
+        self._screenshot('/odoo/action-warehouse_3d.action_wh3d_editor', 'warehouse_3d_editor_screenshot', 'wh3d_editor_')
+
+    def _template_layout(self, warehouse):
         Location = self.env['stock.location']
         pr = Location.create({'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
         sh = Location.create({'name': 'SH', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
@@ -73,6 +98,10 @@ class TestView3dScreenshot(HttpCase):
              for n, x, y, w, d in areas]
             + [{'name': f'Dock {i + 1}', 'kind': 'dock', 'x': x, 'y': 38.4, 'width': 3, 'depth': 1.6,
                 'warehouse_id': warehouse.id} for i, x in enumerate(docks)])
+
+    def test_screenshot_template_layout(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        self._template_layout(warehouse)
         # Seeded stock across all fill bands, plus one product without dimensions.
         rng = random.Random(20261023)
         Product = self.env['product.product']
@@ -94,13 +123,4 @@ class TestView3dScreenshot(HttpCase):
                     Quant._update_available_quantity(rng.choice(products), slot, 1)
                 else:
                     Quant._update_available_quantity(rng.choice(bins), slot, rng.randint(2, 12))
-        # Odoo closes the browser right after a tour; grab the picture just before that.
-        original = ChromeBrowser._wait_code_ok
-
-        def wait_then_screenshot(browser, *args, **kwargs):
-            result = original(browser, *args, **kwargs)
-            browser.take_screenshot('wh3d_view3d_').result(timeout=30)
-            return result
-
-        with patch.object(ChromeBrowser, '_wait_code_ok', wait_then_screenshot):
-            self.start_tour('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_screenshot', login='admin')
+        self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_screenshot', 'wh3d_view3d_')

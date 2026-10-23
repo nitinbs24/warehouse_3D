@@ -188,3 +188,81 @@ registry.category("web_tour.tours").add("warehouse_3d_live", {
         { trigger: ".o_wh3d_legend li[data-band='low'] .o_wh3d_n:text(1)" },
     ],
 });
+
+registry.category("web_tour.tours").add("warehouse_3d_editor", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        {
+            trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']",
+            run: "click",
+        },
+        {
+            content: "Open the layout editor",
+            trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_editor']",
+            run: "click",
+        },
+        {
+            content: "The floor plan shows the row and the area",
+            trigger: ".o_wh3d_editor svg .o_wh3d_area:contains(Receiving)",
+        },
+        { trigger: ".o_wh3d_editor_panel:contains(Click a rack row)" },
+        {
+            // Tour helpers call HTMLElement.focus() on the target, which throws on SVG elements,
+            // so the click is dispatched directly (real browsers focus SVG tabindex elements fine).
+            content: "Click row P05",
+            trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05']",
+            run() {
+                this.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            },
+        },
+        {
+            content: "Panel shows P05's fields, the row is highlighted",
+            trigger: ".o_wh3d_editor_panel .o_wh3d_code:text(P05)",
+        },
+        { trigger: ".o_wh3d_editor_panel dd[data-field='bays']:text(7)" },
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row.o_selected[data-code='P05']" },
+        {
+            content: "Esc deselects",
+            trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05']",
+            run() {
+                this.anchor.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            },
+        },
+        { trigger: ".o_wh3d_editor_panel:contains(Click a rack row)" },
+        {
+            content: "Keyboard: focusing a row selects it",
+            trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05']",
+            run() {
+                this.anchor.focus();
+            },
+        },
+        {
+            trigger: ".o_wh3d_editor_panel .o_wh3d_code:text(P05)",
+            // Same tour-helper limitation: blur the focused SVG row natively before the next click.
+            run: () => document.activeElement.blur(),
+        },
+        {
+            content: "View it in 3D",
+            trigger: ".o_wh3d_editor_panel button[name='view_in_3d']",
+            run: "click",
+        },
+        {
+            content: "3D view opens on the row's middle slot",
+            trigger: ".o_wh3d_view .o_wh3d_selected .o_wh3d_code:text(P05-04-1-A)",
+        },
+    ],
+});
+
+// Used by the opt-in editor screenshot: template layout with P05 selected.
+registry.category("web_tour.tours").add("warehouse_3d_editor_screenshot", {
+    steps: () => [
+        { trigger: ".o_wh3d_editor_panel:contains(31 rack rows)" },
+        {
+            trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05']",
+            run() {
+                this.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            },
+        },
+        { trigger: ".o_wh3d_editor_panel .o_wh3d_code:text(P05)" },
+    ],
+});

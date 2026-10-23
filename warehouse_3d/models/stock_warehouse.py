@@ -22,18 +22,25 @@ class StockWarehouse(models.Model):
             warehouse._check_wh3d_contains(
                 self.env['warehouse.rack.row'].search([('warehouse_id', '=', warehouse.id)]))
 
-    def wh3d_get_scene(self):
-        """Everything the 3D view draws for this warehouse, in one call (a fixed number of queries)."""
+    def wh3d_get_layout(self):
+        """The floor plan: building size, areas and rack rows (what the 2D editor needs)."""
         self.ensure_one()
         rows = self.env['warehouse.rack.row'].search([('warehouse_id', '=', self.id)])
-        slots = self.env['stock.location'].search([('wh3d_rack_row_id', 'in', rows.ids), ('wh3d_node', '=', 'slot')])
         return {
+            'warehouse_id': self.id,
             'building': {'length': self.wh3d_length, 'width': self.wh3d_width, 'height': self.wh3d_height},
             'areas': self.wh3d_area_ids.read(['name', 'kind', 'x', 'y', 'width', 'depth'], load=None),
             'rows': rows.read(['code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                                'slots_per_level'], load=None),
-            'slots': self._wh3d_slot_data(slots),
         }
+
+    def wh3d_get_scene(self):
+        """Everything the 3D view draws for this warehouse, in one call (a fixed number of queries)."""
+        scene = self.wh3d_get_layout()
+        slots = self.env['stock.location'].search(
+            [('wh3d_rack_row_id', 'in', [r['id'] for r in scene['rows']]), ('wh3d_node', '=', 'slot')])
+        scene['slots'] = self._wh3d_slot_data(slots)
+        return scene
 
     @api.model
     def wh3d_get_slots(self, location_ids):

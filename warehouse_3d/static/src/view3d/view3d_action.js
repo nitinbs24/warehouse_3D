@@ -88,12 +88,29 @@ export class View3D extends Component {
             this.scene = new WarehouseScene(this.canvasRef.el, this.data, {
                 onSelect: (index) => (this.state.selected = index),
             });
+            this.focusFromContext();
         } catch {
             this.state.error = _t("The 3D view needs WebGL, which this browser has turned off.");
         }
     }
 
     // --- live updates ---
+
+    /** Opened from the layout editor's "View in 3D": select and fly to the given slot. */
+    focusFromContext() {
+        const ctx = this.props.action.context || {};
+        if (!ctx.focus_row_id) {
+            return;
+        }
+        const index = this.data.slots.findIndex((s) => s.row_id === ctx.focus_row_id
+            && s.bay === ctx.focus_bay && s.level === ctx.focus_level && s.position === ctx.focus_position);
+        if (index >= 0) {
+            this.state.selected = index;
+            this.state.view = "";
+            this.scene.select(index);
+            this.scene.focusOn(index);
+        }
+    }
 
     // Bus messages (stock.quant changes) go through this.updates: throttled, one fetch at a time.
 

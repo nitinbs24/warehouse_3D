@@ -560,3 +560,43 @@ as well as areas.
 own `self.cr.savepoint()`: a Python constraint runs *after* the row was inserted, so without the
 savepoint the refused row stays in the test's transaction and breaks the next attempt (caught here
 when the second case hit "duplicate code" instead of "outside the building").
+
+## T11: The 2D layout editor — drawing and selecting
+
+Files: `static/src/editor/geometry.js` (pure), `static/src/editor/editor_action.{js,xml,scss}`,
+`views/view3d_actions.xml`, `views/menus.xml`, `models/stock_warehouse.py` (`wh3d_get_layout`),
+`static/src/view3d/view3d_action.js` (`focusFromContext`), `static/tests/editor_geometry.test.js`,
+`static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`, `docs/screenshots/t11-layout-editor.png`.
+
+**SVG, drawn in metres.** The plan is an `<svg>` whose single `<g transform="translate(ox oy)
+scale(s)">` turns metres into pixels. Rows, areas and the grid are drawn with their real
+coordinates (P05 is `<rect x="11" y="1" width="1.1" height="18.9">`); zooming and panning only
+change `s`, `ox`, `oy`. `vector-effect="non-scaling-stroke"` keeps outlines 1 px thick at any zoom,
+and text sizes are in metres too (`font-size: 0.7px` inside the scaled group = 0.7 m).
+Why not Three.js again? A flat plan needs no 3D, SVG elements are clickable and focusable like HTML,
+and they're crisp when zoomed.
+
+**The view maths** (`geometry.js`, unit-tested): `fitView` picks the largest scale that shows the
+whole building with a margin; `zoomAt` zooms around the mouse so the point under it stays put
+(convert the mouse to plan coordinates, change scale, solve the offset so that point maps back to
+the same pixel); `pan` adds the drag distance. Zoom is clamped to 1–200 px per metre.
+
+**Keyboard without trapping it.** Each row is `<g tabindex="0" role="button">`, so the browser's own
+Tab key walks through rows and focusing one selects it; Esc clears. Capturing Tab to "cycle rows"
+would have locked keyboard users inside the plan.
+
+**A lighter request.** `wh3d_get_layout` returns building, areas and rows — no 2,340 slots — and
+`wh3d_get_scene` now builds on it (one definition of the floor plan instead of two).
+
+**Opening another action with context.** "View in 3D" calls
+`action.doAction("warehouse_3d.action_wh3d_view3d", {additionalContext: {focus_row_id, focus_bay, …}})`;
+the 3D view reads `props.action.context`, selects that slot and flies to it. Bay/level/position are
+passed instead of a code, because codes are only ever built in Python (plan decision 3).
+
+**A test-tool limitation, worked around.** Odoo's tour `click` helper calls `HTMLElement.focus()`/
+`blur()` on the target and the previously focused element; on SVG elements that throws
+"Illegal invocation". Browsers handle focus on SVG `tabindex` elements fine, so the tour dispatches
+the click and Escape events itself and blurs the SVG row natively before clicking HTML buttons.
+
+**Screenshot-driven polish.** The first editor screenshot showed back-to-back rows' codes colliding
+("P02P03"); codes now alternate above/below, like the 3D view's labels.

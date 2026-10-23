@@ -4,4 +4,9 @@
         <field name="name">3D View</field>
         <field name="tag">warehouse_3d.view3d</field>
     </record>
+
+    <record id="action_wh3d_editor" model="ir.actions.client">
+        <field name="name">Layout Editor</field>
+        <field name="tag">warehouse_3d.editor</field>
+    </record>
 </odoo>

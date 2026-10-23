@@ -17,6 +17,7 @@
     'assets': {
         'web.assets_backend': [
             'warehouse_3d/static/src/view3d/**/*',
+            'warehouse_3d/static/src/editor/**/*',
         ],
         'web.assets_unit_tests': [
             'warehouse_3d/static/tests/*.test.js',

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="warehouse_3d.LayoutEditor">
+        <div class="o_wh3d_editor" t-on-keydown="onKeydown">
+            <div class="o_wh3d_editor_main">
+                <svg t-ref="plan" class="o_wh3d_plan" role="group" aria-label="Floor plan"
+                     t-on-wheel="onWheel" t-on-pointerdown="onPointerDown"
+                     t-on-pointermove="onPointerMove" t-on-pointerup="onPointerUp">
+                    <!-- Everything inside is in metres; this one transform does all zooming and panning. -->
+                    <g t-att-transform="transform">
+                        <rect class="o_wh3d_floor" x="0" y="0"
+                              t-att-width="layout.building.length" t-att-height="layout.building.width"/>
+                        <g class="o_wh3d_grid">
+                            <line t-foreach="grid" t-as="line" t-key="line_index"
+                                  t-att-x1="line.x1" t-att-y1="line.y1" t-att-x2="line.x2" t-att-y2="line.y2"
+                                  t-att-class="line.major ? 'o_major' : ''" vector-effect="non-scaling-stroke"/>
+                        </g>
+                        <g t-foreach="layout.areas" t-as="area" t-key="area.id"
+                           t-att-class="area.kind === 'dock' ? 'o_wh3d_dock' : 'o_wh3d_area'">
+                            <t t-set="r" t-value="areaRect(area)"/>
+                            <rect t-att-x="r.x" t-att-y="r.y" t-att-width="r.w" t-att-height="r.h"
+                                  vector-effect="non-scaling-stroke"/>
+                            <text t-if="area.kind === 'area'" t-att-x="r.x + r.w / 2" t-att-y="r.y + r.h / 2"
+                                  text-anchor="middle" dominant-baseline="middle" t-esc="area.name"/>
+                        </g>
+                        <g t-foreach="layout.rows" t-as="row" t-key="row.id"
+                           class="o_wh3d_row" t-att-class="{ o_selected: state.selectedId === row.id, o_shelf: row.kind === 'shelf' }"
+                           t-att-data-code="row.code" tabindex="0" role="button"
+                           t-att-aria-label="'Rack row ' + row.code" t-att-aria-pressed="state.selectedId === row.id ? 'true' : 'false'"
+                           t-on-click="() => this.selectRow(row)" t-on-focus="() => this.selectRow(row)">
+                            <t t-set="r" t-value="rowRect(row)"/>
+                            <rect t-att-x="r.x" t-att-y="r.y" t-att-width="r.w" t-att-height="r.h"
+                                  vector-effect="non-scaling-stroke"/>
+                            <!-- Alternate above / below so back-to-back neighbours' codes don't collide. -->
+                            <text t-att-x="r.x + r.w / 2" t-att-y="row_index % 2 ? r.y + r.h + 0.9 : r.y - 0.35"
+                                  text-anchor="middle" t-esc="row.code"/>
+                        </g>
+                    </g>
+                </svg>
+                <div class="o_wh3d_editor_toolbar">
+                    <button type="button" class="btn btn-light btn-sm" name="fit" t-on-click="onFitClick">Fit to screen</button>
+                </div>
+                <p class="o_wh3d_hint">Scroll to zoom · drag the floor to pan · click or Tab to a row · Esc clears</p>
+            </div>
+
+            <aside class="o_wh3d_editor_panel">
+                <section class="o_wh3d_card">
+                    <p class="o_wh3d_label">Rack row</p>
+                    <t t-if="selectedRow">
+                        <t t-set="row" t-value="selectedRow"/>
+                        <p class="o_wh3d_code" t-esc="row.code"/>
+                        <dl class="o_wh3d_kv">
+                            <div><dt>Kind</dt><dd data-field="kind" t-esc="row.kind === 'pallet' ? 'Pallet rack' : 'Shelving'"/></div>
+                            <div><dt>X / Y (m)</dt><dd data-field="xy"><t t-esc="metres(row.x)"/> / <t t-esc="metres(row.y)"/></dd></div>
+                            <div><dt>Bays</dt><dd data-field="bays" t-esc="row.bays"/></div>
+                            <div><dt>Bay width (m)</dt><dd data-field="bay_width" t-esc="metres(row.bay_width)"/></div>
+                            <div><dt>Depth (m)</dt><dd data-field="depth" t-esc="metres(row.depth)"/></div>
+                            <div><dt>Levels</dt><dd data-field="levels" t-esc="row.levels"/></div>
+                            <div><dt>Level height (m)</dt><dd data-field="level_height" t-esc="metres(row.level_height)"/></div>
+                            <div><dt>Slots per level</dt><dd data-field="slots_per_level" t-esc="row.slots_per_level"/></div>
+                        </dl>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-primary btn-sm" name="view_in_3d" t-on-click="viewIn3d">View in 3D</button>
+                            <button type="button" class="btn btn-secondary btn-sm" name="open_form" t-on-click="openRowForm">Open record</button>
+                        </div>
+                    </t>
+                    <p t-else="" class="o_wh3d_note">Click a rack row on the plan, or Tab to one.</p>
+                </section>
+                <section class="o_wh3d_card">
+                    <p class="o_wh3d_label">Floor</p>
+                    <p class="o_wh3d_note">
+                        Building <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m ·
+                        <t t-esc="layout.rows.length"/> rack rows · <t t-esc="layout.areas.length"/> areas and docks
+                    </p>
+                </section>
+            </aside>
+        </div>
+    </t>
+</templates>

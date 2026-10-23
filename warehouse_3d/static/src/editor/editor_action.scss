@@ -1,0 +1,146 @@
+// Floor-plan editor. Cards, labels and the key/value list reuse the 3D view's classes.
+$wh3d-ed-bg: #e3e8ed;
+$wh3d-ed-floor: #f4f6f8;
+$wh3d-ed-grid: #dde2e7;
+$wh3d-ed-grid-major: #bcc4cd;
+$wh3d-ed-area: #c3d0dc;
+$wh3d-ed-dock: #e3a22b;
+$wh3d-ed-steel: #3e5c7a;
+$wh3d-ed-shelf: #96a3b0;
+$wh3d-ed-accent: #e0701b;
+
+.o_wh3d_editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    height: 100%;
+    background: $wh3d-ed-bg;
+
+    @media (max-width: 880px) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(360px, 60vh) auto;
+        overflow-y: auto;
+    }
+}
+
+.o_wh3d_editor_main {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+
+    .o_wh3d_hint {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        margin: 0;
+        font-family: $font-family-monospace;
+        font-size: 12px;
+        color: $o-gray-700;
+        pointer-events: none;
+    }
+}
+
+.o_wh3d_editor_toolbar {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+.o_wh3d_plan {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+
+    &:active {
+        cursor: grabbing;
+    }
+
+    .o_wh3d_floor {
+        fill: $wh3d-ed-floor;
+    }
+
+    .o_wh3d_grid line {
+        stroke: $wh3d-ed-grid;
+        stroke-width: 1;
+
+        &.o_major {
+            stroke: $wh3d-ed-grid-major;
+        }
+    }
+
+    // Text sizes are in metres, because they live inside the scaled <g>.
+    text {
+        font-family: $font-family-sans-serif;
+        pointer-events: none;
+    }
+
+    .o_wh3d_area {
+        rect {
+            fill: $wh3d-ed-area;
+            fill-opacity: 0.7;
+            stroke: $wh3d-ed-grid-major;
+            stroke-width: 1;
+        }
+
+        text {
+            font-size: 1.1px;
+            font-weight: 600;
+            fill: $o-gray-700;
+        }
+    }
+
+    .o_wh3d_dock rect {
+        fill: $wh3d-ed-dock;
+    }
+
+    .o_wh3d_row {
+        cursor: pointer;
+        outline: none;
+
+        rect {
+            fill: $wh3d-ed-steel;
+            stroke: transparent;
+            stroke-width: 3;
+        }
+
+        &.o_shelf rect {
+            fill: $wh3d-ed-shelf;
+        }
+
+        text {
+            font-size: 0.7px;
+            font-weight: 600;
+            fill: $o-gray-700;
+        }
+
+        &:hover rect {
+            stroke: $wh3d-ed-accent;
+            stroke-opacity: 0.5;
+        }
+
+        &.o_selected rect,
+        &:focus-visible rect {
+            stroke: $wh3d-ed-accent;
+            stroke-opacity: 1;
+        }
+
+        &.o_selected text {
+            fill: $wh3d-ed-accent;
+        }
+    }
+}
+
+.o_wh3d_editor_panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    overflow-y: auto;
+    min-width: 0;
+
+    p {
+        margin: 0;
+    }
+}

@@ -224,12 +224,13 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** *Inventory ▸ Warehouse 3D ▸ Layout editor*: top-down SVG of building, grid (1 m minor / 5 m major), areas, docks and rack rows (from the T6 RPC). Click a row → side panel shows its fields read-only; "View in 3D" opens the 3D view focused on it.
 
 **Acceptance criteria:**
-- [ ] Scale fits the building to the viewport; zoom with wheel, pan with drag on empty floor.
-- [ ] Selected row highlighted; keyboard: Tab cycles rows, Esc deselects.
+- [x] Scale fits the building to the viewport; zoom with wheel, pan with drag on empty floor.
+- [x] Selected row highlighted; keyboard: rows are focusable, so Tab moves between them (and focusing selects), Esc deselects. *(Tab isn't captured, so keyboard users can still leave the plan.)*
 
-**Verification:** Hoot `static/tests/editor_geometry.test.js` — world↔screen conversion round-trips, fit-to-view. Tour: open editor → click P05 → panel shows "P05".
+**Verification:** done 23 Oct — Hoot `static/tests/editor_geometry.test.js` 10 tests (fit ×2, round-trip, zoom keeps point, zoom clamp, pan, row/area rectangles, grid, middle slot; 41 Hoot total). Tour `warehouse_3d_editor`: area drawn, click P05 → panel + highlight, Esc clears, focus selects, View in 3D → 3D view selects P05-04-1-A. Python: `wh3d_get_layout` test. Screenshot `docs/screenshots/t11-layout-editor.png` (opt-in `./run_tests.sh wh3d_screenshot`). Full run `0 failed, 0 error(s) of 97 tests`.
+*Not covered by a test:* mouse-wheel zoom and drag-to-pan in the browser (their maths is unit-tested).
 **Dependencies:** T6
-**Files:** `static/src/editor/editor_action.{js,xml,scss}`, `static/src/editor/geometry.js`, `static/tests/editor_geometry.test.js`, `views/menus.xml`, `static/tests/tours/editor_tour.js`
+**Files:** `static/src/editor/editor_action.{js,xml,scss}`, `static/src/editor/geometry.js`, `views/view3d_actions.xml`, `views/menus.xml`, `models/stock_warehouse.py`, `static/src/view3d/view3d_action.js`, `static/tests/editor_geometry.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`, `tests/test_scene_data.py`
 **Scope:** M
 
 ### T12: Editor — move, edit, add, delete, save

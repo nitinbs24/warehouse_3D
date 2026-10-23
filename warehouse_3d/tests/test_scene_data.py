@@ -104,6 +104,12 @@ class TestSceneData(TransactionCase):
         self.assertEqual(sorted(s['code'] for s in slots), ['P05-02-1-A', 'P05-02-1-B'])  # PR is not a slot
         self.assertEqual(next(s for s in slots if s['code'] == 'P05-02-1-B')['stock']['qty'], 1)
 
+    def test_layout_has_building_areas_and_rows_but_no_slots(self):
+        layout = self.warehouse.wh3d_get_layout()
+        self.assertEqual(set(layout), {'warehouse_id', 'building', 'areas', 'rows'})
+        self.assertEqual(layout['warehouse_id'], self.warehouse.id)
+        self.assertEqual(layout['rows'], self.warehouse.wh3d_get_scene()['rows'])
+
     def test_query_count_does_not_grow_with_slots(self):
         self._put(self.rice, 'P05-01-1-A', 1)
 
