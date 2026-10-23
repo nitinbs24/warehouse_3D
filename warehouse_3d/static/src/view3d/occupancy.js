@@ -72,3 +72,23 @@ export function legendCounts(slots) {
     }
     return counts;
 }
+
+/**
+ * Put refetched slot data into ``slots`` (the array the scene draws from). A slot that was asked
+ * for but not returned is no longer an active slot (archived meanwhile): show it empty.
+ * Ids not in ``indexByLocation`` belong to another warehouse and are ignored.
+ * Returns how many of this view's slots were updated.
+ */
+export function mergeSlotUpdates(slots, indexByLocation, requestedIds, fresh) {
+    const returned = new Map(fresh.map((s) => [s.location_id, s]));
+    let changed = 0;
+    for (const id of requestedIds) {
+        const index = indexByLocation.get(id);
+        if (index === undefined) {
+            continue;
+        }
+        slots[index] = returned.get(id) || { ...slots[index], stock: null };
+        changed++;
+    }
+    return changed;
+}

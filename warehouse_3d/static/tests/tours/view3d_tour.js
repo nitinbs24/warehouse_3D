@@ -105,8 +105,9 @@ registry.category("web_tour.tours").add("warehouse_3d_stock", {
         ...openView3d(),
         {
             content: "Capacity card counts 70 pallet positions, 1 used",
-            trigger: ".o_wh3d_capacity tr[data-kind='pallet']:contains(70):contains(1)",
+            trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(1):text(70)",
         },
+        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):text(1)" },
         {
             content: "Unknown code shows a helpful error",
             trigger: ".o_wh3d_find input",
@@ -125,13 +126,13 @@ registry.category("web_tour.tours").add("warehouse_3d_stock", {
             trigger: ".o_wh3d_selected .o_wh3d_code:contains(P05-03-2-A)",
         },
         { trigger: ".o_wh3d_selected .o_wh3d_path:contains(WH/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A)" },
-        { trigger: ".o_wh3d_selected:contains(Basmati rice pallet):contains(49 %)" },
+        { trigger: ".o_wh3d_selected:contains(Basmati rice pallet) .o_wh3d_psub:contains(fill 49 %)" },
         {
             content: "Turn on occupancy colours; the legend shows one slot under 50 %",
             trigger: ".o_wh3d_toolbar input[name='occupancy']",
             run: "click",
         },
-        { trigger: ".o_wh3d_legend li[data-band='low']:contains(1)" },
+        { trigger: ".o_wh3d_legend li[data-band='low'] .o_wh3d_n:text(1)" },
         {
             content: "Click empty sky: selection clears",
             trigger: ".o_wh3d_canvas canvas",
@@ -160,7 +161,8 @@ registry.category("web_tour.tours").add("warehouse_3d_live", {
     steps: () => [
         ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
         ...openView3d(),
-        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):contains(0)" },
+        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):text(0)" },
+        { trigger: ".o_wh3d_legend li[data-band='low'] .o_wh3d_n:text(0)" },
         { trigger: ".o_wh3d_find input", run: "edit P05-01-1-A" },
         { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
         { trigger: ".o_wh3d_selected:contains(Empty. Available for putaway.)" },
@@ -182,7 +184,7 @@ registry.category("web_tour.tours").add("warehouse_3d_live", {
             content: "Without reloading, the panel, capacity and legend show the new stock",
             trigger: ".o_wh3d_view[data-updates='1'] .o_wh3d_selected:contains(Basmati rice pallet)",
         },
-        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):contains(1)" },
-        { trigger: ".o_wh3d_legend li[data-band='low']:contains(1)" },
+        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):text(1)" },
+        { trigger: ".o_wh3d_legend li[data-band='low'] .o_wh3d_n:text(1)" },
     ],
 });

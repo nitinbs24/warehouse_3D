@@ -489,3 +489,44 @@ behind would keep firing into a closed view.
 **Running it for real.** With Odoo's default single-process server (what you run), the websocket is
 served on the same port. If you later run with `--workers`, the websocket needs Odoo's separate
 gevent port (8072) behind a proxy; that's standard Odoo deployment, not specific to this module.
+
+## T9b: Fixes from the second code review (live updates)
+
+Files: `static/src/view3d/live.js` (new), `view3d_action.js`, `occupancy.js` (`mergeSlotUpdates`),
+`models/stock_quant.py`, `tests/common.py` (new), `tests/test_bus.py`, `tests/test_view3d.py`,
+`static/tests/live.test.js` (new), `static/tests/occupancy.test.js`, `static/tests/tours/view3d_tour.js`.
+
+The T9 browser code had a naive "wait 150 ms after the last message, then refetch". The review found
+five ways it could show stale stock; they're all handled by one small class, `UpdateQueue`:
+
+| Review # | Problem | Now |
+|---|---|---|
+| 1 | Two overlapping refetches could finish in the wrong order (old data last). | **One fetch at a time**; messages arriving meanwhile wait for the next one. |
+| 2 | Listening started only after the scene loaded; changes in between were lost. | Subscribe in `setup()`, **before** loading; ids are collected and applied once the scene is ready. |
+| 3 | A failed refetch dropped its slots and raised an unhandled error. | Ids go back in the queue; **retry after 5 s**. |
+| 7 | A steady stream (message every 100 ms) kept restarting the 150 ms wait: no refresh, ever. | **Throttle**, not debounce: an armed timer isn't restarted, so at most one refresh per 150 ms. |
+| 4 | A slot archived meanwhile kept its old box (the server no longer returns it). | `mergeSlotUpdates`: asked for but not returned → shown empty. |
+
+Also: **#5** reservations no longer trigger messages (the view doesn't show them); **#8** tour count
+checks use `:text(1)` (exact) instead of `:contains(1)` (which also matches "10" or "1 %");
+**#9** the bus test now uses the real *Physical Inventory ▸ Apply* path
+(`inventory_mode` + `action_apply_inventory`); **#10** one shared `create_p05()` helper in
+`tests/common.py` instead of six copies.
+
+**Debounce vs throttle** (general idea, worth knowing): *debounce* = "act once things go quiet"
+(good for search-as-you-type), *throttle* = "act at most every N ms" (good for streams that never go
+quiet). The test `a steady stream still refreshes every delay` fails if `live.js` is switched back
+to debounce — checked by temporarily doing exactly that.
+
+**Testing time without waiting.** Hoot replaces `setTimeout` with a fake clock in tests;
+`advanceTime(150)` jumps it forward instantly, and `Deferred` is a promise the test resolves by hand
+— that's how the "replies arrive in the wrong order" case is staged deterministically.
+
+**`onWillDestroy` vs `onWillUnmount`.** Unmount only happens for a component that was mounted. If
+loading the scene fails, the component is destroyed without ever mounting — so cleanup that must
+always run (unsubscribing from the bus) lives in `onWillDestroy`.
+
+**Not fixed, on purpose: #6.** Messages go to all Inventory users, in every company; each browser
+drops other warehouses' slots. In a multi-company database that's extra traffic and exposes bare
+location ids (no names or stock) across companies. Multi-company is out of scope for this project;
+the fix would be per-company channels.

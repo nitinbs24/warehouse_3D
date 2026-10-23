@@ -2,6 +2,8 @@ import json
 
 from odoo.tests import TransactionCase
 
+from .common import create_p05
+
 
 class TestStockBus(TransactionCase):
     """Stock changes in rack slots are announced on the bus, once per transaction."""
@@ -11,12 +13,7 @@ class TestStockBus(TransactionCase):
         super().setUpClass()
         cls.warehouse = cls.env.ref('stock.warehouse0')
         cls.stock = cls.warehouse.lot_stock_id
-        pr = cls.env['stock.location'].create({'name': 'PR', 'usage': 'internal', 'location_id': cls.stock.id})
-        cls.env['warehouse.rack.row'].create({
-            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
-            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
-            'warehouse_id': cls.warehouse.id, 'location_id': pr.id,
-        })
+        create_p05(cls.env, cls.warehouse)
         cls.slots = cls.env['stock.location'].search(
             [('name', 'in', ['P05-01-1-A', 'P05-01-1-B', 'P05-02-1-A'])], order='name')
         cls.product = cls.env['product.product'].create({'name': 'Rice 25 kg', 'is_storable': True})
@@ -68,11 +65,32 @@ class TestStockBus(TransactionCase):
         self.assertEqual(self._stock_notifications(), [])
 
     def test_inventory_adjustment_is_announced(self):
+        # The real path: Physical Inventory ▸ counted quantity ▸ Apply.
+        self._stock_notifications()
+        self.env['bus.bus'].sudo().search([]).unlink()
+        quant = self.env['stock.quant'].with_context(inventory_mode=True).create({
+            'product_id': self.product.id, 'location_id': self.slots[0].id, 'inventory_quantity': 4,
+        })
+        quant.action_apply_inventory()
+        self.assertEqual(quant.quantity, 4)
+        messages = self._stock_notifications()
+        self.assertEqual([m[1]['location_ids'] for m in messages], [[self.slots[0].id]])
+
+    def test_direct_quantity_update_is_announced(self):
         self._stock_notifications()
         self.env['bus.bus'].sudo().search([]).unlink()
         self.env['stock.quant']._update_available_quantity(self.product, self.slots[0], 4)
         messages = self._stock_notifications()
         self.assertEqual([m[1]['location_ids'] for m in messages], [[self.slots[0].id]])
+
+    def test_reservations_send_nothing(self):
+        # The 3D view doesn't show reservations, so they mustn't make every open view refetch.
+        self.env['stock.quant']._update_available_quantity(self.product, self.slots[0], 4)
+        self._stock_notifications()
+        self.env['bus.bus'].sudo().search([]).unlink()
+        quant = self.env['stock.quant'].search([('location_id', '=', self.slots[0].id)])
+        quant.reserved_quantity = 2
+        self.assertEqual(self._stock_notifications(), [])
 
     def test_moving_stock_between_slots_announces_both(self):
         self.env['stock.quant']._update_available_quantity(self.product, self.slots[0], 4)

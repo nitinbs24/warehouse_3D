@@ -122,6 +122,7 @@ venv19/bin/python odoo19/odoo-bin -c odoo19.conf -d wh3d_test --with-demo \
 | Quant hook fires many times per picking (one write per move line) | Med | Accumulate location ids per transaction, send once post-commit; test asserts one bus message for a multi-line receipt. |
 | Removing a slot that holds stock | High (data loss) | Refuse with a clear error (T3); archive, never delete, empty slots. |
 | Large scenes slow in browser | Low | InstancedMesh per part type, as the prototype already does at this size. |
+| Live-update messages go to all Inventory users in every company (each browser filters by warehouse) | Low (single company here) | Accepted: multi-company is out of scope; fix would be per-company bus channels. |
 | Uninstall leaves generated locations (records created by code persist; module fields drop) | Low | Documented in README; Inventory keeps working; locations can be archived manually. |
 
 ## Resolved questions (23 Oct 2026)

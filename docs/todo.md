@@ -184,6 +184,19 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `models/stock_quant.py`, `static/src/view3d/view3d_action.{js,xml}`, `__manifest__.py`, `tests/test_bus.py`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** S
 
+### T9b: Live-update review fixes *(added 23 Oct after the second `/code-review`)*
+**Description:** Fix review findings #1–#5, #7–#10 on the live updates (see `docs/notes.md` T9b); #6 deferred (multi-company out of scope).
+
+**Acceptance criteria:**
+- [x] `UpdateQueue`: collects before the scene loads, throttles, one fetch at a time, retries failed fetches; slots no longer returned are shown empty.
+- [x] Reservations send no bus message; the real Physical Inventory ▸ Apply path is tested; tour counts are exact; one shared test helper.
+
+**Verification:** done 23 Oct — Hoot `static/tests/live.test.js` 5 tests + `mergeSlotUpdates` 1 test (31 Hoot total); mutation check: switching `live.js` back to a restarting debounce fails the throttle test. `tests/test_bus.py` +2 (reservations silent; real Apply). Full run `0 failed, 0 error(s) of 83 tests`.
+*Not covered by a test:* the subscribe-before-load window (#2) — fixed by structure (subscribe in `setup()`), not reproduced in a browser.
+**Dependencies:** T9
+**Files:** `static/src/view3d/live.js`, `static/src/view3d/view3d_action.js`, `static/src/view3d/occupancy.js`, `models/stock_quant.py`, `tests/common.py`, `tests/test_bus.py`, `tests/test_view3d.py`, `static/tests/live.test.js`, `static/tests/occupancy.test.js`, `static/tests/tours/view3d_tour.js`
+**Scope:** M
+
 ### Checkpoint B
 - [ ] `TEST` green, nothing skipped
 - [ ] Manual: 3D view looks like the prototype with real rows; receipt in tab A appears live in tab B

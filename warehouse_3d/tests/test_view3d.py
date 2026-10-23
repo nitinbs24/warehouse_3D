@@ -4,6 +4,8 @@ from unittest.mock import patch
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tests.common import ChromeBrowser
 
+from .common import create_p05
+
 
 class TestView3dAssets(TransactionCase):
 
@@ -19,13 +21,7 @@ class TestView3dTour(HttpCase):
 
     def test_view3d_opens_leaves_and_reopens(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)  # the one the view opens by default
-        zone = self.env['stock.location'].create({
-            'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
-        self.env['warehouse.rack.row'].create({
-            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
-            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
-            'warehouse_id': warehouse.id, 'location_id': zone.id,
-        })
+        create_p05(self.env, warehouse)
         self.env['warehouse.layout.area'].create([
             {'name': 'Receiving', 'kind': 'area', 'x': 0.5, 'y': 25.0, 'width': 19.5, 'depth': 13.5,
              'warehouse_id': warehouse.id},
@@ -37,13 +33,7 @@ class TestView3dTour(HttpCase):
 
     def test_stock_panel_find_pick_and_open(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
-        zone = self.env['stock.location'].create({
-            'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
-        self.env['warehouse.rack.row'].create({
-            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
-            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
-            'warehouse_id': warehouse.id, 'location_id': zone.id,
-        })
+        create_p05(self.env, warehouse)
         rice = self.env['product.product'].create({
             'name': 'Basmati rice pallet', 'is_storable': True,
             'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.1,  # 1.32 m³ of a 2.673 m³ slot = 49 %
@@ -55,13 +45,7 @@ class TestView3dTour(HttpCase):
 
     def test_live_update_without_reload(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
-        zone = self.env['stock.location'].create({
-            'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
-        self.env['warehouse.rack.row'].create({
-            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
-            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
-            'warehouse_id': warehouse.id, 'location_id': zone.id,
-        })
+        create_p05(self.env, warehouse)
         self.env['product.product'].create({
             'name': 'Basmati rice pallet', 'is_storable': True,
             'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.1,

@@ -4,6 +4,7 @@ import {
     fillBand,
     legendCounts,
     loadBox,
+    mergeSlotUpdates,
     normalizeCode,
 } from "@warehouse_3d/view3d/occupancy";
 
@@ -96,5 +97,21 @@ describe("capacity and legend", () => {
 
     test("legend counts stocked slots per band", () => {
         expect(legendCounts(slots)).toEqual({ low: 1, mid: 1, high: 1, nodims: 1 });
+    });
+});
+
+describe("mergeSlotUpdates", () => {
+    test("replaces refetched slots and empties slots the server no longer returns", () => {
+        const slots = [
+            { location_id: 10, code: "A", stock: { fill: 0.4 } },
+            { location_id: 11, code: "B", stock: { fill: 0.9 } },
+            { location_id: 12, code: "C", stock: null },
+        ];
+        const index = new Map(slots.map((s, i) => [s.location_id, i]));
+        const changed = mergeSlotUpdates(slots, index, [10, 11, 99], [{ location_id: 10, code: "A", stock: null }]);
+        expect(slots[0].stock).toBe(null); // refetched
+        expect(slots[1].stock).toBe(null); // asked for, not returned (archived): shown empty
+        expect(slots[2].stock).toBe(null);
+        expect(changed).toBe(2); // 99 belongs to another warehouse: ignored
     });
 });

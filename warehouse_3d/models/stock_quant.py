@@ -15,7 +15,8 @@ class StockQuant(models.Model):
     def write(self, vals):
         before = self.location_id  # a quant moved to another location changes both
         res = super().write(vals)
-        if {'quantity', 'reserved_quantity', 'location_id', 'product_id'}.intersection(vals):
+        # Not reserved_quantity: the 3D view doesn't show reservations, so they'd only cause refetches.
+        if {'quantity', 'location_id', 'product_id'}.intersection(vals):
             self._wh3d_notify(before | self.location_id)
         return res
 
