@@ -9,6 +9,9 @@ EPS = 1e-6  # metres; floating-point slack for "touching" comparisons
 SHAPE_FIELDS = frozenset({'code', 'kind', 'bays', 'levels', 'slots_per_level'})
 # Fields whose change needs the location tree updated.
 SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
+# What the layout editor may change (wh3d_save_layout); anything else is refused.
+EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
+                           'slots_per_level'})
 
 
 def node_key(loc):
@@ -105,6 +108,8 @@ class WarehouseRackRow(models.Model):
 
     @api.constrains('x', 'y', 'bays', 'bay_width', 'depth', 'warehouse_id', 'active')
     def _check_layout(self):
+        if self.env.context.get('wh3d_defer_layout_check'):
+            return  # wh3d_save_layout checks the end state once all edits are applied
         self.env['stock.warehouse']._check_wh3d_contains(self)
         for row in self.filtered('active'):
             x0, y0, x1, y1 = row._wh3d_footprint()
@@ -156,6 +161,58 @@ class WarehouseRackRow(models.Model):
         # Locations are archived, never deleted: Inventory history (moves, counts) may point at them.
         self._nodes().write({'active': False})
         return super().unlink()
+
+    @api.model
+    def wh3d_save_layout(self, warehouse_id, changes):
+        """Apply the layout editor's edits in one go: all of them, or none.
+
+        ``changes`` = {'create': [{'tmp_id', 'vals'}], 'write': [{'id', 'vals'}], 'delete': [ids]}.
+        Only EDITOR_FIELDS may be set, and only rows of this warehouse touched. Overlaps and the
+        building bounds are checked on the final layout, so moves like swapping two rows work.
+        Returns {'created': {tmp_id: new id}, 'layout': the saved floor plan}.
+        """
+        warehouse = self.env['stock.warehouse'].browse(warehouse_id).exists()
+        if not warehouse:
+            raise UserError(self.env._("This warehouse no longer exists."))
+
+        def clean(vals):
+            refused = set(vals) - EDITOR_FIELDS
+            if refused:
+                raise UserError(self.env._(
+                    "The layout editor can't change these fields: %s", ", ".join(sorted(refused))))
+            return dict(vals)
+
+        def own(ids):
+            rows = self.browse(ids).exists()
+            if len(rows) != len(set(ids)) or rows.filtered(lambda r: r.warehouse_id != warehouse):
+                raise UserError(self.env._("Some rack rows were deleted meanwhile or belong to another warehouse."))
+            return rows
+
+        deferred = {'wh3d_defer_layout_check': True}
+        created = {}
+        # A savepoint makes the whole save atomic even for Python callers that catch the error.
+        with self.env.cr.savepoint():
+            own(changes.get('delete', [])).unlink()
+            touched = self.browse()
+            for change in changes.get('write', []):
+                row = own([change['id']])
+                row.with_context(**deferred).write(clean(change['vals']))
+                touched |= row
+            for change in changes.get('create', []):
+                vals = clean(change['vals'])
+                vals.update(warehouse_id=warehouse.id,
+                            location_id=self._wh3d_default_zone(warehouse, vals.get('kind', 'pallet')).id)
+                row = self.with_context(**deferred).create(vals)
+                created[change['tmp_id']] = row.id
+                touched |= row
+            self.browse(touched.ids)._check_layout()
+        return {'created': created, 'layout': warehouse.wh3d_get_layout()}
+
+    @api.model
+    def _wh3d_default_zone(self, warehouse, kind):
+        """Zone for a row added in the editor: where rows of the same kind already live, else WH/Stock."""
+        sibling = self.search([('warehouse_id', '=', warehouse.id), ('kind', '=', kind)], limit=1)
+        return sibling.location_id or warehouse.lot_stock_id
 
     def action_generate_locations(self):
         # The tree may have drifted (imports, scripts), so extras get the same stock check as an edit.

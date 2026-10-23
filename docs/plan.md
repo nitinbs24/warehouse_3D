@@ -96,7 +96,7 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 ### Phase 3 — 2D editor
 - [x] T10: Server-side layout constraints (bounds, overlap)
 - [x] T11: Editor client action — draw and select
-- [ ] T12: Editor — move, edit, add, delete, save
+- [x] T12: Editor — move, edit, add, delete, save
 - [ ] **Checkpoint C** — design a layout in the editor, see it in 3D, locations follow
 
 ### Phase 4 — Template warehouse + end-to-end

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tests.common import ChromeBrowser
 
-from .common import create_p05, template_rows
+from .common import create_p05, create_zone, template_rows
 
 
 class TestView3dAssets(TransactionCase):
@@ -65,6 +65,17 @@ class TestView3dTour(HttpCase):
     def test_walk_mode(self):
         create_p05(self.env, self.env['stock.warehouse'].search([], limit=1))  # lone row at x 9.7
         self.start_tour('/odoo', 'warehouse_3d_walk', login='admin')
+
+
+    def test_editor_move_add_refuse_and_guard(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        zone = create_zone(self.env, warehouse)
+        create_p05(self.env, warehouse, zone)                          # x 9.7
+        create_p05(self.env, warehouse, zone, code='P06', x=20.5)
+        product = self.env['product.product'].create({'name': 'Rice', 'is_storable': True})
+        slot = self.env['stock.location'].search([('name', '=', 'P05-07-1-A')])
+        self.env['stock.quant']._update_available_quantity(product, slot, 3)
+        self.start_tour('/odoo', 'warehouse_3d_editor_edit', login='admin')
 
 
 @tagged('wh3d_screenshot', '-standard')

@@ -258,13 +258,14 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Make the editor edit.
 
 **Acceptance criteria:**
-- [ ] Drag a row (0.1 m snap); edit fields in the panel; "Add row" (pallet/shelf defaults from the template) at a free spot; delete with confirmation. Overlap/out-of-bounds shown red immediately (client mirror of T10).
-- [ ] Save writes all changes in one ORM call; server errors (T10, T3 stock guard) shown in a notification and nothing is half-saved. Unsaved-changes warning on leaving.
-- [ ] After save, locations reflect the changes (via T3) and the 3D view shows the new layout.
+- [x] Drag a row (0.1 m snap); edit fields in the panel; "Add row" (pallet/shelf defaults from the template) at a free spot; delete with confirmation. Overlap/out-of-bounds shown red immediately (client mirror of T10).
+- [x] Save writes all changes in one ORM call; server errors (T10, T3 stock guard) shown in a notification and nothing is half-saved. Unsaved-changes warning on leaving.
+- [x] After save, locations reflect the changes (via T3) and the 3D view shows the new layout.
 
-**Verification:** Hoot — snap, client overlap check agrees with T10 cases. Tour: drag P05 0.5 m, save, reopen → moved; add row → its slot locations exist; shrink a row holding stock → error, layout unchanged.
+**Verification:** done 23 Oct — `tests/test_layout_save.py` 10 tests (move+edit, create with ids and locations, default zones, delete, swap allowed, overlap refuses all, stock guard refuses all, field whitelist, other warehouse refused, stock user refused). Hoot `static/tests/layout_edit.test.js` 11 tests (68 Hoot total); mutation check: counting touching rows as overlapping fails the back-to-back test. Tour `warehouse_3d_editor_edit` (44 steps): drag P05 0.5 m → save → stays; overlap shown red + Save disabled → Discard; add pallet row P07 → save → 70 slot locations; shrink P05 under stock → "Layout not saved … P05-07-1-A", edit kept; leaving asks, Cancel stays; reopen shows saved state. Screenshot `docs/screenshots/t12-layout-editor-editing.png`. Full run `0 failed, 0 error(s) of 109 tests`.
+*Not covered by a test:* the browser's own tab-close warning (`beforeunload` can't be driven from a tour); arrow-key nudging (same `snap` maths as dragging).
 **Dependencies:** T11, T10, T3
-**Files:** `static/src/editor/editor_action.{js,xml}`, `static/src/editor/geometry.js`, `models/warehouse_rack_row.py` (batch save method), `static/tests/editor_geometry.test.js`, `static/tests/tours/editor_tour.js`
+**Files:** `static/src/editor/editor_action.{js,xml,scss}`, `static/src/editor/layout_edit.js`, `models/warehouse_rack_row.py`, `tests/test_layout_save.py`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
 
 ### Checkpoint C

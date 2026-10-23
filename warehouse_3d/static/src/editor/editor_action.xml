@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="warehouse_3d.LayoutEditor">
-        <div class="o_wh3d_editor" t-on-keydown="onKeydown">
+        <t t-set="rowProblems" t-value="problems"/>
+        <div class="o_wh3d_editor" t-on-keydown="onKeydown" t-att-data-dirty="dirty ? '1' : '0'">
             <div class="o_wh3d_editor_main">
                 <svg t-ref="plan" class="o_wh3d_plan" role="group" aria-label="Floor plan"
                      t-on-wheel="onWheel" t-on-pointerdown="onPointerDown"
@@ -23,11 +24,15 @@
                             <text t-if="area.kind === 'area'" t-att-x="r.x + r.w / 2" t-att-y="r.y + r.h / 2"
                                   text-anchor="middle" dominant-baseline="middle" t-esc="area.name"/>
                         </g>
-                        <g t-foreach="layout.rows" t-as="row" t-key="row.id"
-                           class="o_wh3d_row" t-att-class="{ o_selected: state.selectedId === row.id, o_shelf: row.kind === 'shelf' }"
+                        <g t-foreach="state.rows" t-as="row" t-key="row.id"
+                           class="o_wh3d_row"
+                           t-att-class="{ o_selected: state.selectedId === row.id, o_shelf: row.kind === 'shelf', o_invalid: rowProblems[row.id], o_new: row.id &lt; 0 }"
                            t-att-data-code="row.code" tabindex="0" role="button"
-                           t-att-aria-label="'Rack row ' + row.code" t-att-aria-pressed="state.selectedId === row.id ? 'true' : 'false'"
-                           t-on-click="() => this.selectRow(row)" t-on-focus="() => this.selectRow(row)">
+                           t-att-aria-label="'Rack row ' + row.code + (rowProblems[row.id] ? ': ' + rowProblems[row.id] : '')"
+                           t-att-aria-pressed="state.selectedId === row.id ? 'true' : 'false'"
+                           t-on-pointerdown="(ev) => this.onRowPointerDown(ev, row)"
+                           t-on-click="() => this.selectRow(row)" t-on-focus="() => this.selectRow(row)"
+                           t-on-keydown="(ev) => this.onRowKeydown(ev, row)">
                             <t t-set="r" t-value="rowRect(row)"/>
                             <rect t-att-x="r.x" t-att-y="r.y" t-att-width="r.w" t-att-height="r.h"
                                   vector-effect="non-scaling-stroke"/>
@@ -38,39 +43,73 @@
                     </g>
                 </svg>
                 <div class="o_wh3d_editor_toolbar">
+                    <button type="button" class="btn btn-light btn-sm" name="add_pallet" t-on-click="() => this.addRow('pallet')">
+                        <i class="fa fa-plus" aria-hidden="true"/> Pallet row
+                    </button>
+                    <button type="button" class="btn btn-light btn-sm" name="add_shelf" t-on-click="() => this.addRow('shelf')">
+                        <i class="fa fa-plus" aria-hidden="true"/> Shelf row
+                    </button>
                     <button type="button" class="btn btn-light btn-sm" name="fit" t-on-click="onFitClick">Fit to screen</button>
                 </div>
-                <p class="o_wh3d_hint">Scroll to zoom · drag the floor to pan · click or Tab to a row · Esc clears</p>
+                <p class="o_wh3d_hint">Scroll to zoom · drag the floor to pan · drag a row to move it (0.1 m steps) · arrow keys nudge · Esc clears</p>
             </div>
 
             <aside class="o_wh3d_editor_panel">
+                <section class="o_wh3d_card o_wh3d_savebar" t-att-class="{ o_dirty: dirty }">
+                    <p class="o_wh3d_note" t-if="!dirty">All changes saved.</p>
+                    <p class="o_wh3d_note" t-else="">Unsaved changes. Nothing is stored until you save.</p>
+                    <ul t-if="problemList.length" class="o_wh3d_problems" role="alert">
+                        <li t-foreach="problemList" t-as="problem" t-key="problem_index" t-esc="problem"/>
+                    </ul>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" name="save"
+                                t-att-disabled="!dirty or problemList.length or state.saving" t-on-click="save">Save</button>
+                        <button type="button" class="btn btn-secondary btn-sm" name="discard"
+                                t-att-disabled="!dirty or state.saving" t-on-click="discard">Discard</button>
+                    </div>
+                </section>
+
                 <section class="o_wh3d_card">
                     <p class="o_wh3d_label">Rack row</p>
                     <t t-if="selectedRow">
                         <t t-set="row" t-value="selectedRow"/>
                         <p class="o_wh3d_code" t-esc="row.code"/>
-                        <dl class="o_wh3d_kv">
-                            <div><dt>Kind</dt><dd data-field="kind" t-esc="row.kind === 'pallet' ? 'Pallet rack' : 'Shelving'"/></div>
-                            <div><dt>X / Y (m)</dt><dd data-field="xy"><t t-esc="metres(row.x)"/> / <t t-esc="metres(row.y)"/></dd></div>
-                            <div><dt>Bays</dt><dd data-field="bays" t-esc="row.bays"/></div>
-                            <div><dt>Bay width (m)</dt><dd data-field="bay_width" t-esc="metres(row.bay_width)"/></div>
-                            <div><dt>Depth (m)</dt><dd data-field="depth" t-esc="metres(row.depth)"/></div>
-                            <div><dt>Levels</dt><dd data-field="levels" t-esc="row.levels"/></div>
-                            <div><dt>Level height (m)</dt><dd data-field="level_height" t-esc="metres(row.level_height)"/></div>
-                            <div><dt>Slots per level</dt><dd data-field="slots_per_level" t-esc="row.slots_per_level"/></div>
-                        </dl>
+                        <p t-if="rowProblems[row.id]" class="o_wh3d_err" t-esc="rowProblems[row.id]"/>
+                        <div class="o_wh3d_fields">
+                            <label for="o_wh3d_f_code">Code</label>
+                            <input id="o_wh3d_f_code" name="code" class="form-control form-control-sm" t-att-value="row.code"
+                                   t-on-change="(ev) => this.onFieldInput('code', ev)"/>
+                            <label for="o_wh3d_f_kind">Kind</label>
+                            <select id="o_wh3d_f_kind" name="kind" class="form-select form-select-sm"
+                                    t-on-change="(ev) => this.onFieldInput('kind', ev)">
+                                <option value="pallet" t-att-selected="row.kind === 'pallet'">Pallet rack</option>
+                                <option value="shelf" t-att-selected="row.kind === 'shelf'">Shelving</option>
+                            </select>
+                            <t t-foreach="[['x', 'X (m)', 0.1], ['y', 'Y (m)', 0.1], ['bays', 'Bays', 1], ['bay_width', 'Bay width (m)', 0.1], ['depth', 'Depth (m)', 0.1], ['levels', 'Levels', 1], ['level_height', 'Level height (m)', 0.1], ['slots_per_level', 'Slots per level', 1]]"
+                               t-as="f" t-key="f[0]">
+                                <label t-att-for="'o_wh3d_f_' + f[0]" t-esc="f[1]"/>
+                                <input t-att-id="'o_wh3d_f_' + f[0]" t-att-name="f[0]" type="number" min="0" t-att-step="f[2]"
+                                       class="form-control form-control-sm" t-att-value="row[f[0]]"
+                                       t-att-disabled="f[0] === 'slots_per_level' and row.kind === 'shelf'"
+                                       t-on-change="(ev) => this.onFieldInput(f[0], ev)"/>
+                            </t>
+                        </div>
                         <div class="d-flex gap-2 flex-wrap">
-                            <button type="button" class="btn btn-primary btn-sm" name="view_in_3d" t-on-click="viewIn3d">View in 3D</button>
-                            <button type="button" class="btn btn-secondary btn-sm" name="open_form" t-on-click="openRowForm">Open record</button>
+                            <button type="button" class="btn btn-secondary btn-sm" name="view_in_3d"
+                                    t-att-disabled="row.id &lt; 0 or dirty" t-on-click="viewIn3d"
+                                    t-att-title="dirty ? 'Save first' : ''">View in 3D</button>
+                            <button type="button" class="btn btn-secondary btn-sm" name="open_form"
+                                    t-att-disabled="row.id &lt; 0" t-on-click="openRowForm">Open record</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" name="delete" t-on-click="deleteRow">Delete</button>
                         </div>
                     </t>
-                    <p t-else="" class="o_wh3d_note">Click a rack row on the plan, or Tab to one.</p>
+                    <p t-else="" class="o_wh3d_note">Click a rack row on the plan, or Tab to one. Add rows with the buttons above the plan.</p>
                 </section>
                 <section class="o_wh3d_card">
                     <p class="o_wh3d_label">Floor</p>
                     <p class="o_wh3d_note">
                         Building <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m ·
-                        <t t-esc="layout.rows.length"/> rack rows · <t t-esc="layout.areas.length"/> areas and docks
+                        <t t-esc="state.rows.length"/> rack rows · <t t-esc="layout.areas.length"/> areas and docks
                     </p>
                 </section>
             </aside>

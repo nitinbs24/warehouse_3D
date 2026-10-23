@@ -642,3 +642,44 @@ pointer isn't locked, so Esc and the side panel keep working.
 **Testing state without re-rendering.** The tour needs to know where the walker is, but OWL state
 changes re-render the component — 60 times a second while walking would be wasteful. So the walker's
 x/y are written straight onto the DOM (`data-walk-x`) and only the walk/orbit mode is OWL state.
+
+## T12: Editing the layout — move, edit, add, delete, save
+
+Files: `models/warehouse_rack_row.py` (`wh3d_save_layout`, `_wh3d_default_zone`, deferred
+`_check_layout`), `static/src/editor/layout_edit.js` (pure), `static/src/editor/editor_action.{js,xml,scss}`,
+`tests/test_layout_save.py`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`
+(`warehouse_3d_editor_edit`), `docs/screenshots/t12-layout-editor-editing.png`.
+
+**Edit locally, save once.** Nothing reaches the server while you drag or type. The editor keeps the
+rows as loaded (`original`) and a working copy (`state.rows`); `diffLayout` turns the difference into
+`{create, write, delete}`, and **Save** sends it in **one** call. New rows get negative ids until saved;
+the server answers with `{created: {tmp id: real id}, layout}` and the editor reloads from that.
+
+**All or nothing.** One RPC = one database transaction, so if anything fails (an overlap, a row
+shrunk over stock) Odoo rolls the whole save back. `wh3d_save_layout` also wraps its work in
+`cr.savepoint()`, so even Python code that calls it and catches the error doesn't keep half of it.
+The edits stay on screen with the server's message, so you can fix and retry.
+
+**Check the end state, not each step.** Swapping two rows means one of them overlaps the other
+half-way through. During the save, a context flag (`wh3d_defer_layout_check`) makes the overlap/bounds
+constraint skip, and it runs once at the end on every touched row.
+
+**A trust boundary.** The browser can send anything, so the server accepts only the layout fields
+(`EDITOR_FIELDS`), only rows of that warehouse, and the normal access rights still apply (Inventory
+users can't save). New rows go into the zone where rows of the same kind already live, else `WH/Stock`.
+
+**Same rules, twice, on purpose.** `layout_edit.js` repeats the overlap/inside-the-building rule so a
+row turns red the moment you drag it onto another and Save is disabled; the server rule is the one
+that counts. Their tests use the same cases (touching OK, 0.5 m overlap refused, different stretch OK).
+
+**Dragging a row.** Pointer down on a row, move: the row's new position is its start plus
+(mouse movement ÷ pixels-per-metre), snapped to 0.1 m. Arrow keys nudge the focused row 0.1 m
+(Shift: 1 m) — the keyboard way to do the same.
+
+**Fields commit on change, not per keystroke.** The first version updated the row on every key and
+re-rendered the box, which wiped a half-typed "10." (not yet a number) — found by the tour. Fields now
+apply on Enter, leaving the field, or a spinner click (`change` event).
+
+**Unsaved changes guard.** `useSetupAction({ beforeLeave, beforeUnload })` (from `@web/search/action_hook`)
+is how Odoo client actions hook into navigation: `beforeLeave` returning `false` keeps you on the page
+(we ask with a `ConfirmationDialog`), and `beforeUnload` makes the browser warn before closing the tab.

@@ -8,6 +8,7 @@ $wh3d-ed-dock: #e3a22b;
 $wh3d-ed-steel: #3e5c7a;
 $wh3d-ed-shelf: #96a3b0;
 $wh3d-ed-accent: #e0701b;
+$wh3d-ed-invalid: #b3261e;
 
 .o_wh3d_editor {
     display: grid;
@@ -43,6 +44,8 @@ $wh3d-ed-accent: #e0701b;
     position: absolute;
     top: 12px;
     right: 12px;
+    display: flex;
+    gap: 6px;
 }
 
 .o_wh3d_plan {
@@ -129,6 +132,19 @@ $wh3d-ed-accent: #e0701b;
         &.o_selected text {
             fill: $wh3d-ed-accent;
         }
+
+        &.o_new rect {
+            stroke-dasharray: 4 3; // not saved yet
+            stroke: $wh3d-ed-accent;
+            stroke-opacity: 0.8;
+        }
+
+        // Last, so a problem always shows, even on the selected row.
+        &.o_invalid rect {
+            fill: $wh3d-ed-invalid;
+            stroke: $wh3d-ed-invalid;
+            stroke-opacity: 1;
+        }
     }
 }
 
@@ -142,5 +158,29 @@ $wh3d-ed-accent: #e0701b;
 
     p {
         margin: 0;
+    }
+}
+
+.o_wh3d_savebar.o_dirty {
+    border-color: $wh3d-ed-accent;
+}
+
+.o_wh3d_problems {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: $wh3d-ed-invalid;
+}
+
+.o_wh3d_fields {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 10px;
+    align-items: center;
+
+    label {
+        margin: 0;
+        font-size: 13px;
+        color: $o-gray-700;
     }
 }

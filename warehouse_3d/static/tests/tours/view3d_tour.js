@@ -219,7 +219,7 @@ registry.category("web_tour.tours").add("warehouse_3d_editor", {
             content: "Panel shows P05's fields, the row is highlighted",
             trigger: ".o_wh3d_editor_panel .o_wh3d_code:text(P05)",
         },
-        { trigger: ".o_wh3d_editor_panel dd[data-field='bays']:text(7)" },
+        { trigger: ".o_wh3d_editor_panel input[name='bays']:value(7)" },
         { trigger: ".o_wh3d_editor svg .o_wh3d_row.o_selected[data-code='P05']" },
         {
             content: "Esc deselects",
@@ -354,5 +354,118 @@ registry.category("web_tour.tours").add("warehouse_3d_walk_screenshot", {
                 await wait(500);
             },
         },
+    ],
+});
+
+function clickSvgRow(code) {
+    return {
+        content: `Select row ${code}`,
+        trigger: `.o_wh3d_editor svg .o_wh3d_row[data-code='${code}']`,
+        run() {
+            this.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        },
+    };
+}
+
+/** Drag a row on the plan by (mx, my) metres, using the plan's current scale. */
+function dragRow(code, mx, my) {
+    return {
+        content: `Drag ${code} by ${mx} m, ${my} m`,
+        trigger: `.o_wh3d_editor svg .o_wh3d_row[data-code='${code}']`,
+        run() {
+            const svg = this.anchor.closest("svg");
+            const scale = Number(svg.querySelector("g").getAttribute("transform").match(/scale\(([\d.]+)\)/)[1]);
+            const box = this.anchor.getBoundingClientRect();
+            const start = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+            const ev = (x, y, buttons) => ({ bubbles: true, clientX: x, clientY: y, button: 0, buttons,
+                pointerId: 1, pointerType: "mouse", isPrimary: true });
+            this.anchor.dispatchEvent(new PointerEvent("pointerdown", ev(start.x, start.y, 1)));
+            for (let i = 1; i <= 5; i++) {
+                svg.dispatchEvent(new PointerEvent("pointermove",
+                    ev(start.x + (mx * scale * i) / 5, start.y + (my * scale * i) / 5, 1)));
+            }
+            svg.dispatchEvent(new PointerEvent("pointerup", ev(start.x + mx * scale, start.y + my * scale, 0)));
+        },
+    };
+}
+
+/** Type a value into a panel field and commit it (as Enter or Tab would). */
+function setField(name, value) {
+    return {
+        content: `Set ${name} to ${value}`,
+        trigger: `.o_wh3d_editor_panel [name='${name}']`,
+        run() {
+            this.anchor.value = String(value);
+            this.anchor.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+    };
+}
+
+function openEditor() {
+    return [
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_editor']", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_row" },
+    ];
+}
+
+registry.category("web_tour.tours").add("warehouse_3d_editor_edit", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        // 1. Drag P05 half a metre to the right, save, and see it stick.
+        clickSvgRow("P05"),
+        dragRow("P05", 0.5, 0),
+        { trigger: ".o_wh3d_editor[data-dirty='1'] .o_wh3d_editor_panel input[name='x']:value(10.2)" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']" },
+        // 2. A move onto another row is shown at once and can't be saved.
+        clickSvgRow("P06"),
+        setField("x", 10.5),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row.o_invalid[data-code='P06']" },
+        { trigger: ".o_wh3d_problems:contains(P06 overlaps P05)" },
+        { trigger: ".o_wh3d_savebar button[name='save']:disabled" },
+        { trigger: ".o_wh3d_savebar button[name='discard']", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']:not(:has(.o_invalid))" },
+        // 3. Add a pallet row and save: it gets its locations.
+        { trigger: ".o_wh3d_editor_toolbar button[name='add_pallet']", run: "click" },
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row.o_new.o_selected[data-code='P07']" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_row:not(.o_new)[data-code='P07']" },
+        {
+            content: "P07's slot locations exist",
+            trigger: ".o_wh3d_editor",
+            async run() {
+                const count = await rpc("/web/dataset/call_kw/stock.location/search_count", {
+                    model: "stock.location", method: "search_count",
+                    args: [[["name", "=like", "P07-%"], ["wh3d_node", "=", "slot"]]], kwargs: {},
+                });
+                if (count !== 70) {
+                    throw new Error(`expected 70 P07 slots, found ${count}`);
+                }
+            },
+        },
+        // 4. Shrinking P05 under its stock: the server refuses, nothing is saved, the edit stays.
+        clickSvgRow("P05"),
+        setField("bays", 6),
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout not saved):contains(P05-07-1-A)" },
+        { trigger: ".o_wh3d_editor[data-dirty='1'] .o_wh3d_editor_panel input[name='bays']:value(6)" },
+        // 5. Leaving with unsaved edits asks first; Cancel stays.
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".modal:contains(Discard layout changes?) button:contains(Cancel)", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1']" },
+        { trigger: ".o_wh3d_savebar button[name='discard']", run: "click" },
+        // 6. Reopen: the saved move and the new row are there, the refused shrink isn't.
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".o_wh3d_view .o_wh3d_canvas canvas" },
+        ...openEditor(),
+        clickSvgRow("P05"),
+        { trigger: ".o_wh3d_editor_panel input[name='x']:value(10.2)" },
+        { trigger: ".o_wh3d_editor_panel input[name='bays']:value(7)" },
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P07']" },
     ],
 });
