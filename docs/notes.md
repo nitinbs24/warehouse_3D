@@ -62,6 +62,10 @@ methods loop `for row in self`.
 `wh3d_*` columns to Inventory's existing location table. Every Inventory feature keeps working on
 the same records. Prefix your fields (`wh3d_`) so they never clash with Odoo's or other modules'.
 `wh3d_node` says what a generated location is (row / bay / level / slot); T2 fills these in.
+Location types: in code `usage='view'` is a grouping location that holds no stock itself; the UI
+labels it **Virtual** in Odoo 19. `usage='internal'` (UI: Internal) is a real storage place.
+Catch: a `view` location's full name is just its own name — the path restarts there
+(`stock_location.py:127`). So zones like `PR` and every generated rack node are `internal`.
 
 **Two kinds of validation.**
 - `models.Constraint('CHECK(...)' or 'UNIQUE(...)', message)` becomes a real PostgreSQL constraint.

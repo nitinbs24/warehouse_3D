@@ -48,7 +48,7 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Creating a rack row builds its `stock.location` subtree (decision 4 in the plan). A form button "Regenerate locations" exists for repair.
 
 **Acceptance criteria:**
-- [ ] P05 (7 bays × 5 levels × 2) → exactly 70 internal slot locations `P05-01-1-A … P05-07-5-B`, full name `WH/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A`; intermediates are `view`; slots carry indices and the row's storage category.
+- [ ] P05 (7 bays × 5 levels × 2) → exactly 70 internal slot locations `P05-01-1-A … P05-07-5-B`, full name `WH/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A`; all nodes `internal` (a `view` node would cut the path); only slots carry the row's storage category; all carry indices and `wh3d_node`. A "Closest location" putaway rule on the zone puts stock into a slot, never a bay/level node.
 - [ ] Shelf S04 (16 × 5) → 80 slots `S04-01-1 … S04-16-5`, path `WH/Stock/SH/S04/S04-10/S04-10-3`.
 - [ ] Generating twice is idempotent (no duplicates). 14 pallet rows generate in < 30 s (timed test).
 
