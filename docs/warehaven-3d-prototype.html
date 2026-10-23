@@ -1,0 +1,475 @@
+<title>Warehaven Template DC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Semi+Condensed:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working viewer (the warehouse) beside an inspector panel, like an Odoo client action with a side form */
+:root {
+  --bg: #EEF1F3; --surface: #FFFFFF; --fg: #1B2430; --muted: #5B6676; --line: #D3D9E0;
+  --accent: #E0701B; --accent-ink: #A24A08; --on-accent: #1E1206;
+  --steel: #3E5C7A; --scene-bg: #E3E8ED; --floor: #D3D9DF; --floor-grid: #BCC4CD; --curb: #8A96A4;
+  --zone: #C3D0DC; --dock: #E3A22B; --deck: #96A3B0; --wood: #B88A57;
+  --cls-a: #1F8A70; --cls-b: #CF9B12; --cls-c: #7A8799; --danger: #B3261E;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161C; --surface: #18202A; --fg: #E6EBF0; --muted: #93A0B0; --line: #2A3542;
+    --accent: #F08A3A; --accent-ink: #F6AE73; --on-accent: #1E1206;
+    --steel: #7E9BB8; --scene-bg: #0F141A; --floor: #1C242E; --floor-grid: #2C3846; --curb: #46546A;
+    --zone: #24384B; --dock: #C98A22; --deck: #5E6B79; --wood: #8E6B45;
+    --cls-a: #3BB08F; --cls-b: #E0B640; --cls-c: #8693A5; --danger: #F2827A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161C; --surface: #18202A; --fg: #E6EBF0; --muted: #93A0B0; --line: #2A3542;
+  --accent: #F08A3A; --accent-ink: #F6AE73; --on-accent: #1E1206;
+  --steel: #7E9BB8; --scene-bg: #0F141A; --floor: #1C242E; --floor-grid: #2C3846; --curb: #46546A;
+  --zone: #24384B; --dock: #C98A22; --deck: #5E6B79; --wood: #8E6B45;
+  --cls-a: #3BB08F; --cls-b: #E0B640; --cls-c: #8693A5; --danger: #F2827A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); }
+.page { max-width: 1320px; margin: 0 auto; padding-block: 20px 36px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); margin: 0; }
+h1 { font: 600 clamp(26px, 3.6vw, 36px)/1.1 var(--f-display); margin: 8px 0 6px; text-wrap: balance; letter-spacing: -.005em; }
+.sub { color: var(--muted); margin: 0; max-width: 72ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.viewer-col { display: grid; gap: 12px; min-width: 0; }
+.viewer { position: relative; height: clamp(420px, 70vh, 760px); border-radius: 12px; overflow: hidden; background: var(--scene-bg); border: 1px solid var(--line); }
+.viewer canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.toolbar { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+.toolbar > * { pointer-events: auto; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { font: 500 13px var(--f-body); border: 0; background: transparent; color: var(--muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.chk { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--fg); cursor: pointer; }
+.chk input { accent-color: var(--accent); margin: 0; }
+.hint { position: absolute; left: 12px; bottom: 12px; right: 12px; margin: 0; font: 12px/1.4 var(--f-mono); color: var(--muted); pointer-events: none; }
+.fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.label { font: 500 11px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.code { font: 500 26px/1.1 var(--f-mono); margin: 0; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.path { font: 12px/1.45 var(--f-mono); color: var(--muted); margin: 0; overflow-wrap: anywhere; }
+.kv { display: grid; gap: 0; margin: 0; }
+.kv div { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding: 7px 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.contents { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; background: var(--bg); border-radius: 8px; padding: 12px; }
+.contents .pname { margin: 0; font-weight: 500; }
+.contents .psku { margin: 0; grid-column: 2; font: 12px var(--f-mono); color: var(--muted); }
+.empty { margin: 0; background: var(--bg); border-radius: 8px; padding: 12px; color: var(--muted); }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.sw.a { background: var(--cls-a); } .sw.b { background: var(--cls-b); } .sw.c { background: var(--cls-c); }
+.find-row { display: flex; gap: 8px; }
+.find-row input { flex: 1; min-width: 0; font: 14px var(--f-mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); text-transform: uppercase; }
+.find-row input::placeholder { color: var(--muted); text-transform: none; }
+.find-row button { font: 500 14px var(--f-body); padding: 8px 14px; border-radius: 8px; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.err { margin: 0; font-size: 13px; color: var(--danger); }
+table.cap { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cap th { font: 500 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: right; padding: 0 0 6px; }
+.cap th:first-child, .cap td:first-child { text-align: left; }
+.cap td { text-align: right; border-top: 1px solid var(--line); padding: 7px 0; }
+.cap td small { color: var(--muted); font-size: 12px; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.legend .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.note { margin: 0; color: var(--muted); font-size: 14px; }
+details.record { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; min-width: 0; }
+details.record summary { cursor: pointer; font-weight: 500; }
+details.record pre { margin: 10px 0 0; font: 12.5px/1.55 var(--f-mono); overflow-x: auto; color: var(--fg); }
+details.record p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Warehaven · Odoo 19 prototype</p>
+    <h1>Template distribution center</h1>
+    <p class="sub">60 m × 40 m, 10 m clear height, U-flow docks. Every rack, beam and slot below is generated in code from 31 rack-row records. Nothing is hand-modelled.</p>
+  </header>
+
+  <main class="grid">
+    <section class="viewer-col">
+      <div class="viewer" id="viewer">
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Camera view">
+            <button type="button" id="btn-3d" aria-pressed="true">3D</button>
+            <button type="button" id="btn-top" aria-pressed="false">Top</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="tg-stock" checked> Stock</label>
+          <label class="chk"><input type="checkbox" id="tg-labels" checked> Labels</label>
+        </div>
+        <p class="hint">Drag to orbit · scroll or pinch to zoom · right-drag to pan · click any slot</p>
+      </div>
+      <details class="record">
+        <summary>The rack-row record that draws row P05</summary>
+        <pre id="record-json"></pre>
+        <p>These ten numbers produce 8 upright pairs, 4 beam levels, 70 pallet positions and 70 Odoo locations. In the Odoo module this is one record of your layout model.</p>
+      </details>
+    </section>
+
+    <aside class="panel">
+      <section class="card" id="detail" aria-live="polite">
+        <p class="label">Selected location</p>
+        <p class="note">Loading the layout…</p>
+      </section>
+
+      <form class="card" id="find-form" novalidate>
+        <label class="label" for="find">Find a location</label>
+        <div class="find-row">
+          <input id="find" name="find" placeholder="e.g. P05-03-2-A" autocomplete="off" spellcheck="false">
+          <button type="submit">Go</button>
+        </div>
+        <p class="err" id="find-err" hidden></p>
+      </form>
+
+      <section class="card">
+        <p class="label">Capacity</p>
+        <table class="cap">
+          <thead><tr><th>Type</th><th>Total</th><th>Used</th></tr></thead>
+          <tbody id="cap-body"></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <p class="label">Stock by ABC class</p>
+        <ul class="legend" id="legend"></ul>
+        <p class="note">Stock is placed at random here. That's the baseline your putaway strategies should beat.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const viewer = document.getElementById('viewer');
+  function fail(msg) {
+    const d = document.createElement('div'); d.className = 'fallback'; d.textContent = msg; viewer.appendChild(d);
+  }
+  if (!window.THREE || !THREE.OrbitControls) { fail('The 3D library did not load. Reload the page to try again.'); return; }
+
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const rand = mulberry32(20261023);
+  const toX = x => x - 30, toZ = y => y - 20;
+
+  /* ---------- Layout records (what your Odoo layout model would store) ---------- */
+  const rows = [];
+  [0.2, 4.3, 5.6, 9.7, 11.0, 15.1, 16.4, 20.5, 21.8, 25.9, 27.2, 31.3, 32.6, 36.7].forEach((x, i) =>
+    rows.push({ code: 'P' + pad(i + 1), kind: 'pallet', x, y: 1.0, bays: 7, bayW: 2.7, depth: 1.1, levels: 5, levelH: 1.8, slots: 2 }));
+  const shelfX = []; for (let k = 0; k < 8; k++) shelfX.push(+(39.6 + 2.4 * k).toFixed(1), +(40.2 + 2.4 * k).toFixed(1)); shelfX.push(59.0);
+  shelfX.forEach((x, i) =>
+    rows.push({ code: 'S' + pad(i + 1), kind: 'shelf', x, y: 2.0, bays: 16, bayW: 1.0, depth: 0.6, levels: 5, levelH: 0.4, slots: 1 }));
+
+  const zones = [
+    { name: 'Receiving', x: 0.5, y: 25, w: 19.5, d: 13.5 },
+    { name: 'Charging', x: 21, y: 25, w: 8, d: 5.5 },
+    { name: 'Office', x: 21, y: 31.5, w: 8, d: 8 },
+    { name: 'Packing', x: 30, y: 25, w: 9, d: 8 },
+    { name: 'Shipping', x: 40, y: 25, w: 19.5, d: 13.5 }
+  ];
+  const docks = [3, 8, 13, 44, 49, 54];
+
+  const catalog = {
+    pallet: {
+      A: [['PR-1001', 'Basmati rice 25 kg', 'bags', 36, 48], ['PR-1002', 'Sunflower oil 15 L tin', 'tins', 40, 56], ['PR-1003', 'Drinking water 1 L ×12', 'cases', 60, 84]],
+      B: [['PR-2001', 'Wheat flour 10 kg', 'bags', 60, 90], ['PR-2002', 'Detergent powder 1 kg ×12', 'cases', 48, 64], ['PR-2003', 'Glucose biscuits ×48', 'cases', 70, 100], ['PR-2004', 'Instant noodles ×96', 'cases', 60, 80]],
+      C: [['PR-3001', 'Paper towel rolls ×24', 'cases', 30, 40], ['PR-3002', 'Floor cleaner 5 L', 'cans', 80, 120], ['PR-3003', 'Toilet soap ×72', 'cases', 50, 70], ['PR-3004', 'Aluminium foil rolls ×24', 'cases', 40, 60], ['PR-3005', 'Garbage bags ×50', 'cases', 60, 90]]
+    },
+    shelf: {
+      A: [['SH-1001', 'Toothpaste 150 g', 'units', 24, 72], ['SH-1002', 'USB-C charger 20 W', 'units', 12, 36], ['SH-1003', 'AA batteries 4-pack', 'units', 30, 60]],
+      B: [['SH-2001', 'Shampoo 340 ml', 'units', 18, 36], ['SH-2002', 'Garam masala 100 g', 'units', 30, 60], ['SH-2003', 'Coconut hair oil 200 ml', 'units', 24, 48], ['SH-2004', 'Wired earphones', 'units', 10, 30]],
+      C: [['SH-3001', 'LED bulb 9 W', 'units', 20, 40], ['SH-3002', 'Ballpoint pens 10-pack', 'units', 15, 40], ['SH-3003', 'A5 notebook', 'units', 20, 50], ['SH-3004', 'Phone case, assorted', 'units', 8, 24], ['SH-3005', 'Instant coffee 50 g', 'units', 24, 48]]
+    }
+  };
+  const pickCls = () => { const r = rand(); return r < 0.2 ? 'A' : r < 0.5 ? 'B' : 'C'; };
+  const pick = arr => arr[Math.floor(rand() * arr.length)];
+
+  /* ---------- Three.js scene ---------- */
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+  catch (e) { fail('3D view needs WebGL, which this browser has turned off.'); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewer.prepend(renderer.domElement);
+  const canvas = renderer.domElement;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 600);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI / 2 - 0.04; controls.minDistance = 4; controls.maxDistance = 180;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.8));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.65); sun.position.set(-30, 60, 40); scene.add(sun);
+
+  const unit = new THREE.BoxGeometry(1, 1, 1);
+  const L = () => new THREE.MeshLambertMaterial();
+  const M = { floor: L(), curb: L(), zone: L(), dock: L(), steel: L(), beam: L(), deck: L(), wood: L(),
+    load: new THREE.MeshLambertMaterial({ color: 0xffffff }), carton: new THREE.MeshLambertMaterial({ color: 0xffffff }) };
+  const gridMat = new THREE.LineBasicMaterial();
+  const boxM = (cx, cy, cz, sx, sy, sz) => new THREE.Matrix4().compose(new THREE.Vector3(cx, cy, cz), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
+  function addBox(mat, m) { const mesh = new THREE.Mesh(unit, mat); m.decompose(mesh.position, mesh.quaternion, mesh.scale); scene.add(mesh); return mesh; }
+  function instanced(list, mat) {
+    const im = new THREE.InstancedMesh(unit, mat, Math.max(list.length, 1));
+    list.forEach((m, i) => im.setMatrixAt(i, m)); im.count = list.length; im.instanceMatrix.needsUpdate = true; scene.add(im); return im;
+  }
+
+  // Floor, grid, curbs
+  addBox(M.floor, boxM(0, -0.05, 0, 60, 0.1, 40));
+  const gp = [];
+  for (let x = 0; x <= 60; x += 5) gp.push(toX(x), 0.01, toZ(0), toX(x), 0.01, toZ(40));
+  for (let y = 0; y <= 40; y += 5) gp.push(toX(0), 0.01, toZ(y), toX(60), 0.01, toZ(y));
+  const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3));
+  scene.add(new THREE.LineSegments(gg, gridMat));
+  [[0, 0.2, -20.1, 60.4, 0.4, 0.2], [0, 0.2, 20.1, 60.4, 0.4, 0.2], [-30.1, 0.2, 0, 0.2, 0.4, 40.4], [30.1, 0.2, 0, 0.2, 0.4, 40.4]]
+    .forEach(a => addBox(M.curb, boxM(...a)));
+
+  // Zones and docks
+  zones.forEach(z => addBox(M.zone, boxM(toX(z.x + z.w / 2), 0.012, toZ(z.y + z.d / 2), z.w, 0.02, z.d)));
+  docks.forEach(x => {
+    const cx = toX(x + 1.5);
+    addBox(M.dock, boxM(cx, 0.03, 21.0, 3, 0.06, 1.6));
+    addBox(M.steel, boxM(cx - 1.6, 1.8, 20.1, 0.15, 3.6, 0.15));
+    addBox(M.steel, boxM(cx + 1.6, 1.8, 20.1, 0.15, 3.6, 0.15));
+    addBox(M.steel, boxM(cx, 3.6, 20.1, 3.35, 0.2, 0.15));
+  });
+
+  // Racks, generated from the records
+  const up = [], beams = [], decks = [], wood = [], loads = [], cartons = [], hits = [], slots = [];
+  rows.forEach(r => {
+    const H = r.levels * r.levelH, len = r.bays * r.bayW, x0 = toX(r.x), z0 = toZ(r.y);
+    const ut = r.kind === 'pallet' ? 0.1 : 0.04, upH = r.kind === 'pallet' ? H : H + 0.1;
+    r.topH = upH;
+    for (let b = 0; b <= r.bays; b++) {
+      const z = z0 + b * r.bayW;
+      [x0 + ut / 2, x0 + r.depth - ut / 2].forEach(xs => up.push(boxM(xs, upH / 2, z, ut, upH, ut)));
+    }
+    if (r.kind === 'pallet') {
+      for (let l = 1; l < r.levels; l++) [x0 + 0.04, x0 + r.depth - 0.04].forEach(xs => beams.push(boxM(xs, l * r.levelH, z0 + len / 2, 0.07, 0.12, len)));
+      for (let b = 0; b < r.bays; b++) for (let l = 0; l < r.levels; l++) for (let p = 0; p < 2; p++) {
+        const zc = z0 + b * r.bayW + (p + 0.5) * r.bayW / 2, xc = x0 + r.depth / 2, base = l === 0 ? 0 : l * r.levelH + 0.06;
+        const s = { row: r, b, l, p, code: `${r.code}-${pad(b + 1)}-${l + 1}-${'AB'[p]}`, base, hit: [xc, base + 0.8, zc, 1.25, 1.6, 1.3] };
+        if (rand() < 0.68) {
+          const cls = pickCls(), pr = pick(catalog.pallet[cls]);
+          s.cls = cls; s.product = pr; s.qty = Math.round(pr[3] + rand() * (pr[4] - pr[3]));
+          wood.push(boxM(xc, base + 0.07, zc, 1.2, 0.14, 1.0));
+          const h = 0.9 + rand() * 0.5;
+          loads.push({ m: boxM(xc, base + 0.14 + h / 2, zc, 1.1, h, 0.94), cls });
+        }
+        slots.push(s); hits.push(boxM(...s.hit));
+      }
+    } else {
+      for (let l = 0; l < r.levels; l++) decks.push(boxM(x0 + r.depth / 2, 0.1 + l * r.levelH, z0 + len / 2, r.depth, 0.025, len));
+      for (let b = 0; b < r.bays; b++) for (let l = 0; l < r.levels; l++) {
+        const zc = z0 + b * r.bayW + r.bayW / 2, xc = x0 + r.depth / 2, base = 0.1 + l * r.levelH + 0.0125;
+        const s = { row: r, b, l, p: 0, code: `${r.code}-${pad(b + 1)}-${l + 1}`, base, hit: [xc, base + 0.18, zc, 0.62, 0.36, 0.96] };
+        if (rand() < 0.62) {
+          const cls = pickCls(), pr = pick(catalog.shelf[cls]);
+          s.cls = cls; s.product = pr; s.qty = Math.round(pr[3] + rand() * (pr[4] - pr[3]));
+          const h = 0.14 + rand() * 0.16, w = 0.5 + rand() * 0.38;
+          cartons.push({ m: boxM(xc, base + h / 2, zc, 0.48, h, w), cls });
+        }
+        slots.push(s); hits.push(boxM(...s.hit));
+      }
+    }
+  });
+
+  instanced(up, M.steel); instanced(beams, M.beam); instanced(decks, M.deck);
+  const woodMesh = instanced(wood, M.wood);
+  const loadMesh = instanced(loads.map(o => o.m), M.load);
+  const cartonMesh = instanced(cartons.map(o => o.m), M.carton);
+  const hitMesh = new THREE.InstancedMesh(unit, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }), hits.length);
+  hits.forEach((m, i) => hitMesh.setMatrixAt(i, m)); hitMesh.instanceMatrix.needsUpdate = true; scene.add(hitMesh);
+  const slotByCode = new Map(slots.map(s => [s.code, s]));
+
+  const selBox = new THREE.LineSegments(new THREE.EdgesGeometry(unit), new THREE.LineBasicMaterial({ depthTest: false }));
+  selBox.renderOrder = 20; selBox.visible = false; scene.add(selBox);
+
+  /* ---------- Labels ---------- */
+  const zoneLabels = new THREE.Group(), rowLabels = new THREE.Group();
+  scene.add(zoneLabels, rowLabels);
+  function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function sprite(text, h, fg, bg, border, depthTest) {
+    const fs = 64, padX = bg ? 30 : 6, c = document.createElement('canvas'), ctx = c.getContext('2d');
+    const font = `600 ${fs}px "Barlow Semi Condensed", "Arial Narrow", sans-serif`;
+    ctx.font = font; const tw = Math.ceil(ctx.measureText(text).width);
+    c.width = tw + padX * 2; c.height = fs + (bg ? 36 : 16);
+    ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (bg) { rr(ctx, 2, 2, c.width - 4, c.height - 4, (c.height - 4) / 2); ctx.fillStyle = bg; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = border; ctx.stroke(); }
+    ctx.fillStyle = fg; ctx.fillText(text, c.width / 2, c.height / 2 + 3);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest }));
+    sp.scale.set(h * c.width / c.height, h, 1); if (!depthTest) sp.renderOrder = 10; return sp;
+  }
+  function clearGroup(g) { while (g.children.length) { const s = g.children.pop(); s.material.map.dispose(); s.material.dispose(); } }
+  function buildLabels(t) {
+    clearGroup(zoneLabels); clearGroup(rowLabels);
+    const add = (text, x, y, z, h) => { const s = sprite(text, h, t.fg, t.surface, t.line, false); s.position.set(x, y, z); zoneLabels.add(s); };
+    zones.forEach(z => add(z.name, toX(z.x + z.w / 2), 0.9, toZ(z.y + z.d / 2), 1.4));
+    add('Main cross aisle', toX(19), 0.8, toZ(22), 1.1);
+    add('Pallet racking', toX(19), 10.6, toZ(10), 1.3);
+    add('Shelving pick zone', toX(49.6), 3.6, toZ(10), 1.1);
+    add('Inbound docks', toX(9.5), 0.8, 23.4, 1.1);
+    add('Outbound docks', toX(50.5), 0.8, 23.4, 1.1);
+    rows.forEach((r, i) => {
+      const len = r.bays * r.bayW, front = i % 2 === 0;
+      const s = sprite(r.code, r.kind === 'pallet' ? 0.6 : 0.34, t.muted, null, null, true);
+      s.position.set(toX(r.x + r.depth / 2), r.topH + (r.kind === 'pallet' ? 0.6 : 0.3), front ? toZ(r.y + len) + 0.3 : toZ(r.y) - 0.3);
+      rowLabels.add(s);
+    });
+  }
+
+  /* ---------- Theme ---------- */
+  function tokens() {
+    const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+    return { sceneBg: g('--scene-bg'), floor: g('--floor'), grid: g('--floor-grid'), curb: g('--curb'), zone: g('--zone'), dock: g('--dock'),
+      steel: g('--steel'), beam: g('--accent'), deck: g('--deck'), wood: g('--wood'), A: g('--cls-a'), B: g('--cls-b'), C: g('--cls-c'),
+      fg: g('--fg'), muted: g('--muted'), surface: g('--surface'), line: g('--line'), accent: g('--accent') };
+  }
+  function applyTheme() {
+    const t = tokens();
+    scene.background = new THREE.Color(t.sceneBg);
+    M.floor.color.set(t.floor); gridMat.color.set(t.grid); M.curb.color.set(t.curb); M.zone.color.set(t.zone); M.dock.color.set(t.dock);
+    M.steel.color.set(t.steel); M.beam.color.set(t.beam); M.deck.color.set(t.deck); M.wood.color.set(t.wood);
+    selBox.material.color.set(t.accent);
+    const col = { A: new THREE.Color(t.A), B: new THREE.Color(t.B), C: new THREE.Color(t.C) };
+    loads.forEach((o, i) => loadMesh.setColorAt(i, col[o.cls])); if (loadMesh.instanceColor) loadMesh.instanceColor.needsUpdate = true;
+    cartons.forEach((o, i) => cartonMesh.setColorAt(i, col[o.cls])); if (cartonMesh.instanceColor) cartonMesh.instanceColor.needsUpdate = true;
+    buildLabels(t);
+    rowLabels.visible = zoneLabels.visible = document.getElementById('tg-labels').checked;
+  }
+  applyTheme();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyTheme);
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  /* ---------- Camera ---------- */
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let anim = null;
+  function animateTo(pos, tgt, instant) {
+    if (instant || reduce) { camera.position.copy(pos); controls.target.copy(tgt); controls.update(); anim = null; return; }
+    anim = { t0: performance.now(), p0: camera.position.clone(), q0: controls.target.clone(), p1: pos, q1: tgt };
+  }
+  function stepAnim() {
+    const k = Math.min(1, (performance.now() - anim.t0) / 700), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    camera.position.lerpVectors(anim.p0, anim.p1, e); controls.target.lerpVectors(anim.q0, anim.q1, e);
+    if (k >= 1) anim = null;
+  }
+  const btn3d = document.getElementById('btn-3d'), btnTop = document.getElementById('btn-top');
+  function setView(mode, instant) {
+    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), a = camera.aspect || 1.5;
+    if (mode === 'top') {
+      const halfH = Math.max(24, 32 / a), d = halfH / tan * 1.04;
+      animateTo(new THREE.Vector3(0, d, 0.01), new THREE.Vector3(0, 0, 1.5), instant);
+    } else {
+      const d = Math.max(66, 62 / a * 1.15), dir = new THREE.Vector3(-0.55, 0.56, 0.62).normalize();
+      animateTo(dir.multiplyScalar(d), new THREE.Vector3(0, 1, 2.5), instant);
+    }
+    btn3d.setAttribute('aria-pressed', String(mode !== 'top')); btnTop.setAttribute('aria-pressed', String(mode === 'top'));
+  }
+  btn3d.addEventListener('click', () => setView('3d'));
+  btnTop.addEventListener('click', () => setView('top'));
+
+  function resize() {
+    const w = viewer.clientWidth, h = viewer.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  resize(); setView('3d', true);
+  new ResizeObserver(resize).observe(viewer);
+
+  /* ---------- Toggles ---------- */
+  document.getElementById('tg-stock').addEventListener('change', e => { woodMesh.visible = loadMesh.visible = cartonMesh.visible = e.target.checked; });
+  document.getElementById('tg-labels').addEventListener('change', e => { zoneLabels.visible = rowLabels.visible = e.target.checked; });
+
+  /* ---------- Selection ---------- */
+  const detail = document.getElementById('detail');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function select(s) {
+    const h = s.hit;
+    selBox.position.set(h[0], h[1], h[2]); selBox.scale.set(h[3] + 0.08, h[4] + 0.08, h[5] + 0.08); selBox.visible = true;
+    const r = s.row, isP = r.kind === 'pallet';
+    const zone = isP ? 'PR' : 'SH', bay = `${r.code}-${pad(s.b + 1)}`, lvl = `${bay}-${s.l + 1}`;
+    const path = isP ? `WH/Stock/${zone}/${r.code}/${bay}/${lvl}/${s.code}` : `WH/Stock/${zone}/${r.code}/${bay}/${s.code}`;
+    const contents = s.product
+      ? `<div class="contents"><span class="sw ${s.cls.toLowerCase()}" aria-hidden="true"></span><p class="pname">${esc(s.product[1])}</p><p class="psku">${s.product[0]} · ${s.qty} ${s.product[2]} · class ${s.cls}</p></div>`
+      : `<p class="empty">Empty. Available for putaway.</p>`;
+    detail.innerHTML = `
+      <p class="label">Selected location</p>
+      <p class="code">${s.code}</p>
+      <p class="path">${path}</p>
+      <dl class="kv">
+        <div><dt>Zone</dt><dd>${isP ? 'Pallet racking (reserve)' : 'Shelving pick zone'}</dd></div>
+        <div><dt>Level</dt><dd>${s.l + 1} of ${r.levels} · ${s.base.toFixed(2)} m</dd></div>
+        <div><dt>Capacity</dt><dd>${isP ? '1 pallet · 1.2 × 1.0 m' : '1 bin · 1.0 × 0.6 m'}</dd></div>
+      </dl>
+      ${contents}`;
+  }
+  function focusOn(s) {
+    const tgt = new THREE.Vector3(s.hit[0], s.hit[1], s.hit[2]);
+    animateTo(tgt.clone().add(new THREE.Vector3(-7, 6, 9)), tgt);
+    btn3d.setAttribute('aria-pressed', 'false'); btnTop.setAttribute('aria-pressed', 'false');
+  }
+
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function hitAt(e) {
+    const rc = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera); const h = ray.intersectObject(hitMesh)[0]; return h ? slots[h.instanceId] : null;
+  }
+  let down = null, hoverQueued = false, lastMove = null;
+  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', e => {
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6) { const s = hitAt(e); if (s) select(s); }
+    down = null;
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.buttons || e.pointerType !== 'mouse') return; lastMove = e;
+    if (!hoverQueued) { hoverQueued = true; requestAnimationFrame(() => { hoverQueued = false; canvas.style.cursor = hitAt(lastMove) ? 'pointer' : 'grab'; }); }
+  });
+
+  /* ---------- Find ---------- */
+  const form = document.getElementById('find-form'), input = document.getElementById('find'), err = document.getElementById('find-err');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const q = input.value.trim().toUpperCase();
+    if (!q) { err.textContent = 'Enter a location code, like P05-03-2-A or S04-10-3.'; err.hidden = false; return; }
+    const s = slotByCode.get(q);
+    if (!s) { err.textContent = `No location ${q}. Pallet codes look like P05-03-2-A, shelf codes like S04-10-3.`; err.hidden = false; return; }
+    err.hidden = true; select(s); focusOn(s);
+  });
+  input.addEventListener('input', () => { err.hidden = true; });
+
+  /* ---------- Stats ---------- */
+  const fmt = n => n.toLocaleString('en-IN');
+  const pS = slots.filter(s => s.row.kind === 'pallet'), sS = slots.filter(s => s.row.kind === 'shelf');
+  const used = a => a.filter(s => s.product).length;
+  const pct = (a, b) => Math.round(a / b * 100) + '%';
+  document.getElementById('cap-body').innerHTML = `
+    <tr><td>Pallet positions</td><td>${fmt(pS.length)}</td><td>${fmt(used(pS))} <small>${pct(used(pS), pS.length)}</small></td></tr>
+    <tr><td>Shelf bins</td><td>${fmt(sS.length)}</td><td>${fmt(used(sS))} <small>${pct(used(sS), sS.length)}</small></td></tr>
+    <tr><td>Rack faces</td><td>${rows.length}</td><td><small>14 pallet · 17 shelf</small></td></tr>`;
+  const cnt = { A: 0, B: 0, C: 0 }; slots.forEach(s => { if (s.cls) cnt[s.cls]++; });
+  document.getElementById('legend').innerHTML = [['A', 'Fast movers'], ['B', 'Medium movers'], ['C', 'Slow movers']]
+    .map(([k, t]) => `<li><span class="sw ${k.toLowerCase()}" aria-hidden="true"></span>Class ${k} · ${t}<span class="n">${fmt(cnt[k])}</span></li>`).join('');
+
+  const r5 = rows[4];
+  document.getElementById('record-json').textContent = JSON.stringify({
+    code: r5.code, kind: r5.kind, x: r5.x, y: r5.y, bays: r5.bays, bay_width: r5.bayW,
+    depth: r5.depth, levels: r5.levels, level_height: r5.levelH, slots_per_level: r5.slots
+  }, null, 2);
+
+  const first = slots.find(s => s.row.code === 'P05' && s.cls === 'A' && s.l === 1) || slots.find(s => s.product);
+  if (first) select(first);
+
+  /* ---------- Loop ---------- */
+  (function loop() { requestAnimationFrame(loop); if (anim) stepAnim(); controls.update(); renderer.render(scene, camera); })();
+})();
+</script>
