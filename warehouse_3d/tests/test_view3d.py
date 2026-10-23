@@ -62,6 +62,11 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_editor', login='admin')
 
 
+    def test_walk_mode(self):
+        create_p05(self.env, self.env['stock.warehouse'].search([], limit=1))  # lone row at x 9.7
+        self.start_tour('/odoo', 'warehouse_3d_walk', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""
@@ -99,9 +104,7 @@ class TestView3dScreenshot(HttpCase):
             + [{'name': f'Dock {i + 1}', 'kind': 'dock', 'x': x, 'y': 38.4, 'width': 3, 'depth': 1.6,
                 'warehouse_id': warehouse.id} for i, x in enumerate(docks)])
 
-    def test_screenshot_template_layout(self):
-        warehouse = self.env['stock.warehouse'].search([], limit=1)
-        self._template_layout(warehouse)
+    def _seed_stock(self):
         # Seeded stock across all fill bands, plus one product without dimensions.
         rng = random.Random(20261023)
         Product = self.env['product.product']
@@ -123,4 +126,15 @@ class TestView3dScreenshot(HttpCase):
                     Quant._update_available_quantity(rng.choice(products), slot, 1)
                 else:
                     Quant._update_available_quantity(rng.choice(bins), slot, rng.randint(2, 12))
+
+    def test_screenshot_walk(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        self._template_layout(warehouse)
+        self._seed_stock()
+        self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_walk_screenshot', 'wh3d_walk_')
+
+    def test_screenshot_template_layout(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        self._template_layout(warehouse)
+        self._seed_stock()
         self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_screenshot', 'wh3d_view3d_')

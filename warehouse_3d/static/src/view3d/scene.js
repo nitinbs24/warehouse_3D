@@ -11,6 +11,7 @@ import {
     toWorld,
 } from "@warehouse_3d/view3d/layout";
 import { fillBand, loadBox } from "@warehouse_3d/view3d/occupancy";
+import { EYE_HEIGHT, look, moveVector, rackObstacles, stepWalker } from "@warehouse_3d/view3d/walk";
 
 // The prototype's light palette.
 const COLORS = {
@@ -27,6 +28,12 @@ const COLORS = {
     stock: 0x9aa5b1, // neutral load colour
     stripe: 0xd3d9df,
 };
+const WALK_KEYS = {
+    w: "forward", ArrowUp: "forward",
+    s: "back", ArrowDown: "back",
+    a: "left", ArrowLeft: "left",
+    d: "right", ArrowRight: "right",
+};
 export const BAND_COLORS = { low: 0x1f8a70, mid: 0xcf9b12, high: 0xb3261e };
 const LABEL = { fg: "#1B2430", muted: "#5B6676", bg: "#FFFFFF", line: "#D3D9E0" };
 const FOV = 42;
@@ -39,9 +46,10 @@ export class WarehouseScene {
     /**
      * @param {HTMLElement} host
      * @param {object} data  wh3d_get_scene() result
-     * @param {{onSelect?: (index: number) => void}} options  index into data.slots, -1 when cleared
+     * @param {{onSelect?: (index: number) => void, onWalk?: (pose: object|null) => void}} options
+     *   onSelect: index into data.slots, -1 when cleared. onWalk: walker pose each move, null on leaving.
      */
-    constructor(host, data, { onSelect = () => {} } = {}) {
+    constructor(host, data, { onSelect = () => {}, onWalk = () => {} } = {}) {
         const THREE = (this.THREE = window.THREE);
         this.host = host;
         this.building = data.building;
@@ -75,6 +83,9 @@ export class WarehouseScene {
         this.rowsById = Object.fromEntries(data.rows.map((r) => [r.id, r]));
         this.slots = data.slots;
         this.onSelect = onSelect;
+        this.onWalk = onWalk;
+        this.walk = null;
+        this.onWalkKey = (ev) => this.handleWalkKey(ev);
         this.stockVisible = true;
         this.colourByOccupancy = false;
         this.stockMeshes = [];
@@ -243,6 +254,7 @@ export class WarehouseScene {
         let lastMove = null;
         this.onPointerDown = (ev) => {
             down = { x: ev.clientX, y: ev.clientY };
+            this.lookFrom = down;
         };
         this.onPointerUp = (ev) => {
             // A click, not the end of an orbit drag.
@@ -254,6 +266,14 @@ export class WarehouseScene {
             down = null;
         };
         this.onPointerMove = (ev) => {
+            if (this.walk && ev.buttons & 1 && this.lookFrom) {
+                // Walk mode: dragging turns the head (see look() for the direction).
+                const { yaw, pitch } = look(this.walk, ev.clientX - this.lookFrom.x, ev.clientY - this.lookFrom.y);
+                Object.assign(this.walk, { yaw, pitch });
+                this.lookFrom = { x: ev.clientX, y: ev.clientY };
+                this.applyWalkCamera();
+                return;
+            }
             if (ev.buttons || ev.pointerType !== "mouse") {
                 return;
             }
@@ -372,6 +392,82 @@ export class WarehouseScene {
 
     // --- camera ---
 
+    // --- walk mode ---
+
+    /** Switch to (or teleport within) first-person walking. ``pose`` = {x, y, yaw} on the floor plan. */
+    enterWalk(pose) {
+        if (!this.walk) {
+            this.savedView = { position: this.camera.position.clone(), target: this.controls.target.clone() };
+            this.obstacles = rackObstacles(Object.values(this.rowsById));
+            this.controls.enabled = false;
+            this.camera.near = 0.05; // racks can be 0.3 m away; the orbit view's 0.5 m would cut them off
+            this.camera.updateProjectionMatrix();
+            window.addEventListener("keydown", this.onWalkKey);
+            window.addEventListener("keyup", this.onWalkKey);
+        }
+        this.anim = null;
+        this.walk = { ...pose, pitch: 0, keys: {}, last: performance.now() };
+        this.applyWalkCamera();
+        this.onWalk(this.walk);
+    }
+
+    /** Back to the orbit view, exactly where it was before walking. */
+    exitWalk() {
+        if (!this.walk) {
+            return;
+        }
+        window.removeEventListener("keydown", this.onWalkKey);
+        window.removeEventListener("keyup", this.onWalkKey);
+        this.walk = null;
+        this.camera.near = 0.5;
+        this.camera.updateProjectionMatrix();
+        this.camera.position.copy(this.savedView.position);
+        this.controls.target.copy(this.savedView.target);
+        this.controls.enabled = true;
+        this.controls.update();
+        this.onWalk(null);
+    }
+
+    handleWalkKey(ev) {
+        const target = ev.target;
+        if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) {
+            return; // typing in Find must not walk
+        }
+        const down = ev.type === "keydown";
+        if (down && ev.key === "Escape") {
+            this.exitWalk();
+            return;
+        }
+        const action = WALK_KEYS[ev.key.length === 1 ? ev.key.toLowerCase() : ev.key];
+        this.walk.keys.run = ev.shiftKey;
+        if (action) {
+            this.walk.keys[action] = down;
+            ev.preventDefault(); // arrow keys would otherwise scroll the page
+        }
+    }
+
+    applyWalkCamera() {
+        const { x, y, yaw, pitch } = this.walk;
+        const [wx, wz] = toWorld(this.building, x, y);
+        this.camera.position.set(wx, EYE_HEIGHT, wz);
+        this.camera.lookAt(
+            wx + Math.cos(pitch) * Math.cos(yaw),
+            EYE_HEIGHT + Math.sin(pitch),
+            wz + Math.cos(pitch) * Math.sin(yaw));
+    }
+
+    stepWalk() {
+        const now = performance.now();
+        const dt = Math.min(0.1, (now - this.walk.last) / 1000); // a slow frame mustn't teleport you
+        this.walk.last = now;
+        const move = moveVector(this.walk.keys, this.walk.yaw, dt);
+        if (move.dx || move.dy) {
+            Object.assign(this.walk, stepWalker(this.walk, move, this.obstacles, this.building));
+            this.onWalk(this.walk);
+        }
+        this.applyWalkCamera();
+    }
+
     setView(mode, instant = false) {
         const THREE = this.THREE;
         const view = cameraView(mode, this.building, FOV, this.camera.aspect);
@@ -398,6 +494,11 @@ export class WarehouseScene {
     }
 
     frame() {
+        if (this.walk) {
+            this.stepWalk();
+            this.renderer.render(this.scene, this.camera);
+            return;
+        }
         if (this.anim) {
             const k = Math.min(1, (performance.now() - this.anim.t0) / 700);
             const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; // ease in-out
@@ -424,6 +525,8 @@ export class WarehouseScene {
     /** Frees everything: WebGL memory isn't garbage-collected and browsers cap live contexts (~16). */
     dispose() {
         this.renderer.setAnimationLoop(null);
+        window.removeEventListener("keydown", this.onWalkKey);
+        window.removeEventListener("keyup", this.onWalkKey);
         const canvas = this.renderer.domElement;
         canvas.removeEventListener("pointerdown", this.onPointerDown);
         canvas.removeEventListener("pointerup", this.onPointerUp);

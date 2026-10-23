@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="warehouse_3d.View3D">
-        <div class="o_wh3d_view" t-att-data-row-count="state.rowCount" t-att-data-updates="state.updates">
+        <div class="o_wh3d_view" t-ref="root" t-att-data-row-count="state.rowCount" t-att-data-updates="state.updates"
+             t-att-data-mode="state.walking ? 'walk' : 'orbit'" t-att-data-eye="state.walking ? eyeHeight : ''">
             <div class="o_wh3d_viewer">
                 <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
                 <div class="o_wh3d_canvas" t-ref="canvas"/>
@@ -12,6 +13,11 @@
                         <button type="button" name="view_top" t-att-aria-pressed="state.view === 'top' ? 'true' : 'false'"
                                 t-on-click="() => this.setView('top')">Top</button>
                     </div>
+                    <button type="button" name="walk" class="o_wh3d_walk_btn"
+                            t-att-aria-pressed="state.walking ? 'true' : 'false'" t-on-click="toggleWalk"
+                            title="Walk the aisles at eye height (from the selected slot, or the entrance)">
+                        <i class="fa fa-male" aria-hidden="true"/> Walk
+                    </button>
                     <label class="o_wh3d_chk">
                         <input type="checkbox" name="stock" t-att-checked="state.stock" t-on-change="toggleStock"/>
                         Stock
@@ -29,7 +35,8 @@
                 <div t-elif="!state.rowCount" class="o_wh3d_empty" role="status">
                     No rack rows yet. Add some in Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows.
                 </div>
-                <p class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan · click a slot</p>
+                <p t-if="state.walking" class="o_wh3d_hint o_wh3d_hint_walk">W A S D or arrows to walk · Shift to hurry · drag to look around · Esc to stop walking</p>
+                <p t-else="" class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan · click a slot</p>
             </div>
 
             <aside class="o_wh3d_panel">

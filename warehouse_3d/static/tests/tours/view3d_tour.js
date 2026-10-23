@@ -266,3 +266,93 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_screenshot", {
         { trigger: ".o_wh3d_editor_panel .o_wh3d_code:text(P05)" },
     ],
 });
+
+function pressKey(type, key) {
+    window.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }));
+}
+
+registry.category("web_tour.tours").add("warehouse_3d_walk", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openView3d(),
+        { trigger: ".o_wh3d_view[data-mode='orbit']" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-03-2-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected .o_wh3d_code:text(P05-03-2-A)" },
+        {
+            content: "Walk from the selected slot",
+            trigger: ".o_wh3d_toolbar button[name='walk']",
+            run: "click",
+        },
+        {
+            content: "First-person at eye height, in front of the slot",
+            trigger: ".o_wh3d_view[data-mode='walk'][data-eye='1.7'] .o_wh3d_toolbar button[name='walk'][aria-pressed='true']",
+        },
+        {
+            content: "Hold W for half a second",
+            trigger: ".o_wh3d_view[data-mode='walk']",
+            async run() {
+                pressKey("keydown", "w");
+                await wait(500);
+                pressKey("keyup", "w");
+            },
+        },
+        {
+            content: "The walker moved towards the rack (and stopped short of it)",
+            trigger: ".o_wh3d_view[data-mode='walk']",
+            run() {
+                const x = Number(this.anchor.dataset.walkX);
+                if (!(x > 7.2 && x <= 9.4 + 1e-6)) {
+                    throw new Error(`walker x ${x} not between start 7.2 and rack face 9.4`);
+                }
+            },
+        },
+        {
+            content: "Esc goes back to the orbit view",
+            trigger: ".o_wh3d_view[data-mode='walk']",
+            run: () => pressKey("keydown", "Escape"),
+        },
+        { trigger: ".o_wh3d_view[data-mode='orbit'] .o_wh3d_toolbar button[name='walk'][aria-pressed='false']" },
+        {
+            content: "Clear the selection, walk again: starts at the entrance",
+            trigger: ".o_wh3d_canvas canvas",
+            async run() {
+                clickCanvasAt(0.03, 0.97);
+                await wait(100);
+            },
+        },
+        { trigger: ".o_wh3d_selected:not(:has(.o_wh3d_code))" },
+        { trigger: ".o_wh3d_toolbar button[name='walk']", run: "click" },
+        { trigger: ".o_wh3d_view[data-mode='walk'][data-eye='1.7']" },
+        { trigger: ".o_wh3d_toolbar button[name='walk']", run: "click" },
+        { trigger: ".o_wh3d_view[data-mode='orbit']" },
+    ],
+});
+
+// Used by the opt-in walk screenshot: stand in P05's aisle, step back and turn a little.
+registry.category("web_tour.tours").add("warehouse_3d_walk_screenshot", {
+    steps: () => [
+        { trigger: ".o_wh3d_view[data-row-count='31'] .o_wh3d_canvas canvas" },
+        { trigger: ".o_wh3d_toolbar input[name='occupancy']", run: "click" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-03-2-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected .o_wh3d_code:text(P05-03-2-A)" },
+        { trigger: ".o_wh3d_toolbar button[name='walk']", run: "click" },
+        {
+            trigger: ".o_wh3d_view[data-mode='walk']",
+            async run() {
+                pressKey("keydown", "s");
+                await wait(500);
+                pressKey("keyup", "s");
+                const canvas = document.querySelector(".o_wh3d_canvas canvas");
+                const r = canvas.getBoundingClientRect();
+                const at = (x) => ({ bubbles: true, clientX: r.left + x, clientY: r.top + r.height / 2,
+                    buttons: 1, pointerType: "mouse" });
+                canvas.dispatchEvent(new PointerEvent("pointerdown", at(r.width / 2)));
+                canvas.dispatchEvent(new PointerEvent("pointermove", at(r.width / 2 + 90)));
+                canvas.dispatchEvent(new PointerEvent("pointerup", { ...at(r.width / 2 + 90), buttons: 0 }));
+                await wait(500);
+            },
+        },
+    ],
+});

@@ -90,7 +90,7 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 - [x] T8: Stock, selection panel, find, capacity cards, open in Inventory
 - [x] T9: Live updates over the bus
 - [x] T9b: Live-update review fixes
-- [ ] T9c: Walk mode — first-person walk through the aisles *(added 23 Oct)*
+- [x] T9c: Walk mode — first-person walk through the aisles *(added 23 Oct)*
 - [ ] **Checkpoint B** — 3D view matches the prototype with real data, updates live
 
 ### Phase 3 — 2D editor

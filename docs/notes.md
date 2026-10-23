@@ -600,3 +600,45 @@ the click and Escape events itself and blurs the SVG row natively before clickin
 
 **Screenshot-driven polish.** The first editor screenshot showed back-to-back rows' codes colliding
 ("P02P03"); codes now alternate above/below, like the 3D view's labels.
+
+## T9c: Walk mode — walking the aisles at eye height
+
+Files: `static/src/view3d/walk.js` (new, pure), `scene.js` (`enterWalk`, `exitWalk`, `stepWalk`,
+`handleWalkKey`), `view3d_action.{js,xml,scss}` (Walk button), `static/tests/walk.test.js`,
+`static/tests/tours/view3d_tour.js` (`warehouse_3d_walk`), `tests/test_view3d.py`,
+`docs/screenshots/t9c-walk-mode.png`.
+
+**Same scene, second camera.** Walking doesn't build a new 3D world; it switches who drives the
+camera. OrbitControls are disabled and, every frame, `stepWalk` reads the held keys, moves the walker
+on the floor plan, and puts the camera at eye height (1.7 m) looking along the walker's heading.
+Leaving restores the orbit camera exactly where it was (saved on entry). The near clipping plane
+drops from 0.5 m to 0.05 m while walking — otherwise a rack face 0.3 m away would be sliced off.
+
+**Where you start.** A slot is selected → in its aisle, mid-aisle (at most 2.5 m back), facing it;
+`openSide` and `aisleClearance` from T8 decide which aisle and how much room there is. Nothing
+selected → on the first dock door, facing the middle of the hall (no docks → middle of the front
+wall). Find while walking moves you to the found slot instead of flying the orbit camera.
+
+**Moving: frame-rate independent.** Each frame moves `speed × dt` metres, `dt` = seconds since the
+last frame, so a fast and a slow computer walk at the same 1.4 m/s. `dt` is capped at 0.1 s so a
+stalled frame (tab in the background) can't teleport you. Diagonals are normalised (W + D isn't
+faster). The heading `yaw` lives on the floor plan; "right" is 90° clockwise from it, which is the
+camera's right in the 3D view.
+
+**Collisions in 2D.** The walker is a 0.3 m circle on the floor plan; racks are rectangles. The
+circle may not come closer than its radius to any rectangle or wall: the distance from the circle's
+centre to a rectangle is the distance to the nearest point of the rectangle (clamp x and y into it).
+When a move is blocked, each axis is tried on its own — that's the "slide along the rack" feel.
+Long moves are split into steps shorter than the radius so a slow frame can't jump through a thin
+rack. Note the corner case: next to a rack's corner the circle can stand slightly closer than one
+radius along one axis (√(0.3² − 0.1²) ≈ 0.283 m when 0.1 m off the corner) — still outside.
+
+**Keyboard etiquette.** Keys are read on `window` only while walking, and ignored while you type in
+an input (otherwise typing "s" in Find would walk backwards). Arrow keys call `preventDefault()` so
+the page doesn't scroll. Mouse-drag looks around, *drag-the-view* style like Street View (drag right → view turns left,
+drag up → look down; flipped after Nitin's first try, now pinned by tests on `look()`); the
+pointer isn't locked, so Esc and the side panel keep working.
+
+**Testing state without re-rendering.** The tour needs to know where the walker is, but OWL state
+changes re-render the component — 60 times a second while walking would be wasteful. So the walker's
+x/y are written straight onto the DOM (`data-walk-x`) and only the walk/orbit mode is OWL state.

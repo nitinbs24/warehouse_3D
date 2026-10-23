@@ -201,16 +201,18 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** A **Walk** button in the 3D view toolbar switches to a first-person camera at eye height so you can walk the aisles by hand (plan decision 11b). Mainly for the demo; also a floor-level look at where a slot is.
 
 **Acceptance criteria:**
-- [ ] **Start:** with a slot selected, you start in its aisle facing it (side chosen with `openSide`, distance limited by `aisleClearance`); with nothing selected, at the first dock door (or the middle of the front wall if there are no docks) facing into the building. Eye height 1.7 m.
-- [ ] **Controls:** W/A/S/D or arrow keys walk (~1.4 m/s, Shift ×2.5); mouse drag looks around (pitch limited to ±80°); no pointer lock. Keys are ignored while typing in an input (e.g. Find). Esc or the Walk button returns to the orbit view where it was.
-- [ ] **Collisions:** the walker (0.3 m radius) can't enter a rack footprint or leave the building; moving into a rack at an angle slides along it. Floor areas and docks are walkable.
-- [ ] Clicking a slot, Find, the side panel and live stock updates keep working in walk mode.
+- [x] **Start:** with a slot selected, you start in its aisle facing it (side chosen with `openSide`, distance limited by `aisleClearance`); with nothing selected, at the first dock door (or the middle of the front wall if there are no docks) facing into the building. Eye height 1.7 m.
+- [x] **Controls:** W/A/S/D or arrow keys walk (~1.4 m/s, Shift ×2.5); mouse drag looks around, drag-the-view style (drag right → turn left, drag up → look down; flipped 23 Oct after manual check), pitch limited to ±80°; no pointer lock. Keys are ignored while typing in an input (e.g. Find). Esc or the Walk button returns to the orbit view where it was.
+- [x] **Collisions:** the walker (0.3 m radius) can't enter a rack footprint or leave the building; moving into a rack at an angle slides along it. Floor areas and docks are walkable.
+- [x] Clicking a slot, Find, the side panel and live stock updates keep working in walk mode.
 
 **Verification:**
-- [ ] Hoot `static/tests/walk.test.js`: start pose in front of a slot (both aisle sides, back-to-back pair), start at first dock / no docks, key → movement direction for a given heading, Shift speed, can't enter a rack, slides along a rack face, stays inside walls, corner case between two racks.
-- [ ] Tour: Find P05-03-2-A → Walk → view in walk mode at eye height (marker attribute) → Esc → back to orbit; enter/leave twice with no console errors.
+- [x] Hoot `static/tests/walk.test.js` (16 tests incl. look direction; 57 Hoot total): start pose in front of a slot (both aisle sides, back-to-back pair), start at first dock / no docks, key → movement direction for a given heading, Shift speed, can't enter a rack, slides along a rack face, stays inside walls, corner case between two racks.
+- [x] Tour `warehouse_3d_walk`: Find P05-03-2-A → Walk → view in walk mode at eye height (marker attribute) → Esc → back to orbit; enter/leave twice with no console errors; holding W for 0.5 s moves the walker towards the rack and it stops short of it.
 - [ ] Manual (Nitin): from P05-03-2-A walk the aisle, turn into the main cross aisle and reach Shipping without passing through anything.
-- [ ] Screenshot `docs/screenshots/t9c-walk-mode.png`.
+- [x] Screenshot `docs/screenshots/t9c-walk-mode.png` (opt-in `./run_tests.sh wh3d_screenshot`).
+- [x] Full run `0 failed, 0 error(s) of 98 tests` (23 Oct).
+*Not covered by a test:* Shift and mouse-look in a real browser (their maths is unit-tested); look-drag direction feel — check manually.
 
 **Dependencies:** T8, T9b
 **Files:** `static/src/view3d/walk.js` (new, pure), `static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml,scss}`, `static/tests/walk.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`

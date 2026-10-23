@@ -14,6 +14,7 @@ import {
     normalizeCode,
 } from "@warehouse_3d/view3d/occupancy";
 import { WarehouseScene } from "@warehouse_3d/view3d/scene";
+import { EYE_HEIGHT, walkStartAtEntrance, walkStartAtSlot } from "@warehouse_3d/view3d/walk";
 
 const LIB = "/warehouse_3d/static/lib/three/";
 
@@ -31,9 +32,11 @@ export class View3D extends Component {
         this.action = useService("action");
         this.busService = useService("bus_service");
         this.canvasRef = useRef("canvas");
+        this.rootRef = useRef("root");
+        this.eyeHeight = String(EYE_HEIGHT);
         this.state = useState({
             error: "", rowCount: 0, view: "3d", labels: true, stock: true, occupancy: false,
-            selected: -1, find: "", findError: "", summary: null, legend: null, updates: 0,
+            selected: -1, find: "", findError: "", summary: null, legend: null, updates: 0, walking: false,
         });
         // Listen *before* loading the scene: a stock change committed while Three.js and the scene
         // load is queued and applied once the scene is ready, instead of being missed.
@@ -87,6 +90,7 @@ export class View3D extends Component {
         try {
             this.scene = new WarehouseScene(this.canvasRef.el, this.data, {
                 onSelect: (index) => (this.state.selected = index),
+                onWalk: (pose) => this.onWalk(pose),
             });
             this.focusFromContext();
         } catch {
@@ -137,6 +141,7 @@ export class View3D extends Component {
     // --- toolbar ---
 
     setView(mode) {
+        this.scene?.exitWalk();
         this.state.view = mode;
         this.scene?.setView(mode);
     }
@@ -215,7 +220,45 @@ export class View3D extends Component {
         this.state.selected = index;
         this.state.view = "";
         this.scene?.select(index);
-        this.scene?.focusOn(index);
+        if (this.state.walking) {
+            this.scene.enterWalk(this.walkStartFor(index)); // walking: go and stand in front of it
+        } else {
+            this.scene?.focusOn(index);
+        }
+    }
+
+    // --- walk mode ---
+
+    walkStartFor(index) {
+        if (index < 0) {
+            return walkStartAtEntrance(this.data.areas, this.data.building);
+        }
+        const slot = this.data.slots[index];
+        return walkStartAtSlot(this.rowsById[slot.row_id], slot, this.data.rows, this.data.building);
+    }
+
+    toggleWalk() {
+        if (!this.scene) {
+            return;
+        }
+        if (this.state.walking) {
+            this.scene.exitWalk();
+            return;
+        }
+        this.scene.enterWalk(this.walkStartFor(this.state.selected));
+        this.state.view = "";
+    }
+
+    /** From the scene: the walker's pose on every move, or null when walking ends (Esc, button). */
+    onWalk(pose) {
+        if (!pose) {
+            this.state.walking = false;
+            return;
+        }
+        this.state.walking = true;
+        // Written straight to the DOM, not into state: this fires every frame while walking.
+        this.rootRef.el.dataset.walkX = pose.x.toFixed(2);
+        this.rootRef.el.dataset.walkY = pose.y.toFixed(2);
     }
 
     percent(value) {
