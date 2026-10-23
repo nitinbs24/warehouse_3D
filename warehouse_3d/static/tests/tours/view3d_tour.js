@@ -14,15 +14,18 @@ function openView3d() {
             run: "click",
         },
         {
-            content: "A WebGL canvas is rendered",
-            trigger: ".o_wh3d_canvas canvas",
+            content: "The scene loaded the one rack row and rendered it with WebGL",
+            trigger: ".o_wh3d_view[data-row-count='1'] .o_wh3d_canvas canvas",
             run() {
-                const canvas = document.querySelector(".o_wh3d_canvas canvas");
-                if (!canvas.getContext("webgl2") && !canvas.getContext("webgl")) {
+                const canvases = document.querySelectorAll(".o_wh3d_canvas canvas");
+                if (canvases.length !== 1) {
+                    throw new Error(`Expected exactly one 3D canvas, found ${canvases.length}`);
+                }
+                if (!canvases[0].getContext("webgl2") && !canvases[0].getContext("webgl")) {
                     throw new Error("3D canvas has no WebGL context");
                 }
-                if (document.querySelectorAll(".o_wh3d_canvas canvas").length !== 1) {
-                    throw new Error("Expected exactly one 3D canvas");
+                if (document.querySelector(".o_wh3d_empty, .o_wh3d_fallback")) {
+                    throw new Error("Empty-state or fallback message shown although a row exists");
                 }
             },
         },
@@ -33,6 +36,22 @@ registry.category("web_tour.tours").add("warehouse_3d_view3d", {
     steps: () => [
         ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
         ...openView3d(),
+        {
+            content: "Switch to the top view",
+            trigger: ".o_wh3d_toolbar button[name='view_top']",
+            run: "click",
+        },
+        {
+            trigger: ".o_wh3d_toolbar button[name='view_top'][aria-pressed='true']",
+        },
+        {
+            content: "Hide labels",
+            trigger: ".o_wh3d_toolbar input[name='labels']",
+            run: "click",
+        },
+        {
+            trigger: ".o_wh3d_toolbar input[name='labels']:not(:checked)",
+        },
         {
             content: "Leave the 3D view for Rack Rows",
             trigger: "button[data-menu-xmlid='stock.menu_stock_config_settings']",
@@ -53,5 +72,13 @@ registry.category("web_tour.tours").add("warehouse_3d_view3d", {
         },
         // Opening it again proves the view cleans up and restarts without errors.
         ...openView3d(),
+    ],
+});
+
+// Used by the opt-in screenshot test: wait until the scene is up and the camera has settled.
+registry.category("web_tour.tours").add("warehouse_3d_screenshot", {
+    steps: () => [
+        { trigger: ".o_wh3d_view[data-row-count='31'] .o_wh3d_canvas canvas" },
+        { trigger: "body", run: () => new Promise((resolve) => setTimeout(resolve, 1500)) },
     ],
 });

@@ -1,10 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="warehouse_3d.View3D">
-        <div class="o_wh3d_view">
+        <div class="o_wh3d_view" t-att-data-row-count="state.rowCount">
             <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
             <div class="o_wh3d_canvas" t-ref="canvas"/>
+            <div class="o_wh3d_toolbar">
+                <div class="o_wh3d_seg" role="group" aria-label="Camera view">
+                    <button type="button" name="view_3d" t-att-aria-pressed="state.view === '3d' ? 'true' : 'false'"
+                            t-on-click="() => this.setView('3d')">3D</button>
+                    <button type="button" name="view_top" t-att-aria-pressed="state.view === 'top' ? 'true' : 'false'"
+                            t-on-click="() => this.setView('top')">Top</button>
+                </div>
+                <label class="o_wh3d_chk">
+                    <input type="checkbox" name="labels" t-att-checked="state.labels" t-on-change="toggleLabels"/>
+                    Labels
+                </label>
+            </div>
             <div t-if="state.error" class="o_wh3d_fallback" role="alert" t-esc="state.error"/>
+            <div t-elif="!state.rowCount" class="o_wh3d_empty" role="status">
+                No rack rows yet. Add some in Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows.
+            </div>
             <p class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan</p>
         </div>
     </t>

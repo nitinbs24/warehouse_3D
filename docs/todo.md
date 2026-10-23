@@ -147,13 +147,13 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Move the prototype's scene-building into `layout.js` (pure functions: records → matrices, hit boxes) and render it from the scene RPC.
 
 **Acceptance criteria:**
-- [ ] `layout.js` has no DOM/Three renderer dependency beyond `THREE.Matrix4`; given P05 it produces 16 uprights, 8 beams, 70 hit boxes (prototype numbers).
-- [ ] Floor, grid, curbs, areas, docks, racks, shelves and labels render from RPC data, with the 3D/Top camera toggle and Labels toggle from the prototype.
-- [ ] Visual parity with the prototype for the same layout (checked side by side, screenshot in `docs/`).
+- [x] `layout.js` has no Three.js or DOM dependency at all (returns plain number boxes); given P05 it produces 16 uprights, 8 beams, 70 hit boxes (prototype numbers).
+- [x] Floor, grid, curbs, areas, docks, racks, shelves and labels render from RPC data, with the 3D/Top camera toggle and Labels toggle from the prototype. *(Not ported: the prototype's hard-coded section labels — "Pallet racking", "Main cross aisle", "Shelving pick zone", "Outbound docks". They aren't data; can be added as layout areas later.)*
+- [x] Visual parity with the prototype for the same layout (checked side by side, screenshot in `docs/`).
 
-**Verification:** Hoot `static/tests/layout.test.js` (counts for pallet + shelf row, hit box position of `P05-03-2-A` matches the prototype formula). Tour extended: canvas renders without errors with 1 row present.
+**Verification:** done 23 Oct — Hoot `static/tests/layout.test.js` 10 tests (run by `tests/test_js.py`; a deliberately wrong number fails the run). Tour: row + area + dock present → scene loads 1 row with WebGL, Top view and Labels toggles work, leave and reopen. Screenshots `docs/screenshots/t7-odoo-3d-view.png` vs `t7-prototype.png` (via `./run_tests.sh wh3d_screenshot`). Full run `0 failed, 0 error(s) of 75 tests`.
 **Dependencies:** T4, T6
-**Files:** `static/src/view3d/layout.js`, `static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml}`, `static/tests/layout.test.js`, `tests/test_js.py`
+**Files:** `static/src/view3d/layout.js`, `static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml}`, `static/tests/layout.test.js`, `tests/test_js.py`, `tests/test_view3d.py`, `static/tests/tours/view3d_tour.js`
 **Scope:** M
 
 ### T8: Stock, selection panel, find, capacity, open in Inventory

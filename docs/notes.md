@@ -372,3 +372,46 @@ stock — is 2,340+ queries ("N+1"). Instead:
 metres (shown under Volume on the product's Inventory tab). Fields defined on `product.template` are
 visible on `product.product` too: Odoo links the two with `_inherits` (delegation inheritance —
 each variant "has a" template and borrows its fields).
+
+## T7: Real racks in 3D, drawn from your records
+
+Files: `static/src/view3d/layout.js` (pure geometry), `static/src/view3d/scene.js` (Three.js),
+`static/src/view3d/view3d_action.{js,xml,scss}`, `static/tests/layout.test.js`, `tests/test_js.py`,
+`tests/test_view3d.py`, `static/tests/tours/view3d_tour.js`, `docs/screenshots/t7-*.png`.
+
+**Three layers, each testable on its own.**
+```
+view3d_action.js   OWL component: loads Three.js + calls wh3d_get_scene, toolbar state
+      │
+scene.js           WarehouseScene: turns boxes into Three.js meshes, camera, labels, cleanup
+      │
+layout.js          plain maths: rack row record → list of boxes [x, y, z, sizeX, sizeY, sizeZ]
+```
+`layout.js` has no Three.js and no DOM, so its unit tests run in milliseconds and pin every number
+to the prototype (e.g. P05 has 16 uprights and 8 beams; slot P05-03-2-A's box centre is
+(-19.75, 2.66, -12.925)). If someone changes a formula, those tests say exactly which number moved.
+
+**Hoot = Odoo's JavaScript test runner.** Test files end in `.test.js`, are listed in the manifest
+under `web.assets_unit_tests`, and use `describe` / `test` / `expect(...).toBe(...)` like Jest. They
+run in the browser at `/web/tests`. `tests/test_js.py` starts that page headless, filtered to the
+`@warehouse_3d` suite, so `run_tests.sh` runs Python, Hoot and tours in one go. (Checked: a wrong
+expected number makes the whole run fail.)
+
+**Coordinates.** Floor plan = metres from a building corner (x along the length, y along the width),
+like the rack-row fields. Three.js wants the building centred on (0, 0) with "up" as y, so
+`toWorld()` shifts by half the building and plan-y becomes world-z.
+
+**Speed: instancing.** The 31 rows have ~1,000 uprights. Drawing each as its own mesh is ~1,000
+draw calls per frame; an `InstancedMesh` draws all identical boxes in **one** call, each with its
+own position/size matrix. The whole warehouse is about a dozen draw calls.
+
+**Labels** are text painted on a small `<canvas>` and used as a texture on a `Sprite` (a flat image
+that always faces the camera). Area labels ignore depth so they show through racks; row codes don't.
+
+**Lighting.** The prototype's lights (0.8 + 0.65) add up to more than 100 % on upward-facing
+surfaces, which is why its floor looks white. Here they're 0.55 + 0.5, so floor and areas keep their
+greys — compare `docs/screenshots/t7-prototype.png` and `t7-odoo-3d-view.png`.
+
+**Screenshots on demand.** `./run_tests.sh wh3d_screenshot` builds the handoff's 31 rows, 5 areas
+and 6 docks in a test database, opens the 3D view and saves a PNG under
+`/tmp/odoo_tests/wh3d_test/screenshots/`. It's tagged `-standard`, so normal runs skip it.

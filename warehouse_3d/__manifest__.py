@@ -18,6 +18,9 @@
         'web.assets_backend': [
             'warehouse_3d/static/src/view3d/**/*',
         ],
+        'web.assets_unit_tests': [
+            'warehouse_3d/static/tests/*.test.js',
+        ],
         'web.assets_tests': [
             'warehouse_3d/static/tests/tours/**/*',
         ],

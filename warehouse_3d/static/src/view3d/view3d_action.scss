@@ -1,7 +1,12 @@
+// Colours follow the prototype's light palette (docs/warehaven-3d-prototype.html).
+$wh3d-scene-bg: #e3e8ed;
+$wh3d-accent: #e0701b;
+$wh3d-on-accent: #1e1206;
+
 .o_wh3d_view {
     position: relative;
     height: 100%;
-    background: #e3e8ed;
+    background: $wh3d-scene-bg;
 
     .o_wh3d_canvas {
         position: absolute;
@@ -15,14 +20,79 @@
         }
     }
 
-    .o_wh3d_fallback {
+    .o_wh3d_toolbar {
         position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 24px;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        pointer-events: none;
+
+        > * {
+            pointer-events: auto;
+        }
+    }
+
+    .o_wh3d_seg {
+        display: inline-flex;
+        background: $o-white;
+        border: 1px solid $o-gray-300;
+        border-radius: 8px;
+        padding: 2px;
+
+        button {
+            border: 0;
+            background: transparent;
+            color: $o-gray-700;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 500;
+
+            &[aria-pressed="true"] {
+                background: $wh3d-accent;
+                color: $wh3d-on-accent;
+            }
+        }
+    }
+
+    .o_wh3d_chk {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: $o-white;
+        border: 1px solid $o-gray-300;
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin: 0;
+        cursor: pointer;
+
+        input {
+            accent-color: $wh3d-accent;
+            margin: 0;
+        }
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+        outline: 2px solid $wh3d-accent;
+        outline-offset: 2px;
+    }
+
+    .o_wh3d_fallback,
+    .o_wh3d_empty {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 420px;
+        padding: 16px 20px;
         text-align: center;
         color: $o-gray-700;
+        background: $o-white;
+        border: 1px solid $o-gray-300;
+        border-radius: 12px;
     }
 
     .o_wh3d_hint {
