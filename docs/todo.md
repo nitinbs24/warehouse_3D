@@ -83,6 +83,18 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `models/stock_location.py`, `views/stock_location_views.xml`, `models/warehouse_rack_row.py`, `__manifest__.py`, `tests/test_location_lock.py`
 **Scope:** S
 
+### T3c: Code-review fixes *(added 23 Oct after `/code-review`)*
+**Description:** Fix review findings #1–#6 and #9 (see `docs/notes.md` T3c); #7 and #8 deliberately deferred with reasons.
+
+**Acceptance criteria:**
+- [x] Removal check uses the exact set of locations that will be archived (surviving slots and their children excluded, hand-made children of removed nodes included).
+- [x] Duplicated generated locations are plain locations; falsy `active` and Regenerate both run the check; warehouse change refused once a row has locations.
+
+**Verification:** done 23 Oct — 6 new tests (5 in `test_location_sync.py`, 1 in `test_location_lock.py`); full run `0 failed, 0 error(s) of 53 tests`.
+**Dependencies:** T3b
+**Files:** `models/warehouse_rack_row.py`, `models/stock_location.py`, `tests/test_location_sync.py`, `tests/test_location_lock.py`
+**Scope:** S
+
 ### Checkpoint A
 - [ ] `TEST` green, nothing skipped
 - [ ] Manual: create P05 in the UI → receipt into `P05-03-2-A` → quant visible in Inventory ▸ Reporting ▸ Stock

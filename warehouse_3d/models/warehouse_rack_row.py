@@ -10,6 +10,11 @@ SHAPE_FIELDS = frozenset({'code', 'kind', 'bays', 'levels', 'slots_per_level'})
 SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
 
 
+def node_key(loc):
+    """Where a generated location sits in its row: (node, bay, level, position)."""
+    return (loc.wh3d_node, loc.wh3d_bay, loc.wh3d_level, loc.wh3d_position)
+
+
 class WarehouseRackRow(models.Model):
     """One rack face. Its numbers drive both the 3D geometry and the stock.location tree."""
     _name = 'warehouse.rack.row'
@@ -108,10 +113,15 @@ class WarehouseRackRow(models.Model):
         return rows
 
     def write(self, vals):
+        if 'warehouse_id' in vals and self.filtered(lambda r: r.warehouse_id.id != vals['warehouse_id'])._nodes():
+            # Locations can't change company, and a row's locations belong to its warehouse.
+            raise UserError(self.env._(
+                "A rack row with locations can't move to another warehouse. "
+                "Create a new row in the other warehouse instead."))
         # Check before writing, so a refused change leaves the row and its locations untouched.
-        if SHAPE_FIELDS.intersection(vals) or vals.get('active') is False:
+        if SHAPE_FIELDS.intersection(vals) or ('active' in vals and not vals['active']):
             for row in self:
-                row._check_no_stock_in(row._nodes_to_remove(vals))
+                row._check_removal(vals)
         res = super().write(vals)
         if SYNC_FIELDS.intersection(vals):
             self._sync_locations()
@@ -119,12 +129,15 @@ class WarehouseRackRow(models.Model):
 
     def unlink(self):
         for row in self:
-            row._check_no_stock_in(row._nodes())
+            row._check_removal({'active': False})
         # Locations are archived, never deleted: Inventory history (moves, counts) may point at them.
         self._nodes().write({'active': False})
         return super().unlink()
 
     def action_generate_locations(self):
+        # The tree may have drifted (imports, scripts), so extras get the same stock check as an edit.
+        for row in self:
+            row._check_removal({})
         self._sync_locations()
         return True
 
@@ -170,33 +183,40 @@ class WarehouseRackRow(models.Model):
 
     def _nodes_by_key(self):
         self.ensure_one()
-        return {(loc.wh3d_node, loc.wh3d_bay, loc.wh3d_level, loc.wh3d_position): loc
-                for loc in self._nodes(include_archived=True)}
+        return {node_key(loc): loc for loc in self._nodes(include_archived=True)}
 
-    def _nodes_to_remove(self, vals):
-        """Active locations this write would archive."""
+    def _locations_to_archive(self, vals):
+        """Active locations that writing ``vals`` would archive, including hand-made ones below them.
+
+        Generated nodes the new tree still wants survive (they're renamed or re-parented first),
+        and so does everything below them.
+        """
         self.ensure_one()
-        if vals.get('active') is False:
-            return self._nodes()
-        wanted = {key for key, _parent, _name in self._location_tree(vals)}
-        return self._nodes().filtered(
-            lambda loc: (loc.wh3d_node, loc.wh3d_bay, loc.wh3d_level, loc.wh3d_position) not in wanted)
+        Location = self.env['stock.location']
+        archiving_row = 'active' in vals and not vals['active']
+        wanted = set() if archiving_row else {key for key, _parent, _name in self._location_tree(vals)}
+        nodes = self._nodes()
+        removed = nodes.filtered(lambda loc: node_key(loc) not in wanted)
+        if not removed:
+            return Location
+        below_removed = Location.search([('id', 'child_of', removed.ids)])
+        surviving = below_removed & (nodes - removed)
+        return below_removed - Location.search([('id', 'child_of', surviving.ids)])
 
-    def _check_no_stock_in(self, locations):
-        """Refuse when any of these locations holds, reserves or awaits stock."""
+    def _check_removal(self, vals):
+        """Refuse ``vals`` if a location it would archive holds, reserves or awaits stock."""
+        self.ensure_one()
+        locations = self._locations_to_archive(vals)
         if not locations:
             return
+        ids = locations.ids
         busy = self.env['stock.quant'].search([
-            ('location_id', 'child_of', locations.ids), '|', ('quantity', '!=', 0), ('reserved_quantity', '!=', 0),
+            ('location_id', 'in', ids), '|', ('quantity', '!=', 0), ('reserved_quantity', '!=', 0),
         ]).location_id
-        busy |= self.env['stock.move'].search([
-            ('state', 'not in', ('done', 'cancel')),
-            '|', ('location_id', 'child_of', locations.ids), ('location_dest_id', 'child_of', locations.ids),
-        ]).mapped(lambda m: (m.location_id | m.location_dest_id) & locations)
-        busy |= self.env['stock.move.line'].search([
-            ('state', 'not in', ('done', 'cancel')),
-            '|', ('location_id', 'child_of', locations.ids), ('location_dest_id', 'child_of', locations.ids),
-        ]).mapped(lambda ml: (ml.location_id | ml.location_dest_id) & locations)
+        for model in ('stock.move', 'stock.move.line'):
+            busy |= self.env[model].search([
+                ('state', 'not in', ('done', 'cancel')), '|', ('location_id', 'in', ids), ('location_dest_id', 'in', ids),
+            ]).mapped(lambda m: (m.location_id | m.location_dest_id) & locations)
         if busy:
             names = sorted(busy.mapped('name'))
             shown = ', '.join(names[:10]) + (self.env._(" and %s more", len(names) - 10) if len(names) > 10 else '')
@@ -208,7 +228,7 @@ class WarehouseRackRow(models.Model):
         """Make each row's stock.location tree match its fields.
 
         Creates missing nodes, renames/re-parents/re-activates existing ones, and archives
-        nodes that are no longer wanted. Callers must run ``_check_no_stock_in`` first.
+        nodes that are no longer wanted. Callers must run ``_check_removal`` first.
         """
         Location = self.env['stock.location'].with_context(active_test=False)
         for row in self:

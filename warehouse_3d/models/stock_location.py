@@ -9,12 +9,14 @@ class StockLocation(models.Model):
     _inherit = 'stock.location'
 
     # Set on locations generated from a rack row; plain Inventory locations leave them empty.
-    wh3d_rack_row_id = fields.Many2one('warehouse.rack.row', string='Rack Row', index='btree_not_null', ondelete='set null')
+    # copy=False: a duplicated location is a plain one, never a second claim on the same rack slot.
+    wh3d_rack_row_id = fields.Many2one(
+        'warehouse.rack.row', string='Rack Row', index='btree_not_null', ondelete='set null', copy=False)
     wh3d_node = fields.Selection(
-        [('row', 'Row'), ('bay', 'Bay'), ('level', 'Level'), ('slot', 'Slot')], string='Rack Node')
-    wh3d_bay = fields.Integer(string='Bay')
-    wh3d_level = fields.Integer(string='Level')
-    wh3d_position = fields.Integer(string='Position')
+        [('row', 'Row'), ('bay', 'Bay'), ('level', 'Level'), ('slot', 'Slot')], string='Rack Node', copy=False)
+    wh3d_bay = fields.Integer(string='Bay', copy=False)
+    wh3d_level = fields.Integer(string='Level', copy=False)
+    wh3d_position = fields.Integer(string='Position', copy=False)
 
     def write(self, vals):
         if not self.env.context.get('wh3d_sync') and any(f in vals for f in LOCKED_FIELDS):

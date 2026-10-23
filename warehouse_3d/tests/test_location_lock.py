@@ -64,3 +64,11 @@ class TestLocationLock(TransactionCase):
         form.name = 'Pallet racking'
         form.save()
         self.assertEqual(self.pr.name, 'Pallet racking')
+
+    def test_duplicating_a_generated_location_gives_a_plain_location(self):
+        # Review #3: a copy must not claim the same rack row slot as the original.
+        copy = self.slot_1.copy()
+        self.assertFalse(copy.wh3d_rack_row_id)
+        self.assertFalse(copy.wh3d_node)
+        self.assertEqual(self.row.slot_count, 70)
+        copy.name = 'Spare bin'  # not locked: it isn't managed by the row

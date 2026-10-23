@@ -139,3 +139,61 @@ class TestLocationSync(TransactionCase):
         with self.assertRaisesRegex(UserError, 'P05-01-1-A'):
             self.row.unlink()
         self.assertTrue(self.row.exists())
+
+    # --- Code-review fixes (T3c) ---
+
+    def _confirmed_receipt_into(self, location):
+        supplier = self.env.ref('stock.stock_location_suppliers')
+        picking = self.env['stock.picking'].create({
+            'picking_type_id': self.warehouse.in_type_id.id,
+            'location_id': supplier.id, 'location_dest_id': location.id,
+            'move_ids': [(0, 0, {
+                'product_id': self.product.id, 'product_uom_qty': 5,
+                'location_id': supplier.id, 'location_dest_id': location.id,
+            })],
+        })
+        picking.action_confirm()
+        return picking
+
+    def test_pallet_to_shelf_keeps_stock_in_surviving_slot(self):
+        # Review #1: slot A survives (renamed, re-parented), so its stock must not block the change.
+        slot = self._slot('P05-03-2-A')
+        self._put_stock(slot)
+        self.row.write({'kind': 'shelf', 'slots_per_level': 1})
+        self.assertTrue(slot.active)
+        self.assertEqual(slot.name, 'P05-03-2')
+        self.assertEqual(slot.quant_ids.quantity, 10)
+
+    def test_shrinking_over_transfer_into_user_sublocation_is_refused(self):
+        # Review #2: a hand-made bin below a removed slot counts too.
+        left = self.env['stock.location'].create({
+            'name': 'Left', 'usage': 'internal', 'location_id': self._slot('P05-07-1-A').id})
+        self._confirmed_receipt_into(left)
+        with self.assertRaisesRegex(UserError, 'Left'):
+            self.row.bays = 6
+        self.assertTrue(left.active)
+
+    def test_falsy_active_value_still_checks_transfers(self):
+        # Review #4: write({'active': 0}) must be checked like write({'active': False}).
+        self._confirmed_receipt_into(self._slot('P05-01-1-A'))
+        with self.assertRaisesRegex(UserError, 'P05-01-1-A'):
+            self.row.write({'active': 0})
+        self.assertTrue(self.row.active)
+
+    def test_regenerate_checks_transfers_before_archiving_extras(self):
+        # Review #5: a stray node (bay 9 of a 7-bay row) with an open receipt must not be archived silently.
+        stray = self.env['stock.location'].create({
+            'name': 'P05-09-1-A', 'usage': 'internal', 'location_id': self._slot('P05-01-1-A').location_id.id,
+            'wh3d_rack_row_id': self.row.id, 'wh3d_node': 'slot', 'wh3d_bay': 9, 'wh3d_level': 1, 'wh3d_position': 1,
+        })
+        self._confirmed_receipt_into(stray)
+        with self.assertRaisesRegex(UserError, 'P05-09-1-A'):
+            self.row.action_generate_locations()
+        self.assertTrue(stray.active)
+
+    def test_changing_warehouse_of_a_row_with_locations_is_refused(self):
+        # Review #6: locations can't change company, so moving a row between warehouses is not supported.
+        other = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        zone = self.env['stock.location'].create({'name': 'PR', 'usage': 'internal', 'location_id': other.lot_stock_id.id})
+        with self.assertRaisesRegex(UserError, 'warehouse'):
+            self.row.write({'warehouse_id': other.id, 'location_id': zone.id})

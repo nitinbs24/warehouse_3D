@@ -154,8 +154,8 @@ create a duplicate of a slot that was merely archived.
 
 ## T3: Editing, archiving and deleting rows without losing stock
 
-Files: `models/warehouse_rack_row.py` (`write`, `unlink`, `_nodes_to_remove`, `_check_no_stock_in`,
-`_sync_locations`), `tests/test_location_sync.py`.
+Files: `models/warehouse_rack_row.py` (`write`, `unlink`, `_locations_to_archive` and `_check_removal`
+(named `_nodes_to_remove` / `_check_no_stock_in` until T3c), `_sync_locations`), `tests/test_location_sync.py`.
 
 **What happens when you change a row**
 
@@ -177,7 +177,7 @@ edit change which locations exist?" Edits to x/y skip the sync entirely.
 **Check first, then change.** If we wrote first and raised an error afterwards, the test (and any
 code that catches the error) could be left with half-applied changes. So `write` first works out
 which locations *would* disappear — `_location_tree(vals)` builds the tree from the pending values —
-and `_check_no_stock_in` refuses if any of them holds stock, has reserved stock, or is the source or
+and `_check_removal` refuses if any of them holds stock, has reserved stock, or is the source or
 destination of an open transfer. Only then does it write. Odoo's own archive check
 (`stock.location.write`) also refuses archiving stocked locations; ours runs earlier and names every
 blocked location in one message.
@@ -227,3 +227,28 @@ them can read via `self.env.context`. (We already used `active_test=False` the s
 **Testing a view in Python.** `odoo.tests.Form` simulates the form in Python, applying the view's
 `readonly` / `invisible` rules. Setting a read-only field raises an `AssertionError`, which is how
 `test_form_shows_locked_fields_read_only` checks the screen without a browser.
+
+## T3c: Fixes from the code review
+
+A `/code-review` of T1–T3b found nine issues; six were fixed, each with a test that failed first
+(`tests/test_location_sync.py` and `tests/test_location_lock.py`, marked "Review #n").
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | Pallet → shelf was refused when the surviving slot A held stock: the check saw it below the removed level node. | `_locations_to_archive` works out exactly what disappears: removed nodes and everything below them, **minus** nodes that survive and everything below those. |
+| 2 | An open transfer into a hand-made bin below a removed slot (e.g. `P05-07-1-A/Left`) was missed. | Same function: hand-made locations below a removed node are included, and quants, moves and move lines are all checked against that one exact set. |
+| 3 | Duplicating a generated location copied its rack-row key, confusing the sync and locking both copies. | `copy=False` on the `wh3d_*` fields: a copy is a plain location. |
+| 4 | `write({'active': 0})` skipped the check (code tested `is False`). | Test "is `active` in vals and falsy". |
+| 5 | *Regenerate Locations* could archive stray nodes without the check. | `action_generate_locations` runs `_check_removal` first. |
+| 6 | Moving a row to another company's warehouse would leave its locations in the old company. | Changing a row's warehouse once it has locations is refused; create a new row instead. |
+| 9 | The node key tuple was spelled out in two places. | One `node_key(loc)` helper. |
+
+Not fixed, on purpose: **#7** the `wh3d_sync` context flag can be set by an API caller to bypass the
+lock — the lock guards against mistakes, not attackers, and anyone who can write locations can
+already change the rack row. **#8** a row rename writes its 113 locations one by one; fine at this
+size, revisit in T14 if the template install is slow.
+
+**Lesson (Odoo):** `field.copy=False` decides what `record.copy()` (the *Duplicate* menu) carries
+over. Any field that identifies "this exact record" — keys, links that must be unique — should be
+`copy=False`. **Lesson (general):** a safety check must test exactly the set of things that will be
+lost; checking a superset blocks valid edits (#1), checking a subset lets data slip (#2).
