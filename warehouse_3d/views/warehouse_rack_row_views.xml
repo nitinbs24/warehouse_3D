@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warehouse_rack_row_view_list" model="ir.ui.view">
+        <field name="name">warehouse.rack.row.list</field>
+        <field name="model">warehouse.rack.row</field>
+        <field name="arch" type="xml">
+            <list string="Rack Rows">
+                <field name="code"/>
+                <field name="kind"/>
+                <field name="warehouse_id" groups="stock.group_stock_multi_warehouses"/>
+                <field name="location_id"/>
+                <field name="x"/>
+                <field name="y"/>
+                <field name="bays"/>
+                <field name="levels"/>
+                <field name="slots_per_level"/>
+                <field name="storage_category_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warehouse_rack_row_view_form" model="ir.ui.view">
+        <field name="name">warehouse.rack.row.form</field>
+        <field name="model">warehouse.rack.row</field>
+        <field name="arch" type="xml">
+            <form string="Rack Row">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="code"/>
+                        <h1><field name="code" placeholder="e.g. P05"/></h1>
+                    </div>
+                    <group>
+                        <group string="Placement">
+                            <field name="kind" widget="radio" options="{'horizontal': true}"/>
+                            <field name="warehouse_id" groups="stock.group_stock_multi_warehouses"/>
+                            <field name="location_id"/>
+                            <field name="storage_category_id"/>
+                            <field name="x"/>
+                            <field name="y"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group string="Dimensions">
+                            <field name="bays"/>
+                            <field name="bay_width"/>
+                            <field name="depth"/>
+                            <field name="levels"/>
+                            <field name="level_height"/>
+                            <field name="slots_per_level" readonly="kind == 'shelf'"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="warehouse_rack_row_view_search" model="ir.ui.view">
+        <field name="name">warehouse.rack.row.search</field>
+        <field name="model">warehouse.rack.row</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="code"/>
+                <field name="location_id"/>
+                <filter name="pallet" string="Pallet racks" domain="[('kind', '=', 'pallet')]"/>
+                <filter name="shelf" string="Shelving" domain="[('kind', '=', 'shelf')]"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_kind" string="Kind" context="{'group_by': 'kind'}"/>
+                    <filter name="group_zone" string="Zone" context="{'group_by': 'location_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warehouse_rack_row" model="ir.actions.act_window">
+        <field name="name">Rack Rows</field>
+        <field name="res_model">warehouse.rack.row</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add your first rack row</p>
+            <p>A rack row is one face of racking. Its dimensions generate the storage locations of that row.</p>
+        </field>
+    </record>
+</odoo>

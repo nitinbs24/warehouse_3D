@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Rack rows generate sub-locations, so turn on Inventory's "Storage Locations" setting.
+         Go through the settings model, not the group directly: saving the setting also
+         re-enables the "New" button on Locations and the internal transfer operation type. -->
+    <function model="res.config.settings" name="execute">
+        <value model="res.config.settings" eval="obj().create({'group_stock_multi_locations': True}).ids"/>
+    </function>
+</odoo>

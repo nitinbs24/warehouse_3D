@@ -5,6 +5,7 @@ Plan and rationale: `docs/plan.md`. Status: **awaiting approval**.
 Paths below are relative to `warehouse_3D/warehouse_3d/` (the module) unless they start with `docs/` or `/`.
 Every task is test-first: write the failing test(s) in **Verification**, see them fail, implement, see them pass, refactor.
 Every task ends with: full module test run green with **no skipped browser tests**, an entry in `docs/notes.md`, and a suggested commit message. Nitin commits; Claude never does.
+**Claude stops after every task and reports progress; the next task starts only when Nitin says "continue".**
 
 `TEST` = `warehouse_3D/run_tests.sh` (fresh `wh3d_test` DB with demo, port 8079, fails on any error/failure/skipped browser test). One class: `./run_tests.sh /warehouse_3d:TestName`.
 Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tests`); their Python drivers in `tests/test_tours.py`.
@@ -34,11 +35,11 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** The core record from the handoff, editable in Odoo's standard list/form, under *Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack rows*. Adds the slot index fields to `stock.location` via `_inherit`.
 
 **Acceptance criteria:**
-- [ ] Fields: `code`, `kind` (pallet/shelf), `x`, `y`, `bays`, `bay_width`, `depth`, `levels`, `level_height`, `slots_per_level`, `warehouse_id`, `location_id` (zone parent), `storage_category_id`, `active`. `stock.location` gains `wh3d_rack_row_id`, `wh3d_bay`, `wh3d_level`, `wh3d_position`.
-- [ ] Rejected with a clear message: non-positive dimensions/counts, `code` not matching `^[A-Z]\d{2}$`, duplicate code per warehouse, shelf with `slots_per_level ≠ 1`, `slots_per_level > 26`.
-- [ ] Access rules: Inventory users read, Inventory managers write.
+- [x] Fields: `code`, `kind` (pallet/shelf), `x`, `y`, `bays`, `bay_width`, `depth`, `levels`, `level_height`, `slots_per_level`, `warehouse_id`, `location_id` (zone parent), `storage_category_id`, `active`. `stock.location` gains `wh3d_rack_row_id`, `wh3d_node`, `wh3d_bay`, `wh3d_level`, `wh3d_position`.
+- [x] Rejected with a clear message: non-positive dimensions/counts, negative x/y, `code` not matching `^[A-Z]\d{2}$`, duplicate code per warehouse, shelf with `slots_per_level ≠ 1`, `slots_per_level > 26`, zone location outside the warehouse's stock location.
+- [x] Access rules: Inventory users read, Inventory managers write. "Storage Locations" setting switched on by the module.
 
-**Verification:** `tests/test_rack_row.py` — one test per rule above, plus a stock-user write is refused. Manual: create P05 from the handoff record in the UI.
+**Verification:** done 23 Oct — `tests/test_rack_row.py` 11 tests (incl. regression for the missing "New" button on Locations, found in manual check); full run `0 failed, 0 error(s) of 13 tests`. Manual (Nitin): create P05 from the handoff record in the UI.
 **Dependencies:** T0
 **Files:** `models/warehouse_rack_row.py`, `models/stock_location.py`, `views/warehouse_rack_row_views.xml`, `views/menus.xml`, `security/ir.model.access.csv`, `tests/test_rack_row.py`
 **Scope:** M
