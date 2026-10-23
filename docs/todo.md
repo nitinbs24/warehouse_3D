@@ -121,11 +121,11 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Replace the prototype's hard-coded zones/docks/building with data.
 
 **Acceptance criteria:**
-- [ ] `warehouse.layout.area` (name, kind area/dock, x, y, width, depth, warehouse_id) with list view under the Warehouse 3D config menu.
-- [ ] `stock.warehouse` gains `wh3d_length`, `wh3d_width`, `wh3d_height` (defaults 60/40/10), shown in a "3D layout" tab on the warehouse form.
-- [ ] Areas must have positive size and lie inside the building.
+- [x] `warehouse.layout.area` (name, kind area/dock, x, y, width, depth, warehouse_id) with list view under the Warehouse 3D config menu.
+- [x] `stock.warehouse` gains `wh3d_length`, `wh3d_width`, `wh3d_height` (defaults 60/40/10), shown in a "3D Layout" group on the warehouse form (above the tabs, which are often hidden).
+- [x] Areas must have positive size and lie inside the building.
 
-**Verification:** `tests/test_layout_area.py` (constraints, defaults).
+**Verification:** done 23 Oct — `tests/test_layout_area.py` 9 tests (defaults, create area/dock, positive size, outside building ×3, touching walls OK, shrinking building refused, size > 0, form, access). Full run `0 failed, 0 error(s) of 63 tests`.
 **Dependencies:** T1
 **Files:** `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `views/warehouse_layout_area_views.xml`, `views/stock_warehouse_views.xml`, `security/ir.model.access.csv`, `tests/test_layout_area.py`
 **Scope:** M

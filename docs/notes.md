@@ -303,3 +303,31 @@ the canvas. The tour opens the view, leaves, checks the canvas is gone, and open
 
 **Headless Chrome can do WebGL.** Odoo starts its test browser with `--enable-unsafe-swiftshader`, a
 software GPU, so the tour checks for a real WebGL context, not just a `<canvas>` tag.
+
+## T5: Building size and layout areas
+
+Files: `models/stock_warehouse.py`, `models/warehouse_layout_area.py`,
+`views/warehouse_layout_area_views.xml`, `views/menus.xml`, `security/ir.model.access.csv`,
+`tests/test_layout_area.py`.
+
+**Why.** The prototype had the building size, zones and docks hard-coded in JavaScript. Now they are
+data: three fields on the warehouse (length along X, width along Y, clear height; defaults 60/40/10)
+and a small model `warehouse.layout.area` for floor areas (Receiving, Packing…) and dock doors.
+The 3D view (T6–T7) and the editor (T11) will read them instead of hard-coding.
+
+**One check, two callers.** "Is this rectangle inside the building?" is needed when an *area* moves
+and when the *building* shrinks. Both call `stock.warehouse._check_wh3d_contains(records)`; T10 will
+reuse it for rack rows. `@api.model` marks a method that doesn't care which records `self` holds.
+
+**`One2many` (`wh3d_area_ids`)** is the reverse side of the area's `warehouse_id` pointer — no column
+of its own, just "all areas whose `warehouse_id` is me". It lets the warehouse check its areas.
+
+**New fields on existing records.** When `-u` adds a column to a table that already has rows, Odoo
+fills it with the field's `default` (`odoo/orm/fields.py`, `update_db_column`), so your existing
+warehouse got 60 × 40 × 10 automatically.
+
+**Editable list.** `<list editable="bottom">` lets you type areas straight into the list, like a
+spreadsheet — no form needed for six simple fields.
+
+**Where the fields appear.** The warehouse form's tabs are only visible with multi-step routes or
+several warehouses, so the "3D Layout" group is inserted *before* the tabs (`xpath ... position="before"`).
