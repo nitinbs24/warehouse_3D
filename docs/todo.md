@@ -197,6 +197,25 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `static/src/view3d/live.js`, `static/src/view3d/view3d_action.js`, `static/src/view3d/occupancy.js`, `models/stock_quant.py`, `tests/common.py`, `tests/test_bus.py`, `tests/test_view3d.py`, `static/tests/live.test.js`, `static/tests/occupancy.test.js`, `static/tests/tours/view3d_tour.js`
 **Scope:** M
 
+### T9c: Walk mode — first-person walk through the aisles *(added 23 Oct, interview)*
+**Description:** A **Walk** button in the 3D view toolbar switches to a first-person camera at eye height so you can walk the aisles by hand (plan decision 11b). Mainly for the demo; also a floor-level look at where a slot is.
+
+**Acceptance criteria:**
+- [ ] **Start:** with a slot selected, you start in its aisle facing it (side chosen with `openSide`, distance limited by `aisleClearance`); with nothing selected, at the first dock door (or the middle of the front wall if there are no docks) facing into the building. Eye height 1.7 m.
+- [ ] **Controls:** W/A/S/D or arrow keys walk (~1.4 m/s, Shift ×2.5); mouse drag looks around (pitch limited to ±80°); no pointer lock. Keys are ignored while typing in an input (e.g. Find). Esc or the Walk button returns to the orbit view where it was.
+- [ ] **Collisions:** the walker (0.3 m radius) can't enter a rack footprint or leave the building; moving into a rack at an angle slides along it. Floor areas and docks are walkable.
+- [ ] Clicking a slot, Find, the side panel and live stock updates keep working in walk mode.
+
+**Verification:**
+- [ ] Hoot `static/tests/walk.test.js`: start pose in front of a slot (both aisle sides, back-to-back pair), start at first dock / no docks, key → movement direction for a given heading, Shift speed, can't enter a rack, slides along a rack face, stays inside walls, corner case between two racks.
+- [ ] Tour: Find P05-03-2-A → Walk → view in walk mode at eye height (marker attribute) → Esc → back to orbit; enter/leave twice with no console errors.
+- [ ] Manual (Nitin): from P05-03-2-A walk the aisle, turn into the main cross aisle and reach Shipping without passing through anything.
+- [ ] Screenshot `docs/screenshots/t9c-walk-mode.png`.
+
+**Dependencies:** T8, T9b
+**Files:** `static/src/view3d/walk.js` (new, pure), `static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml,scss}`, `static/tests/walk.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
+**Scope:** M
+
 ### Checkpoint B
 - [ ] `TEST` green, nothing skipped
 - [ ] Manual: 3D view looks like the prototype with real rows; receipt in tab A appears live in tab B

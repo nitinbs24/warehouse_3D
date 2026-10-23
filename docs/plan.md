@@ -19,6 +19,7 @@ storage categories, opening stock) as demo data. Standard Odoo putaway only.
 - **Constraint:** Odoo 19 Community, no CDN, no new Python packages, standard putaway. Odoo 18 setup and `odoo.conf` stay untouched.
 - **Out of scope:** custom putaway (3D-BPP/FFD, SLAP/ABC) and the research experiment (a later plan), per-carton packed rendering (that is the 3D-BPP problem — later plan), pick/delivery history (the mentor will supply real data), dark theme, tutorials 1/2/4 of the handoff build order (your own learning), multi-warehouse polish, rotated rack rows, the dropped Kafka/FastAPI/React design.
 - **No deadline.** Local git only (no shared remote).
+- **Walk mode (added 23 Oct, interview):** a first-person "walk the aisles" view in the 3D view, mainly for the mentor demo, partly so someone can see a slot from floor level. Steered by hand; no guided route; can't walk through racks. Starts in front of the selected slot, else at the first dock door. Out of scope for it: guided routes / "walk me to slot X", a start-location prompt, touch/phone controls, jumping, doors, people, VR, recording a walk.
 
 ## What I verified in the Odoo 19 source (so the plan rests on facts)
 
@@ -50,6 +51,7 @@ storage categories, opening stock) as demo data. Standard Odoo putaway only.
 9. **Editor = second OWL client action** (`warehouse_3d.editor`), top-down **SVG** (not Three.js — simpler, crisp, testable): drag rows with 0.1 m snap, edit fields in a side panel, add/delete rows, Save writes through the ORM. Server constraints (inside building, no footprint overlap within a warehouse) are authoritative; the client mirrors them for instant feedback.
 10. **Template warehouse as demo data:** XML for package types, storage categories, product categories, products (with dimensions + ABC class), putaway rules, areas, 31 rack rows; a `<function>` call then generates locations and seeded (deterministic) opening stock ~65% full, ABC-skewed.
 11. **Tests:** Python `TransactionCase` for models/generator/RPC/bus/template; Hoot for `layout.js` and editor geometry; one `HttpCase` tour per client action (smoke: it opens, renders, the main interaction works). Written test-first per task (red → green → refactor).
+11b. **Walk mode = a second camera mode, not a second scene.** Same `WarehouseScene`; OrbitControls are switched off and a small first-person controller takes over (WASD/arrows to move at ~1.4 m/s, Shift faster, mouse drag to look, no pointer lock so Esc and the panel keep working). Eye height 1.7 m. Collision is 2D on the floor plan: the walker is a 0.3 m circle that may not enter any rack footprint or leave the building, and slides along edges instead of stopping. Start pose and collision maths live in a pure, unit-tested `walk.js`, like `layout.js`.
 12. **Learning notes:** each task appends a short section to `docs/notes.md` — "Odoo patterns used here" (e.g. `_inherit`, `@api.constrains`, OWL `onWillStart`/`onMounted`/`onWillUnmount`, asset bundles, XML views/actions/menus, bus). Explained once, the first time each pattern appears.
 
 ### Dependency graph
@@ -70,26 +72,30 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 ## Task list (details and acceptance criteria in `docs/todo.md`)
 
 ### Phase 0 — Environment
-- [ ] T0: Odoo 19 config, DB, git, empty module that installs, test command proven
+- [x] T0: Odoo 19 config, DB, git, empty module that installs, test command proven
 
 ### Phase 1 — Layout data → real Inventory locations
-- [ ] T1: `warehouse.rack.row` model, validation, list/form views, menu
-- [ ] T2: Generate the location tree from a rack row
-- [ ] T3: Regenerate on edit / delete without losing stock
+- [x] T1: `warehouse.rack.row` model, validation, list/form views, menu
+- [x] T2: Generate the location tree from a rack row
+- [x] T3: Regenerate on edit / delete without losing stock
+- [x] T3b: Lock generated locations
+- [x] T3c: Code-review fixes
 - [ ] **Checkpoint A** — rows create correct locations; Inventory can receive into them
 
 ### Phase 2 — 3D viewer
-- [ ] T4: Spike — vendored Three.js rendering inside an OWL client action
-- [ ] T5: Layout areas + building size
-- [ ] T6: Scene RPC
-- [ ] T7: Port prototype geometry; render racks from records
-- [ ] T8: Stock, selection panel, find, capacity cards, open in Inventory
-- [ ] T9: Live updates over the bus
+- [x] T4: Spike — vendored Three.js rendering inside an OWL client action
+- [x] T5: Layout areas + building size
+- [x] T6: Scene RPC
+- [x] T7: Port prototype geometry; render racks from records
+- [x] T8: Stock, selection panel, find, capacity cards, open in Inventory
+- [x] T9: Live updates over the bus
+- [x] T9b: Live-update review fixes
+- [ ] T9c: Walk mode — first-person walk through the aisles *(added 23 Oct)*
 - [ ] **Checkpoint B** — 3D view matches the prototype with real data, updates live
 
 ### Phase 3 — 2D editor
-- [ ] T10: Server-side layout constraints (bounds, overlap)
-- [ ] T11: Editor client action — draw and select
+- [x] T10: Server-side layout constraints (bounds, overlap)
+- [x] T11: Editor client action — draw and select
 - [ ] T12: Editor — move, edit, add, delete, save
 - [ ] **Checkpoint C** — design a layout in the editor, see it in 3D, locations follow
 
