@@ -110,7 +110,7 @@ change, then views (which define the action), then menus (which reference the ac
 
 ## T2: Generating the location tree from a rack row
 
-Files: `models/warehouse_rack_row.py` (`create`, `_location_tree`, `_generate_locations`,
+Files: `models/warehouse_rack_row.py` (`create`, `_location_tree`, `_sync_locations` (called `_generate_locations` until T3),
 `action_generate_locations`, `action_view_slots`), `views/warehouse_rack_row_views.xml`,
 `tests/test_location_generator.py`.
 
@@ -126,7 +126,7 @@ Odoo creates records in batches.
 pallet: P05 ─ P05-03 ─ P05-03-2 ─ P05-03-2-A      (row ─ bay ─ level ─ slot, 1+7+35+70 = 113 locations)
 shelf:  S04 ─ S04-10 ─ S04-10-3                   (row ─ bay ─ slot, no level node, 1+16+80 = 97)
 ```
-`_generate_locations()` then compares that list with what is already in the database (found by the
+`_sync_locations()` then compares that list with what is already in the database (found by the
 `wh3d_*` fields, not by name) and creates only what's missing. That's why running it twice creates
 nothing, and why the "Regenerate Locations" button can repair a deleted slot. T3 will use the same
 keys to rename and archive.
@@ -151,3 +151,50 @@ model, with this filter". Methods called from buttons can return such a dict to 
 **`company_id` and `active_test`.** Generated locations get the row's company. The search uses
 `with_context(active_test=False)` so archived locations are found too; otherwise a re-generate would
 create a duplicate of a slot that was merely archived.
+
+## T3: Editing, archiving and deleting rows without losing stock
+
+Files: `models/warehouse_rack_row.py` (`write`, `unlink`, `_nodes_to_remove`, `_check_no_stock_in`,
+`_sync_locations`), `tests/test_location_sync.py`.
+
+**What happens when you change a row**
+
+| You change | Locations |
+|---|---|
+| x, y, bay width, depth, level height | nothing (they only affect the drawing) |
+| code (P05 → P15) | every node renamed in place; same records, so stock and history stay attached |
+| bays / levels / slots per level up | new nodes created, or archived ones reactivated |
+| bays / levels / slots per level down | removed nodes archived — **refused** if any holds stock |
+| kind pallet ↔ shelf | tree reshaped (slots move under the bay, level nodes archived) |
+| zone location | the row's subtree moves under the new zone |
+| storage category | copied to every slot |
+| archive the row / delete the row | all its locations archived — **refused** if any holds stock |
+
+**Overriding `write`.** Same pattern as `create` in T2: do our part, call `super().write(vals)`.
+`vals` only contains the fields being changed, so `SHAPE_FIELDS.intersection(vals)` asks "does this
+edit change which locations exist?" Edits to x/y skip the sync entirely.
+
+**Check first, then change.** If we wrote first and raised an error afterwards, the test (and any
+code that catches the error) could be left with half-applied changes. So `write` first works out
+which locations *would* disappear — `_location_tree(vals)` builds the tree from the pending values —
+and `_check_no_stock_in` refuses if any of them holds stock, has reserved stock, or is the source or
+destination of an open transfer. Only then does it write. Odoo's own archive check
+(`stock.location.write`) also refuses archiving stocked locations; ours runs earlier and names every
+blocked location in one message.
+
+**Archive, never delete.** Odoo convention: records that history points to (stock moves, inventory
+counts) are archived (`active = False`), not deleted. Archived records disappear from lists and
+dropdowns but keep their history; the "Archived" filter shows them. Growing a row back reactivates
+the *same* records, so nothing is duplicated.
+
+**Order matters when archiving.** In Odoo 19, archiving or unarchiving a location does the same to all
+its children (`stock.location.write`). So `_sync_locations` first creates/renames/reactivates (parents
+before children), and archives obsolete nodes last — otherwise reactivating a bay would wake up the
+slots we just archived.
+
+**Delete = archive, then delete the row.** `unlink` is the ORM's delete. We check stock, archive the
+row's locations, then let `super().unlink()` delete the rack-row record itself. The locations keep
+existing (archived), with `wh3d_rack_row_id` cleared because of `ondelete='set null'`.
+
+**A name can repeat.** Pallet → shelf renames slot `P05-03-2-A` to `P05-03-2`, the same name as the now
+archived level node. Odoo allows duplicate location names; only the active one shows anywhere.

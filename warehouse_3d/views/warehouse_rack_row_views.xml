@@ -26,7 +26,7 @@
             <form string="Rack Row">
                 <header>
                     <button name="action_generate_locations" type="object" string="Regenerate Locations" groups="stock.group_stock_manager"
-                            help="Create any missing locations of this row. Existing locations are kept."/>
+                            help="Bring this row's locations in line with its fields: create missing ones, fix names, archive extras."/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">

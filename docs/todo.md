@@ -61,13 +61,13 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Changing a row keeps locations in sync, never destroying stock (decision 5).
 
 **Acceptance criteria:**
-- [ ] Rename P05→P15 renames all 70 slots and intermediates in place (same record ids, quants untouched). Moving x/y changes no location.
-- [ ] Grow (bays 7→8) adds 10 slots; shrink (7→6) archives the 10 removed slots when empty, and raises `UserError` listing the codes when any holds stock (nothing changes).
-- [ ] Deleting/archiving a row archives its subtree, with the same stock guard.
+- [x] Rename P05→P15 renames all 70 slots and intermediates in place (same record ids, quants untouched). Moving x/y changes no location.
+- [x] Grow (bays 7→8) adds 10 slots; shrink (7→6) archives the 10 removed slots when empty, and raises `UserError` listing the codes when any holds stock (nothing changes).
+- [x] Deleting/archiving a row archives its subtree, with the same stock guard.
 
-**Verification:** `tests/test_location_generator.py` — rename, move, grow, shrink-empty, shrink-with-stock (use `stock.quant._update_available_quantity`), delete-with-stock.
+**Verification:** done 23 Oct — `tests/test_location_sync.py` 15 tests: rename, move, grow, shrink-empty, shrink-with-stock, shrink-with-incoming-transfer, regrow reuses archived, fewer levels, category, pallet→shelf, zone move, archive/unarchive, archive-with-stock, delete, delete-with-stock. Full run `0 failed, 0 error(s) of 38 tests`.
 **Dependencies:** T2
-**Files:** `models/warehouse_rack_row.py`, `tests/test_location_generator.py`
+**Files:** `models/warehouse_rack_row.py`, `tests/test_location_sync.py`
 **Scope:** S
 
 ### Checkpoint A
