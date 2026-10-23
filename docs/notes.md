@@ -252,3 +252,54 @@ size, revisit in T14 if the template install is slow.
 over. Any field that identifies "this exact record" — keys, links that must be unique — should be
 `copy=False`. **Lesson (general):** a safety check must test exactly the set of things that will be
 lost; checking a superset blocks valid edits (#1), checking a subset lets data slip (#2).
+
+## T4: Three.js inside an OWL client action (the spike)
+
+Files: `static/lib/three/` (vendored), `static/src/view3d/view3d_action.{js,xml,scss}`,
+`views/view3d_actions.xml`, `views/menus.xml`, `__manifest__.py`, `tests/test_view3d.py`,
+`static/tests/tours/view3d_tour.js`.
+
+**Client action = "Odoo, show my own screen here".** Odoo's normal screens (list, form) are
+*window actions* that display a model with a view. When you need a screen Odoo doesn't have —
+a 3D canvas — you register a **client action**: an `ir.actions.client` record whose `tag`
+(`warehouse_3d.view3d`) names a JavaScript component. The menu points at the action; the web
+client looks the tag up in `registry.category("actions")` and mounts our component.
+
+**OWL in five lines.** OWL is Odoo's front-end framework (like React or Vue). A component is a JS
+class plus an XML template:
+- `static template = "warehouse_3d.View3D"` — the XML in `view3d_action.xml` (QWeb syntax:
+  `t-if`, `t-esc`, `t-ref`).
+- `useState({...})` — reactive data: change `this.state.error` and the template re-renders.
+- `useRef("canvas")` — a handle on the DOM element marked `t-ref="canvas"`.
+- **Lifecycle hooks**, the part that matters for Three.js:
+  - `onWillStart` — runs *before* the first render and may be `async`; Odoo waits for it. We load
+    Three.js here, so it's ready when the component appears.
+  - `onMounted` — the component's HTML is now in the page; we can measure it and attach the canvas.
+  - `onWillUnmount` — the user is leaving; free everything we created.
+
+**Lazy loading.** `loadJS(url)` adds a `<script>` tag once and remembers it, so opening the view a
+second time doesn't download again. Three.js (600 KB) is *not* listed in the manifest's
+`web.assets_backend`, so it isn't sent to every Odoo page — only when someone opens the 3D view.
+`test_three_js_is_not_in_the_backend_bundle` guards that. Our own small component *is* in
+`web.assets_backend` (it must be registered before anyone clicks the menu).
+
+**Why r128 and a global `THREE`.** Odoo bundles its JS as `@module/path` ES modules. Recent
+Three.js versions are ES modules too and import each other in ways Odoo's bundler doesn't follow.
+r128 still ships a classic "UMD" build that just sets `window.THREE`, plus
+`examples/js/controls/OrbitControls.js`, which adds `THREE.OrbitControls` to it — so they must load
+in that order. The prototype already used this exact version.
+
+**Vendoring safely.** The files came from the official npm package `three@0.128.0`, checked against
+the SHA-512 checksum the npm registry publishes, and the MIT `LICENSE` sits next to them.
+
+**Cleaning up (why `stop()` is long).** WebGL memory isn't freed by JavaScript's garbage collector
+the way normal objects are, and browsers allow only about 16 live WebGL contexts per page. Odoo
+keeps the page open for hours while you move between screens, so a 3D view that leaks would break
+after a dozen visits. On leave we stop the render loop, disconnect the resize observer, dispose
+controls, every geometry and material, the renderer, force-release the WebGL context, and remove
+the canvas. The tour opens the view, leaves, checks the canvas is gone, and opens it again.
+
+**No WebGL?** `new THREE.WebGLRenderer()` throws; we catch it and show the prototype's message.
+
+**Headless Chrome can do WebGL.** Odoo starts its test browser with `--enable-unsafe-swiftshader`, a
+software GPU, so the tour checks for a real WebGL context, not just a `<canvas>` tag.

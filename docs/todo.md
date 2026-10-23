@@ -108,13 +108,13 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Riskiest piece first. A client action under *Inventory ▸ Warehouse 3D ▸ 3D view* that lazy-loads vendored Three.js r128 + OrbitControls and renders a floor and one box with orbit controls.
 
 **Acceptance criteria:**
-- [ ] `static/lib/three/{three.min.js,OrbitControls.js,LICENSE}` vendored from the npm `three@0.128.0` package; no network requests to any CDN.
-- [ ] Three.js is loaded only when the action opens (`loadJS` in `onWillStart`), not in `web.assets_backend`.
-- [ ] Leaving the action disposes renderer, controls, geometries and the resize observer; opening it again works; no console errors. Missing WebGL shows the prototype's fallback message.
+- [x] `static/lib/three/{three.min.js,OrbitControls.js,LICENSE}` vendored from the npm `three@0.128.0` package; no network requests to any CDN.
+- [x] Three.js is loaded only when the action opens (`loadJS` in `onWillStart`), not in `web.assets_backend`.
+- [x] Leaving the action disposes renderer, controls, geometries and the resize observer; opening it again works; no console errors. Missing WebGL shows the prototype's fallback message *(implemented, not covered by a test — headless Chrome always has WebGL)*.
 
-**Verification:** tour `static/tests/tours/view3d_tour.js` + `tests/test_tours.py`: open menu → canvas present → navigate to Products → back → canvas present, console clean.
+**Verification:** done 23 Oct — `tests/test_view3d.py`: bundle test (Three.js not in `web.assets_backend`) + tour `static/tests/tours/view3d_tour.js`: open → real WebGL context → leave to Rack Rows → canvas gone → reopen → WebGL again. Full run `0 failed, 0 error(s) of 55 tests`. Chrome log: only SwiftShader "GPU stall" performance notices, no errors.
 **Dependencies:** T0
-**Files:** `static/lib/three/*`, `static/src/view3d/view3d_action.{js,xml,scss}`, `views/menus.xml`, `__manifest__.py`, `static/tests/tours/view3d_tour.js`, `tests/test_tours.py`
+**Files:** `static/lib/three/*`, `static/src/view3d/view3d_action.{js,xml,scss}`, `views/menus.xml`, `__manifest__.py`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
 
 ### T5: Layout areas + building size

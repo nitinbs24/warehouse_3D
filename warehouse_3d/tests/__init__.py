@@ -3,3 +3,5 @@ from . import test_rack_row
 from . import test_location_generator
 from . import test_location_sync
 from . import test_location_lock
+from . import test_view3d
+from . import test_layout_area

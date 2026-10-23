@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_warehouse_rack_row_user,warehouse.rack.row.user,model_warehouse_rack_row,stock.group_stock_user,1,0,0,0
 access_warehouse_rack_row_manager,warehouse.rack.row.manager,model_warehouse_rack_row,stock.group_stock_manager,1,1,1,1
+access_warehouse_layout_area_user,warehouse.layout.area.user,model_warehouse_layout_area,stock.group_stock_user,1,0,0,0
+access_warehouse_layout_area_manager,warehouse.layout.area.manager,model_warehouse_layout_area,stock.group_stock_manager,1,1,1,1

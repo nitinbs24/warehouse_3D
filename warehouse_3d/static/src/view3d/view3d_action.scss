@@ -1,0 +1,38 @@
+.o_wh3d_view {
+    position: relative;
+    height: 100%;
+    background: #e3e8ed;
+
+    .o_wh3d_canvas {
+        position: absolute;
+        inset: 0;
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    }
+
+    .o_wh3d_fallback {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        text-align: center;
+        color: $o-gray-700;
+    }
+
+    .o_wh3d_hint {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        margin: 0;
+        font-family: $font-family-monospace;
+        font-size: 12px;
+        color: $o-gray-700;
+        pointer-events: none;
+    }
+}

@@ -9,9 +9,14 @@
         'data/res_groups.xml',
         'views/warehouse_rack_row_views.xml',
         'views/stock_location_views.xml',
+        'views/warehouse_layout_area_views.xml',
+        'views/view3d_actions.xml',
         'views/menus.xml',
     ],
     'assets': {
+        'web.assets_backend': [
+            'warehouse_3d/static/src/view3d/**/*',
+        ],
         'web.assets_tests': [
             'warehouse_3d/static/tests/tours/**/*',
         ],

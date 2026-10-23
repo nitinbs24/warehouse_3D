@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_wh3d_view3d" model="ir.actions.client">
+        <field name="name">3D View</field>
+        <field name="tag">warehouse_3d.view3d</field>
+    </record>
+</odoo>

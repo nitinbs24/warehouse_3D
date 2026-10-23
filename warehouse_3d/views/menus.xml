@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <menuitem id="menu_wh3d_root" name="Warehouse 3D" parent="stock.menu_stock_root"
+              sequence="4" groups="stock.group_stock_user"/>
+    <menuitem id="menu_wh3d_view3d" action="action_wh3d_view3d" parent="menu_wh3d_root" sequence="10"/>
+
     <menuitem id="menu_wh3d_config" name="Warehouse 3D" parent="stock.menu_stock_config_settings"
               sequence="3" groups="stock.group_stock_manager"/>
     <menuitem id="menu_wh3d_rack_row" action="action_warehouse_rack_row" parent="menu_wh3d_config" sequence="10"/>
+    <menuitem id="menu_wh3d_layout_area" action="action_warehouse_layout_area" parent="menu_wh3d_config" sequence="20"/>
 </odoo>

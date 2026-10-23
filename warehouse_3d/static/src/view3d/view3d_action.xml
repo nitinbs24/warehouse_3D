@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="warehouse_3d.View3D">
+        <div class="o_wh3d_view">
+            <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
+            <div class="o_wh3d_canvas" t-ref="canvas"/>
+            <div t-if="state.error" class="o_wh3d_fallback" role="alert" t-esc="state.error"/>
+            <p class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan</p>
+        </div>
+    </t>
+</templates>
