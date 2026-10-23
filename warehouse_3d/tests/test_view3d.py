@@ -53,6 +53,22 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_stock', login='admin')
 
 
+    def test_live_update_without_reload(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        zone = self.env['stock.location'].create({
+            'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
+        self.env['warehouse.rack.row'].create({
+            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
+            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
+            'warehouse_id': warehouse.id, 'location_id': zone.id,
+        })
+        self.env['product.product'].create({
+            'name': 'Basmati rice pallet', 'is_storable': True,
+            'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.1,
+        })
+        self.start_tour('/odoo', 'warehouse_3d_live', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""

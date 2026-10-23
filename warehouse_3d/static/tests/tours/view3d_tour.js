@@ -1,3 +1,4 @@
+import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { stepUtils } from "@web_tour/tour_utils";
 
@@ -152,5 +153,36 @@ registry.category("web_tour.tours").add("warehouse_3d_stock", {
             run: "click",
         },
         { trigger: ".o_list_view .o_data_row:contains(Basmati rice pallet)" },
+    ],
+});
+
+registry.category("web_tour.tours").add("warehouse_3d_live", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openView3d(),
+        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):contains(0)" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-01-1-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected:contains(Empty. Available for putaway.)" },
+        {
+            content: "Elsewhere in Odoo, an inventory adjustment puts 1 pallet in that slot",
+            trigger: ".o_wh3d_view",
+            async run() {
+                const call = (model, method, args, kwargs = {}) =>
+                    rpc(`/web/dataset/call_kw/${model}/${method}`, { model, method, args, kwargs });
+                const [location] = await call("stock.location", "search", [[["name", "=", "P05-01-1-A"]]]);
+                const [product] = await call("product.product", "search", [[["name", "=", "Basmati rice pallet"]]]);
+                const quantId = await call("stock.quant", "create",
+                    [{ product_id: product, location_id: location, inventory_quantity: 1 }],
+                    { context: { inventory_mode: true } });
+                await call("stock.quant", "action_apply_inventory", [[quantId]]);
+            },
+        },
+        {
+            content: "Without reloading, the panel, capacity and legend show the new stock",
+            trigger: ".o_wh3d_view[data-updates='1'] .o_wh3d_selected:contains(Basmati rice pallet)",
+        },
+        { trigger: ".o_wh3d_capacity tr[data-kind='pallet'] td:eq(2):contains(1)" },
+        { trigger: ".o_wh3d_legend li[data-band='low']:contains(1)" },
     ],
 });

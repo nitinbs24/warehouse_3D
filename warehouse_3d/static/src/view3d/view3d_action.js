@@ -22,21 +22,33 @@ export class View3D extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
+        this.busService = useService("bus_service");
         this.canvasRef = useRef("canvas");
         this.state = useState({
             error: "", rowCount: 0, view: "3d", labels: true, stock: true, occupancy: false,
-            selected: -1, find: "", findError: "", summary: null, legend: null,
+            selected: -1, find: "", findError: "", summary: null, legend: null, updates: 0,
         });
+        this.onStockChanged = this.onStockChanged.bind(this);
         onWillStart(async () => {
             const [scene] = await Promise.all([this.loadScene(), this.loadThree()]);
             this.data = scene;
             this.slotByCode = new Map(scene.slots.map((s, i) => [s.code, i]));
+            this.slotByLocation = new Map(scene.slots.map((s, i) => [s.location_id, i]));
             this.rowsById = Object.fromEntries(scene.rows.map((r) => [r.id, r]));
             this.state.rowCount = scene.rows.length;
             this.refreshStats();
         });
-        onMounted(() => this.start());
-        onWillUnmount(() => this.scene?.dispose());
+        onMounted(() => {
+            this.start();
+            this.busService.subscribe("warehouse_3d/stock", this.onStockChanged);
+            this.busService.start();
+        });
+        onWillUnmount(() => {
+            this.busService.unsubscribe("warehouse_3d/stock", this.onStockChanged);
+            clearTimeout(this.pendingTimer);
+            this.scene?.dispose();
+            this.scene = null;
+        });
     }
 
     async loadThree() {
@@ -60,6 +72,33 @@ export class View3D extends Component {
         } catch {
             this.state.error = _t("The 3D view needs WebGL, which this browser has turned off.");
         }
+    }
+
+    // --- live updates ---
+
+    /** Bus message from stock.quant: some slots' stock changed. Batch bursts, then refetch those slots. */
+    onStockChanged({ location_ids }) {
+        const mine = location_ids.filter((id) => this.slotByLocation.has(id));
+        if (!mine.length) {
+            return; // another warehouse
+        }
+        this.pending = new Set([...(this.pending || []), ...mine]);
+        clearTimeout(this.pendingTimer);
+        this.pendingTimer = setTimeout(() => this.applyStockChanges(), 150);
+    }
+
+    async applyStockChanges() {
+        const ids = [...this.pending];
+        this.pending = null;
+        // (The component's orm service drops replies that arrive after the view was closed.)
+        const fresh = await this.orm.call("stock.warehouse", "wh3d_get_slots", [ids]);
+        // Same array the scene draws from, so buildStock() sees the new values.
+        for (const slot of fresh) {
+            this.data.slots[this.slotByLocation.get(slot.location_id)] = slot;
+        }
+        this.scene?.buildStock();
+        this.refreshStats();
+        this.state.updates++; // slots aren't reactive: re-render the panel explicitly
     }
 
     refreshStats() {

@@ -455,3 +455,37 @@ with an `ir.actions.act_window` dictionary: the same kind of action a menu item 
 **Capacity and legend** are computed in the browser from the scene data (`capacitySummary`,
 `legendCounts`), so they need no extra server call. Average fill counts only slots whose fill is
 known.
+
+## T9: Live updates over the bus
+
+Files: `models/stock_quant.py`, `static/src/view3d/view3d_action.{js,xml}`, `__manifest__.py`
+(`bus` added to `depends`), `tests/test_bus.py`, `static/tests/tours/view3d_tour.js`
+(`warehouse_3d_live`), `tests/test_view3d.py`.
+
+**The bus is Odoo's push channel.** Every open Odoo tab keeps one websocket to the server. Python code
+calls `bus.bus._sendone(target, type, payload)`; every browser subscribed to `target` receives it.
+Browsers are automatically subscribed to their user's partner and to **every group the user is in**,
+so sending to the `stock.group_stock_user` group record reaches every Inventory user — no custom
+channel or `ir.websocket` override needed. The client listens with
+`bus_service.subscribe("warehouse_3d/stock", callback)`.
+
+**Where the change is detected.** All stock in Odoo lives in `stock.quant` (one row per product per
+location). Receipts, deliveries, transfers and inventory adjustments all end up creating, writing
+or deleting quants, so overriding those three methods catches every stock change. A quant that
+moves reports both its old and new location.
+
+**One message per transaction, not per line.** Validating a 50-line receipt writes quants 50+
+times. Instead of sending each time, `_wh3d_notify` collects location ids in
+`cr.precommit.data` and registers one *pre-commit hook* — a function Odoo runs once, just before the
+transaction commits. The hook keeps only rack slots and sends a single message. If the transaction
+fails and rolls back, the hook never runs, so the 3D view never shows stock that didn't happen.
+
+**In the browser.** `onStockChanged` ignores slots from other warehouses, waits 150 ms to batch bursts,
+then calls `wh3d_get_slots(ids)` for just those slots, swaps them into the scene data, rebuilds the
+stock boxes, recomputes capacity/legend, and re-renders the panel (the selected slot updates in
+place). Subscribing happens in `onMounted`, unsubscribing in `onWillUnmount` — a listener left
+behind would keep firing into a closed view.
+
+**Running it for real.** With Odoo's default single-process server (what you run), the websocket is
+served on the same port. If you later run with `--workers`, the websocket needs Odoo's separate
+gevent port (8072) behind a proxy; that's standard Odoo deployment, not specific to this module.

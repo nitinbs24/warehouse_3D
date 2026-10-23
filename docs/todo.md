@@ -174,13 +174,14 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Stock moves in Inventory appear in an open 3D view without reload (decisions 7–8).
 
 **Acceptance criteria:**
-- [ ] Any quant create/write/unlink on a slot location sends **one** `warehouse_3d/stock` message per transaction to `stock.group_stock_user`, carrying the affected location ids; non-slot locations send nothing.
-- [ ] The client refetches only those slots and updates instance colours/visibility and the open panel.
-- [ ] Unsubscribes on unmount.
+- [x] Any quant create/write/unlink on a slot location sends **one** `warehouse_3d/stock` message per transaction to `stock.group_stock_user`, carrying the affected location ids; non-slot locations send nothing.
+- [x] The client refetches only those slots and updates instance colours/visibility and the open panel.
+- [x] Unsubscribes on unmount.
 
-**Verification:** `tests/test_bus.py` — validate a 3-line receipt into slots → exactly one `bus.bus` record with the 3 ids; receipt into `WH/Stock` root → none. Manual: two browser tabs, validate a receipt in one, the pallet appears in the other.
+**Verification:** done 23 Oct — `tests/test_bus.py` 4 tests (3-line receipt → exactly one message with the 3 slots, sent to the Inventory users group; receipt into WH/Stock → none; inventory adjustment → one; quant moved between slots → both). Tour `warehouse_3d_live`: 3D view open with a slot selected, an inventory adjustment is made through the normal API, and the panel, capacity and legend update without reload. Full run `0 failed, 0 error(s) of 81 tests`. Manual (Nitin): two browser tabs.
+*Not covered by a test:* unsubscribe on unmount (in code; the leave/reopen tour shows no errors).
 **Dependencies:** T8
-**Files:** `models/stock_quant.py`, `static/src/view3d/view3d_action.js`, `tests/test_bus.py`
+**Files:** `models/stock_quant.py`, `static/src/view3d/view3d_action.{js,xml}`, `__manifest__.py`, `tests/test_bus.py`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** S
 
 ### Checkpoint B
