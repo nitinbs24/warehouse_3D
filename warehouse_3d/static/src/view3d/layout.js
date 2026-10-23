@@ -134,3 +134,33 @@ export function cameraView(mode, building, fovDeg, aspect) {
     const n = Math.hypot(...dir);
     return { position: dir.map((c) => (c / n) * d), target: [0, 1, W * 0.0625] };
 }
+
+/**
+ * Which side of a row faces an aisle: -1 (towards -x) or +1. A row with a back-to-back partner
+ * less than 1 m away on one side is looked at from the other; a lone row from -x.
+ */
+export function openSide(row, rows) {
+    const yEnd = row.y + row.bays * row.bay_width;
+    const partnerOnMinus = rows.some((r) => {
+        const gap = row.x - (r.x + r.depth); // free space between r's back and this row's front
+        const sameStretch = r.y < yEnd && row.y < r.y + r.bays * r.bay_width;
+        return r.code !== row.code && sameStretch && gap >= -1e-9 && gap < 1;
+    });
+    return partnerOnMinus ? 1 : -1;
+}
+
+/** Free floor in front of a row's face on ``side`` (-1 / +1): up to the next row in the same stretch, or the wall. */
+export function aisleClearance(row, rows, building, side) {
+    const yEnd = row.y + row.bays * row.bay_width;
+    let clearance = side < 0 ? row.x : building.length - (row.x + row.depth);
+    for (const r of rows) {
+        if (r.code === row.code || !(r.y < yEnd && row.y < r.y + r.bays * r.bay_width)) {
+            continue;
+        }
+        const gap = side < 0 ? row.x - (r.x + r.depth) : r.x - (row.x + row.depth);
+        if (gap >= -1e-9) {
+            clearance = Math.min(clearance, gap);
+        }
+    }
+    return clearance;
+}

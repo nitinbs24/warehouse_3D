@@ -1,7 +1,9 @@
 import { describe, expect, test } from "@odoo/hoot";
 import {
+    aisleClearance,
     areaBox,
     floorGeometry,
+    openSide,
     rackGeometry,
     rowLabelPosition,
     slotBox,
@@ -93,5 +95,43 @@ describe("rowLabelPosition", () => {
         expect(Math.abs(y - 9.6) < 1e-9).toBe(true);
         expect(Math.abs(z - (-19 + 18.9 + 0.3)) < 1e-9).toBe(true); // far end for even index
         expect(Math.abs(rowLabelPosition(P05, 1, BUILDING)[2] - (-19 - 0.3)) < 1e-9).toBe(true);
+    });
+});
+
+describe("openSide", () => {
+    const row = (code, x) => ({ ...P05, code, x });
+
+    test("a lone row is viewed from the -x side", () => {
+        expect(openSide(P05, [P05])).toBe(-1);
+    });
+
+    test("back-to-back pair: each row is viewed from its own aisle", () => {
+        const p05 = row("P05", 9.7);
+        const p06 = row("P06", 11.0); // 0.2 m behind P05
+        expect(openSide(p05, [p05, p06])).toBe(-1);
+        expect(openSide(p06, [p05, p06])).toBe(1);
+    });
+
+    test("a row in another stretch of floor doesn't count as a neighbour", () => {
+        const far = { ...P05, code: "P99", x: 11.0, y: 30 };
+        expect(openSide(P05, [P05, far])).toBe(-1);
+        const p06 = row("P06", 11.0);
+        expect(openSide(p06, [p06, { ...P05, code: "P98", x: 9.7, y: 30 }])).toBe(-1);
+    });
+});
+
+describe("aisleClearance", () => {
+    // Handoff x-positions: P04 9.7 and P05 11.0 stand back to back; P06 at 15.1 is across a 3 m aisle.
+    const p04 = { ...P05, code: "P04", x: 9.7 };
+    const p05 = { ...P05, code: "P05", x: 11.0 };
+    const p06 = { ...P05, code: "P06", x: 15.1 };
+
+    test("free space in front of the open face, up to the next row", () => {
+        expect(Math.abs(aisleClearance(p05, [p04, p05, p06], BUILDING, 1) - 3.0) < 1e-9).toBe(true);
+    });
+
+    test("up to the wall when nothing stands in front", () => {
+        expect(Math.abs(aisleClearance(P05, [P05], BUILDING, -1) - 9.7) < 1e-9).toBe(true);
+        expect(Math.abs(aisleClearance(P05, [P05], BUILDING, 1) - (60 - 10.8)) < 1e-9).toBe(true);
     });
 });

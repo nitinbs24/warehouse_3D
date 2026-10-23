@@ -64,7 +64,7 @@ class StockWarehouse(models.Model):
                 'used_m3': used, 'fill': used / capacity if used is not None else None,
             }
         return {
-            'location_id': slot.id, 'code': slot.name, 'row_id': row.id,
+            'location_id': slot.id, 'code': slot.name, 'path': slot.complete_name, 'row_id': row.id,
             'bay': slot.wh3d_bay, 'level': slot.wh3d_level, 'position': slot.wh3d_position,
             'capacity_m3': capacity, 'stock': stock,
         }

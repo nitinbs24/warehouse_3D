@@ -60,6 +60,7 @@ class TestSceneData(TransactionCase):
         self.assertEqual(slot['row_id'], self.row.id)
         self.assertEqual((slot['bay'], slot['level'], slot['position']), (3, 2, 1))
         self.assertAlmostEqual(slot['capacity_m3'], 2.673, places=3)
+        self.assertEqual(slot['path'], 'WH/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A')
 
     def test_empty_slot_has_no_stock(self):
         slot = self._scene_slot(self.warehouse.wh3d_get_scene(), 'P05-01-1-A')

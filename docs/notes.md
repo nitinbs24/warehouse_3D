@@ -415,3 +415,43 @@ greys — compare `docs/screenshots/t7-prototype.png` and `t7-odoo-3d-view.png`.
 **Screenshots on demand.** `./run_tests.sh wh3d_screenshot` builds the handoff's 31 rows, 5 areas
 and 6 docks in a test database, opens the 3D view and saves a PNG under
 `/tmp/odoo_tests/wh3d_test/screenshots/`. It's tagged `-standard`, so normal runs skip it.
+
+## T8: Stock, clicking a slot, Find, capacity
+
+Files: `static/src/view3d/occupancy.js` (pure), `layout.js` (`openSide`, `aisleClearance`),
+`scene.js` (stock boxes, picking, selection, focus), `view3d_action.{js,xml,scss}` (side panel),
+`models/stock_warehouse.py` (`path` in slot data), `static/tests/occupancy.test.js`,
+`static/tests/layout.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`.
+
+**Load boxes (decision 6b of the plan).** One box per stocked slot, never one per carton. Its
+footprint is the slot's floor, its height = stored volume ÷ that floor area, capped at the slot's
+clear height — a half-full slot looks half-height. If any product in the slot has no dimensions the
+volume is unknown: the box is drawn half-height, striped when colours are on, and the panel says so.
+
+**Colours.** Grey by default. *Colour by occupancy*: green under 50 %, amber 50–90 %, red over 90 %
+(fill above 100 % — more volume than the slot holds — is still red; the box stops at the slot top).
+Implementation: one `InstancedMesh` with a white material and a colour **per instance**
+(`setColorAt`), so switching colours rewrites a colour list, not the geometry.
+
+**Picking = ray casting.** A click becomes a ray from the camera through the mouse point
+(`THREE.Raycaster`); we test it against invisible boxes, one per slot, and the first box hit is the
+slot. `instanceId` of the hit is the slot's index in the scene data. A press-and-release that moved
+more than 6 px is an orbit drag, not a click.
+
+**A bug the tour caught.** The prototype's Find flew the camera to the front-left of a slot. The tour
+then clicked the middle of the screen and expected that same slot — and got its neighbour, which
+stands in front of it from that angle. The camera now stands **in the aisle facing the rack**:
+- `openSide(row, rows)` — back-to-back rows have a 0.2 m gap, so look from the side without a partner.
+- `aisleClearance(...)` — how much floor is free in front of that face (to the next row or wall); the
+  camera stays inside it, or the rack across the aisle would block the view (seen in a screenshot of
+  the full template). OrbitControls' minimum distance went from 4 m to 1 m so it can stand in a
+  1.2 m picker aisle.
+
+**The side panel is plain OWL.** State lives in `useState`; the template reads it
+(`t-if`, `t-esc`, `t-att-…`) and re-renders when it changes. `selectedInfo` is a JavaScript *getter*
+— a computed property recalculated on each render. "Open in Inventory" calls the `action` service
+with an `ir.actions.act_window` dictionary: the same kind of action a menu item opens, built in JS.
+
+**Capacity and legend** are computed in the browser from the scene data (`capacitySummary`,
+`legendCounts`), so they need no extra server call. Average fill counts only slots whose fill is
+known.

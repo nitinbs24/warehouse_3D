@@ -79,6 +79,78 @@ registry.category("web_tour.tours").add("warehouse_3d_view3d", {
 registry.category("web_tour.tours").add("warehouse_3d_screenshot", {
     steps: () => [
         { trigger: ".o_wh3d_view[data-row-count='31'] .o_wh3d_canvas canvas" },
+        { trigger: ".o_wh3d_toolbar input[name='occupancy']", run: "click" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-03-2-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected .o_wh3d_code:contains(P05-03-2-A)" },
         { trigger: "body", run: () => new Promise((resolve) => setTimeout(resolve, 1500)) },
+    ],
+});
+
+function clickCanvasAt(fx, fy) {
+    const canvas = document.querySelector(".o_wh3d_canvas canvas");
+    const r = canvas.getBoundingClientRect();
+    const init = { bubbles: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy,
+        pointerId: 1, pointerType: "mouse", button: 0, isPrimary: true };
+    canvas.dispatchEvent(new PointerEvent("pointerdown", init));
+    canvas.dispatchEvent(new PointerEvent("pointerup", init));
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+registry.category("web_tour.tours").add("warehouse_3d_stock", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openView3d(),
+        {
+            content: "Capacity card counts 70 pallet positions, 1 used",
+            trigger: ".o_wh3d_capacity tr[data-kind='pallet']:contains(70):contains(1)",
+        },
+        {
+            content: "Unknown code shows a helpful error",
+            trigger: ".o_wh3d_find input",
+            run: "edit P99-01-1-A",
+        },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_find .o_wh3d_err:contains(No location P99-01-1-A)" },
+        {
+            content: "Find a slot, typed in lower case",
+            trigger: ".o_wh3d_find input",
+            run: "edit p05-03-2-a",
+        },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        {
+            content: "Panel shows the slot, its path, product and fill",
+            trigger: ".o_wh3d_selected .o_wh3d_code:contains(P05-03-2-A)",
+        },
+        { trigger: ".o_wh3d_selected .o_wh3d_path:contains(WH/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A)" },
+        { trigger: ".o_wh3d_selected:contains(Basmati rice pallet):contains(49 %)" },
+        {
+            content: "Turn on occupancy colours; the legend shows one slot under 50 %",
+            trigger: ".o_wh3d_toolbar input[name='occupancy']",
+            run: "click",
+        },
+        { trigger: ".o_wh3d_legend li[data-band='low']:contains(1)" },
+        {
+            content: "Click empty sky: selection clears",
+            trigger: ".o_wh3d_canvas canvas",
+            async run() {
+                await wait(900); // let the camera finish flying to the slot
+                clickCanvasAt(0.03, 0.97);
+            },
+        },
+        { trigger: ".o_wh3d_selected:not(:has(.o_wh3d_code))" },
+        {
+            content: "Click the centre, where Find put the slot: it is picked",
+            trigger: ".o_wh3d_canvas canvas",
+            run: () => clickCanvasAt(0.5, 0.5),
+        },
+        { trigger: ".o_wh3d_selected .o_wh3d_code:contains(P05-03-2-A)" },
+        {
+            content: "Open the slot's stock in Inventory",
+            trigger: ".o_wh3d_selected button[name='open_in_inventory']",
+            run: "click",
+        },
+        { trigger: ".o_list_view .o_data_row:contains(Basmati rice pallet)" },
     ],
 });

@@ -2,25 +2,113 @@
 <templates xml:space="preserve">
     <t t-name="warehouse_3d.View3D">
         <div class="o_wh3d_view" t-att-data-row-count="state.rowCount">
-            <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
-            <div class="o_wh3d_canvas" t-ref="canvas"/>
-            <div class="o_wh3d_toolbar">
-                <div class="o_wh3d_seg" role="group" aria-label="Camera view">
-                    <button type="button" name="view_3d" t-att-aria-pressed="state.view === '3d' ? 'true' : 'false'"
-                            t-on-click="() => this.setView('3d')">3D</button>
-                    <button type="button" name="view_top" t-att-aria-pressed="state.view === 'top' ? 'true' : 'false'"
-                            t-on-click="() => this.setView('top')">Top</button>
+            <div class="o_wh3d_viewer">
+                <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
+                <div class="o_wh3d_canvas" t-ref="canvas"/>
+                <div class="o_wh3d_toolbar">
+                    <div class="o_wh3d_seg" role="group" aria-label="Camera view">
+                        <button type="button" name="view_3d" t-att-aria-pressed="state.view === '3d' ? 'true' : 'false'"
+                                t-on-click="() => this.setView('3d')">3D</button>
+                        <button type="button" name="view_top" t-att-aria-pressed="state.view === 'top' ? 'true' : 'false'"
+                                t-on-click="() => this.setView('top')">Top</button>
+                    </div>
+                    <label class="o_wh3d_chk">
+                        <input type="checkbox" name="stock" t-att-checked="state.stock" t-on-change="toggleStock"/>
+                        Stock
+                    </label>
+                    <label class="o_wh3d_chk">
+                        <input type="checkbox" name="occupancy" t-att-checked="state.occupancy" t-on-change="toggleOccupancy"/>
+                        Colour by occupancy
+                    </label>
+                    <label class="o_wh3d_chk">
+                        <input type="checkbox" name="labels" t-att-checked="state.labels" t-on-change="toggleLabels"/>
+                        Labels
+                    </label>
                 </div>
-                <label class="o_wh3d_chk">
-                    <input type="checkbox" name="labels" t-att-checked="state.labels" t-on-change="toggleLabels"/>
-                    Labels
-                </label>
+                <div t-if="state.error" class="o_wh3d_fallback" role="alert" t-esc="state.error"/>
+                <div t-elif="!state.rowCount" class="o_wh3d_empty" role="status">
+                    No rack rows yet. Add some in Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows.
+                </div>
+                <p class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan · click a slot</p>
             </div>
-            <div t-if="state.error" class="o_wh3d_fallback" role="alert" t-esc="state.error"/>
-            <div t-elif="!state.rowCount" class="o_wh3d_empty" role="status">
-                No rack rows yet. Add some in Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows.
-            </div>
-            <p class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan</p>
+
+            <aside class="o_wh3d_panel">
+                <section class="o_wh3d_card o_wh3d_selected" aria-live="polite">
+                    <p class="o_wh3d_label">Selected location</p>
+                    <t t-if="selectedSlot">
+                        <t t-set="info" t-value="selectedInfo"/>
+                        <p class="o_wh3d_code" t-esc="info.slot.code"/>
+                        <p class="o_wh3d_path" t-esc="info.slot.path"/>
+                        <dl class="o_wh3d_kv">
+                            <div><dt>Zone</dt><dd t-esc="info.zone"/></div>
+                            <div><dt>Level</dt><dd t-esc="info.level"/></div>
+                            <div><dt>Space</dt><dd t-esc="info.capacity"/></div>
+                        </dl>
+                        <div t-if="info.slot.stock" class="o_wh3d_contents">
+                            <span t-attf-class="o_wh3d_sw o_wh3d_band_{{ info.band }}" aria-hidden="true"/>
+                            <p class="o_wh3d_pname">
+                                <t t-esc="info.slot.stock.name"/>
+                                <t t-if="info.slot.stock.mixed"> + other products</t>
+                            </p>
+                            <p class="o_wh3d_psub">
+                                <t t-if="info.slot.stock.default_code"><t t-esc="info.slot.stock.default_code"/> · </t>
+                                <t t-esc="info.slot.stock.qty"/> <t t-esc="info.slot.stock.uom"/> ·
+                                <t t-if="info.fill">fill <t t-esc="info.fill"/></t>
+                                <t t-else="">no dimensions, fill unknown</t>
+                            </p>
+                        </div>
+                        <p t-else="" class="o_wh3d_note o_wh3d_box">Empty. Available for putaway.</p>
+                        <button type="button" name="open_in_inventory" class="btn btn-secondary btn-sm"
+                                t-on-click="openInInventory">Open in Inventory</button>
+                    </t>
+                    <p t-else="" class="o_wh3d_note">Click a slot in the 3D view, or find one below.</p>
+                </section>
+
+                <form class="o_wh3d_card o_wh3d_find" t-on-submit="onFind" novalidate="">
+                    <label class="o_wh3d_label" for="o_wh3d_find_input">Find a location</label>
+                    <div class="o_wh3d_find_row">
+                        <input id="o_wh3d_find_input" class="form-control" placeholder="e.g. P05-03-2-A"
+                               autocomplete="off" spellcheck="false" t-att-value="state.find" t-on-input="onFindInput"/>
+                        <button type="submit" class="btn btn-primary">Go</button>
+                    </div>
+                    <p t-if="state.findError" class="o_wh3d_err" role="alert" t-esc="state.findError"/>
+                </form>
+
+                <section class="o_wh3d_card o_wh3d_capacity" t-if="state.summary">
+                    <p class="o_wh3d_label">Capacity</p>
+                    <table>
+                        <thead><tr><th>Type</th><th>Total</th><th>Used</th><th>Avg fill</th></tr></thead>
+                        <tbody>
+                            <tr data-kind="pallet">
+                                <td>Pallet positions</td>
+                                <td t-esc="state.summary.pallet.total"/>
+                                <td t-esc="state.summary.pallet.used"/>
+                                <td t-esc="percent(state.summary.pallet.avgFill)"/>
+                            </tr>
+                            <tr data-kind="shelf">
+                                <td>Shelf bins</td>
+                                <td t-esc="state.summary.shelf.total"/>
+                                <td t-esc="state.summary.shelf.used"/>
+                                <td t-esc="percent(state.summary.shelf.avgFill)"/>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="o_wh3d_note">
+                        <t t-esc="state.summary.rows.pallet"/> pallet rows · <t t-esc="state.summary.rows.shelf"/> shelving rows
+                    </p>
+                </section>
+
+                <section class="o_wh3d_card" t-if="state.legend">
+                    <p class="o_wh3d_label">Stocked slots by fill</p>
+                    <ul class="o_wh3d_legend">
+                        <li data-band="low"><span class="o_wh3d_sw o_wh3d_band_low" aria-hidden="true"/>Under 50 %<span class="o_wh3d_n" t-esc="state.legend.low"/></li>
+                        <li data-band="mid"><span class="o_wh3d_sw o_wh3d_band_mid" aria-hidden="true"/>50–90 %<span class="o_wh3d_n" t-esc="state.legend.mid"/></li>
+                        <li data-band="high"><span class="o_wh3d_sw o_wh3d_band_high" aria-hidden="true"/>Over 90 %<span class="o_wh3d_n" t-esc="state.legend.high"/></li>
+                        <li data-band="nodims"><span class="o_wh3d_sw o_wh3d_band_nodims" aria-hidden="true"/>No dimensions<span class="o_wh3d_n" t-esc="state.legend.nodims"/></li>
+                    </ul>
+                    <p class="o_wh3d_note">Fill = product L × W × H × quantity ÷ slot volume. Turn on “Colour by occupancy” to see it in 3D.</p>
+                </section>
+            </aside>
         </div>
     </t>
 </templates>

@@ -160,13 +160,14 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** The prototype's right-hand panel with real data.
 
 **Acceptance criteria:**
-- [ ] Each stocked slot draws **one** load box: slot footprint, height = `used_m3` ÷ footprint capped at level height (fixed half-height when `fill` is null). Neutral grey by default; toolbar toggle "Colour by occupancy" → green < 50 %, amber 50–90 %, red > 90 %, striped grey when dimensions are missing. Stock toggle hides boxes.
-- [ ] Click a slot → panel shows code, full path, level/height, contents, fill % (or "no dimensions"), or "Empty"; "Open in Inventory" opens the quants of that location. Find box accepts a code, flies the camera there, shows the prototype's error text on unknown codes.
-- [ ] Capacity card (totals/used per kind, average fill) and occupancy legend (slot count per band + "no dimensions") computed from the payload.
+- [x] Each stocked slot draws **one** load box: slot footprint, height = `used_m3` ÷ footprint capped at level height (fixed half-height when `fill` is null). Neutral grey by default; toolbar toggle "Colour by occupancy" → green < 50 %, amber 50–90 %, red > 90 %, striped grey when dimensions are missing. Stock toggle hides boxes.
+- [x] Click a slot → panel shows code, full path, level/height, contents, fill % (or "no dimensions"), or "Empty"; "Open in Inventory" opens the quants of that location. Find box accepts a code, flies the camera there, shows the prototype's error text on unknown codes.
+- [x] Capacity card (totals/used per kind, average fill) and occupancy legend (slot count per band + "no dimensions") computed from the payload.
 
-**Verification:** Hoot: band boundaries (49.9 % green, 50 % amber, 90 % amber, 90.1 % red, null → no-dims), box height cap, find-code normalisation, capacity math. Tour: toggle colour on/off; find `P05-03-2-A` → panel shows that code → click "Open in Inventory" → quant list filtered to it.
+**Verification:** done 23 Oct — Hoot `static/tests/occupancy.test.js` 10 tests (bands at 49.9/50/90/90.1 %, null → no-dims, box height and cap, shelf deck, code normalisation, capacity, legend) + `openSide`/`aisleClearance` 5 tests (25 Hoot total). Tour `warehouse_3d_stock`: capacity card, unknown-code error, find in lower case → panel (code, path, product, 49 %), occupancy on → legend, click sky clears, click centre picks the found slot, Open in Inventory → quant list. Screenshot `docs/screenshots/t8-find-slot.png`. Full run `0 failed, 0 error(s) of 76 tests`.
+*Changed from the prototype:* Find now looks at the slot from its aisle (the prototype's angle let the neighbouring slot block it — caught by the tour).
 **Dependencies:** T7
-**Files:** `static/src/view3d/view3d_action.{js,xml,scss}`, `static/src/view3d/panel.{js,xml}`, `static/tests/view3d.test.js`, `static/tests/tours/view3d_tour.js`
+**Files:** `static/src/view3d/occupancy.js`, `static/src/view3d/layout.js`, `static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml,scss}`, `models/stock_warehouse.py`, `static/tests/occupancy.test.js`, `static/tests/layout.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
 
 ### T9: Live updates over the bus

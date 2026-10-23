@@ -1,3 +1,4 @@
+import random
 from unittest.mock import patch
 
 from odoo.tests import HttpCase, TransactionCase, tagged
@@ -34,6 +35,24 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_view3d', login='admin')
 
 
+    def test_stock_panel_find_pick_and_open(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        zone = self.env['stock.location'].create({
+            'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
+        self.env['warehouse.rack.row'].create({
+            'code': 'P05', 'kind': 'pallet', 'x': 9.7, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
+            'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2,
+            'warehouse_id': warehouse.id, 'location_id': zone.id,
+        })
+        rice = self.env['product.product'].create({
+            'name': 'Basmati rice pallet', 'is_storable': True,
+            'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.1,  # 1.32 m³ of a 2.673 m³ slot = 49 %
+        })
+        slot = self.env['stock.location'].search([('name', '=', 'P05-03-2-A')])
+        self.env['stock.quant']._update_available_quantity(rice, slot, 1)
+        self.start_tour('/odoo', 'warehouse_3d_stock', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""
@@ -60,6 +79,27 @@ class TestView3dScreenshot(HttpCase):
              for n, x, y, w, d in areas]
             + [{'name': f'Dock {i + 1}', 'kind': 'dock', 'x': x, 'y': 38.4, 'width': 3, 'depth': 1.6,
                 'warehouse_id': warehouse.id} for i, x in enumerate(docks)])
+        # Seeded stock across all fill bands, plus one product without dimensions.
+        rng = random.Random(20261023)
+        Product = self.env['product.product']
+        products = [
+            Product.create({'name': 'Rice pallet', 'is_storable': True,
+                            'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 0.9}),   # 1.08 m³ → ~40 %
+            Product.create({'name': 'Oil pallet', 'is_storable': True,
+                            'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.6}),   # 1.92 m³ → ~72 %
+            Product.create({'name': 'Water pallet', 'is_storable': True,
+                            'wh3d_length': 1.3, 'wh3d_width': 1.1, 'wh3d_height': 1.7}),   # 2.43 m³ → ~91 %
+            Product.create({'name': 'Unmeasured pallet', 'is_storable': True}),
+        ]
+        bins = [Product.create({'name': f'Small part {i}', 'is_storable': True,
+                                'wh3d_length': 0.3, 'wh3d_width': 0.2, 'wh3d_height': 0.1}) for i in range(3)]
+        Quant = self.env['stock.quant']
+        for slot in self.env['stock.location'].search([('wh3d_node', '=', 'slot')]):
+            if rng.random() < 0.65:
+                if slot.name.startswith('P'):
+                    Quant._update_available_quantity(rng.choice(products), slot, 1)
+                else:
+                    Quant._update_available_quantity(rng.choice(bins), slot, rng.randint(2, 12))
         # Odoo closes the browser right after a tour; grab the picture just before that.
         original = ChromeBrowser._wait_code_ok
 
