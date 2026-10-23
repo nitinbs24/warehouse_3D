@@ -530,3 +530,33 @@ always run (unsubscribing from the bus) lives in `onWillDestroy`.
 drops other warehouses' slots. In a multi-company database that's extra traffic and exposes bare
 location ids (no names or stock) across companies. Multi-company is out of scope for this project;
 the fix would be per-company channels.
+
+## T10: Rows stay inside the building and never overlap
+
+Files: `models/warehouse_rack_row.py` (`_wh3d_footprint`, `_check_layout`),
+`models/warehouse_layout_area.py` (`_wh3d_footprint`), `models/stock_warehouse.py`
+(`_check_wh3d_contains`, `_check_wh3d_size`), `tests/test_rack_row.py` (`TestRackRowLayout`),
+`tests/common.py` (`template_rows`).
+
+**Why on the server.** The 2D editor (T11–T12) will check these rules in the browser for instant
+red/green feedback, but the browser can be bypassed (imports, scripts, a second tab). The rules
+that keep the data consistent must live in the model, where every write passes.
+
+**One question, asked of different shapes.** "Is this rectangle inside the building?" applies to
+layout areas and rack rows, but they describe their rectangle differently: an area's `width` runs
+along x, a rack row's `depth` runs along x and its bays along y. Each model answers
+`_wh3d_footprint() → (x0, y0, x1, y1)`; `_check_wh3d_contains` only uses that. (A small example of
+*duck typing*: the check doesn't care which model it gets, only that it can answer the question.)
+
+**Overlap test for two rectangles** (axis-aligned, so no rotation): they overlap only if they
+overlap on **both** axes — `a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1`. Strict `<`
+(with a 1 µm slack for floating point) means touching edges don't count, so back-to-back rows are
+fine. Only **active** rows count, and re-activating a row onto a newer one is refused.
+
+**The building can't shrink under its contents** — the warehouse's size check now covers rack rows
+as well as areas.
+
+**Test detail worth knowing.** When a test expects several refusals in a row, each attempt needs its
+own `self.cr.savepoint()`: a Python constraint runs *after* the row was inserted, so without the
+savepoint the refused row stays in the test's transaction and breaks the next attempt (caught here
+when the second case hit "duplicate code" instead of "outside the building").

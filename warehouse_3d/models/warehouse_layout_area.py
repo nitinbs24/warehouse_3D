@@ -24,6 +24,11 @@ class WarehouseLayoutArea(models.Model):
         'An area must have a width and depth greater than zero.',
     )
 
+    def _wh3d_footprint(self):
+        """Floor rectangle (x0, y0, x1, y1) in metres: width runs along x, depth along y."""
+        self.ensure_one()
+        return self.x, self.y, self.x + self.width, self.y + self.depth
+
     @api.constrains('x', 'y', 'width', 'depth', 'warehouse_id')
     def _check_inside_building(self):
         self.env['stock.warehouse']._check_wh3d_contains(self)

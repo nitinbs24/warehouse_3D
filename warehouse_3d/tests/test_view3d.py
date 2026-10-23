@@ -4,7 +4,7 @@ from unittest.mock import patch
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tests.common import ChromeBrowser
 
-from .common import create_p05
+from .common import create_p05, template_rows
 
 
 class TestView3dAssets(TransactionCase):
@@ -62,15 +62,9 @@ class TestView3dScreenshot(HttpCase):
         Location = self.env['stock.location']
         pr = Location.create({'name': 'PR', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
         sh = Location.create({'name': 'SH', 'usage': 'internal', 'location_id': warehouse.lot_stock_id.id})
-        pallet_x = [0.2, 4.3, 5.6, 9.7, 11.0, 15.1, 16.4, 20.5, 21.8, 25.9, 27.2, 31.3, 32.6, 36.7]
-        shelf_x = [round(39.6 + 2.4 * k + d, 1) for k in range(8) for d in (0, 0.6)] + [59.0]
-        rows = [{'code': f'P{i + 1:02d}', 'kind': 'pallet', 'x': x, 'y': 1.0, 'bays': 7, 'bay_width': 2.7,
-                 'depth': 1.1, 'levels': 5, 'level_height': 1.8, 'slots_per_level': 2, 'location_id': pr.id}
-                for i, x in enumerate(pallet_x)]
-        rows += [{'code': f'S{i + 1:02d}', 'kind': 'shelf', 'x': x, 'y': 2.0, 'bays': 16, 'bay_width': 1.0,
-                  'depth': 0.6, 'levels': 5, 'level_height': 0.4, 'slots_per_level': 1, 'location_id': sh.id}
-                 for i, x in enumerate(shelf_x)]
-        self.env['warehouse.rack.row'].create([dict(r, warehouse_id=warehouse.id) for r in rows])
+        self.env['warehouse.rack.row'].create([
+            dict(r, warehouse_id=warehouse.id, location_id=(pr if r['kind'] == 'pallet' else sh).id)
+            for r in template_rows()])
         areas = [('Receiving', 0.5, 25, 19.5, 13.5), ('Charging', 21, 25, 8, 5.5), ('Office', 21, 31.5, 8, 8),
                  ('Packing', 30, 25, 9, 8), ('Shipping', 40, 25, 19.5, 13.5)]
         docks = [3, 8, 13, 44, 49, 54]

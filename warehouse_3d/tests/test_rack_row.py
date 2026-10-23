@@ -4,6 +4,8 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user
 from odoo.tools import mute_logger
 
+from .common import create_p05, create_zone, template_rows
+
 
 class TestRackRow(TransactionCase):
 
@@ -85,3 +87,81 @@ class TestRackRow(TransactionCase):
         manager = new_test_user(self.env, login='wh3d_manager', groups='stock.group_stock_manager')
         row.with_user(manager).write({'bays': 8})
         self.assertEqual(row.bays, 8)
+
+
+class TestRackRowLayout(TransactionCase):
+    """Rack rows stay inside the building and don't overlap (the editor relies on this)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.warehouse = cls.env.ref('stock.warehouse0')  # 60 × 40 m by default
+        cls.zone = create_zone(cls.env, cls.warehouse)
+
+    def _row(self, **overrides):
+        return create_p05(self.env, self.warehouse, self.zone, **overrides)
+
+    def test_row_must_lie_inside_the_building(self):
+        # P05 is 1.1 m deep (along x) and 7 × 2.7 = 18.9 m long (along y).
+        # (Negative x/y is already refused by the database rule tested in TestRackRow.)
+        cases = {'past the right wall': {'x': 59.0}, 'past the far wall': {'y': 22.0}}
+        for label, overrides in cases.items():
+            # savepoint: a refused create must not leave its row behind for the next case
+            with self.subTest(label), self.assertRaisesRegex(ValidationError, 'inside'), self.cr.savepoint():
+                self._row(**overrides)
+
+    def test_row_touching_the_walls_is_allowed(self):
+        self._row(x=60 - 1.1, y=40 - 18.9)
+
+    def test_growing_a_row_through_the_wall_is_refused(self):
+        row = self._row(y=20.0)
+        with self.assertRaises(ValidationError):
+            row.bays = 8  # 20 + 21.6 > 40
+
+    def test_overlapping_rows_are_refused_naming_both(self):
+        self._row()
+        with self.assertRaisesRegex(ValidationError, r'(?s)P06.*P05|P05.*P06'):
+            self._row(code='P06', x=10.2)  # 0.5 m into P05
+
+    def test_rows_touching_back_to_back_are_allowed(self):
+        self._row()
+        self._row(code='P06', x=9.7 + 1.1)
+
+    def test_rows_in_different_stretches_of_floor_dont_clash(self):
+        self._row()
+        self._row(code='P06', y=20.0)  # P05 ends at y 19.9
+
+    def test_moving_a_row_onto_another_is_refused(self):
+        self._row()
+        p06 = self._row(code='P06', x=20.5)
+        with self.assertRaises(ValidationError):
+            p06.x = 9.9
+
+    def test_archived_rows_dont_block(self):
+        self._row().action_archive()
+        self._row(code='P06')
+
+    def test_reactivating_onto_a_newer_row_is_refused(self):
+        p05 = self._row()
+        p05.action_archive()
+        self._row(code='P06')
+        with self.assertRaises(ValidationError):
+            p05.action_unarchive()
+
+    def test_rows_in_other_warehouses_dont_clash(self):
+        self._row()
+        other = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        create_p05(self.env, other)
+
+    def test_shrinking_the_building_below_a_row_is_refused(self):
+        self._row(x=36.7)
+        with self.assertRaisesRegex(ValidationError, 'P05'):
+            self.warehouse.wh3d_length = 37.0
+
+    def test_all_31_template_rows_are_valid(self):
+        Row = self.env['warehouse.rack.row']
+        sh = create_zone(self.env, self.warehouse, 'SH')
+        rows = Row.create([dict(r, warehouse_id=self.warehouse.id,
+                                location_id=(self.zone if r['kind'] == 'pallet' else sh).id)
+                           for r in template_rows()])
+        self.assertEqual(len(rows), 31)

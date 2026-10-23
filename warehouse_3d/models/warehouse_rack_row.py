@@ -5,6 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 
 CODE_RE = re.compile(r'^[A-Z]\d{2}$')
 # Fields that decide which locations exist and what they're called.
+EPS = 1e-6  # metres; floating-point slack for "touching" comparisons
 SHAPE_FIELDS = frozenset({'code', 'kind', 'bays', 'levels', 'slots_per_level'})
 # Fields whose change needs the location tree updated.
 SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
@@ -96,6 +97,28 @@ class WarehouseRackRow(models.Model):
                 raise ValidationError(self.env._(
                     "Zone location %(loc)s of row %(code)s must be inside %(stock)s.",
                     loc=row.location_id.complete_name, code=row.code, stock=stock.complete_name))
+
+    def _wh3d_footprint(self):
+        """Floor rectangle (x0, y0, x1, y1) in metres: depth runs along x, the bays along y."""
+        self.ensure_one()
+        return self.x, self.y, self.x + self.depth, self.y + self.bays * self.bay_width
+
+    @api.constrains('x', 'y', 'bays', 'bay_width', 'depth', 'warehouse_id', 'active')
+    def _check_layout(self):
+        self.env['stock.warehouse']._check_wh3d_contains(self)
+        for row in self.filtered('active'):
+            x0, y0, x1, y1 = row._wh3d_footprint()
+            others = self.search([('warehouse_id', '=', row.warehouse_id.id), ('id', '!=', row.id)])
+            for other in others:
+                ox0, oy0, ox1, oy1 = other._wh3d_footprint()
+                # Strict overlap only: rows standing back to back (touching) are fine.
+                if x0 < ox1 - EPS and ox0 < x1 - EPS and y0 < oy1 - EPS and oy0 < y1 - EPS:
+                    raise ValidationError(self.env._(
+                        "Rack rows %(row)s and %(other)s overlap on the floor plan "
+                        "(%(row)s: x %(x0)s–%(x1)s m, y %(y0)s–%(y1)s m; %(other)s: x %(ox0)s–%(ox1)s m, y %(oy0)s–%(oy1)s m).",
+                        row=row.code, other=other.code,
+                        x0=round(x0, 2), x1=round(x1, 2), y0=round(y0, 2), y1=round(y1, 2),
+                        ox0=round(ox0, 2), ox1=round(ox1, 2), oy0=round(oy0, 2), oy1=round(oy1, 2)))
 
     @api.constrains('location_id')
     def _check_location_internal(self):

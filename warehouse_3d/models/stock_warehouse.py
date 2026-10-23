@@ -19,6 +19,8 @@ class StockWarehouse(models.Model):
                     "Warehouse %(wh)s: building length, width and height must be greater than zero.",
                     wh=warehouse.name))
             warehouse._check_wh3d_contains(warehouse.wh3d_area_ids)
+            warehouse._check_wh3d_contains(
+                self.env['warehouse.rack.row'].search([('warehouse_id', '=', warehouse.id)]))
 
     def wh3d_get_scene(self):
         """Everything the 3D view draws for this warehouse, in one call (a fixed number of queries)."""
@@ -70,15 +72,14 @@ class StockWarehouse(models.Model):
         }
 
     @api.model
-    def _check_wh3d_contains(self, footprints):
-        """Refuse when any record in ``footprints`` (with x, y, width, depth) sticks out of its building."""
-        for item in footprints:
+    def _check_wh3d_contains(self, items):
+        """Refuse when any of ``items`` (layout areas or rack rows) sticks out of its building."""
+        eps = 1e-6  # touching a wall is fine
+        for item in items:
             wh = item.warehouse_id
-            inside = (item.x >= 0 and item.y >= 0
-                      and item.x + item.width <= wh.wh3d_length
-                      and item.y + item.depth <= wh.wh3d_width)
-            if not inside:
+            x0, y0, x1, y1 = item._wh3d_footprint()
+            if x0 < -eps or y0 < -eps or x1 > wh.wh3d_length + eps or y1 > wh.wh3d_width + eps:
                 raise ValidationError(self.env._(
-                    "%(item)s (x %(x)s–%(x2)s m, y %(y)s–%(y2)s m) must lie inside the %(l)s × %(w)s m building of %(wh)s.",
-                    item=item.display_name, x=item.x, x2=item.x + item.width, y=item.y, y2=item.y + item.depth,
+                    "%(item)s (x %(x0)s–%(x1)s m, y %(y0)s–%(y1)s m) must lie inside the %(l)s × %(w)s m building of %(wh)s.",
+                    item=item.display_name, x0=round(x0, 2), x1=round(x1, 2), y0=round(y0, 2), y1=round(y1, 2),
                     l=wh.wh3d_length, w=wh.wh3d_width, wh=wh.name))

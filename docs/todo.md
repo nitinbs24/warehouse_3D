@@ -210,13 +210,14 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** The rules the editor must respect, enforced where they can't be bypassed.
 
 **Acceptance criteria:**
-- [ ] A rack row's footprint (`x..x+depth`, `y..y+bays·bay_width`) must lie inside the building.
-- [ ] Two active rows in the same warehouse must not overlap (touching edges allowed — back-to-back doubles have a 0.2 m gap anyway).
-- [ ] Error message names both row codes.
+- [x] A rack row's footprint (`x..x+depth`, `y..y+bays·bay_width`) must lie inside the building.
+- [x] Two active rows in the same warehouse must not overlap (touching edges allowed — back-to-back doubles have a 0.2 m gap anyway).
+- [x] Error message names both row codes.
 
-**Verification:** `tests/test_rack_row.py` — inside/outside, overlap, touching, archived row ignored, all 31 template rows valid.
+**Verification:** done 23 Oct — `tests/test_rack_row.py::TestRackRowLayout` 12 tests (outside ×2, touching walls, growing through a wall, overlap names both, back-to-back OK, different stretch OK, moving onto another, archived ignored, re-activating onto a newer row, other warehouse OK, building can't shrink under a row, all 31 template rows valid). Full run `0 failed, 0 error(s) of 95 tests`.
+*Also:* the building-size check now covers rows too.
 **Dependencies:** T5
-**Files:** `models/warehouse_rack_row.py`, `tests/test_rack_row.py`
+**Files:** `models/warehouse_rack_row.py`, `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `tests/test_rack_row.py`, `tests/common.py`, `tests/test_view3d.py`
 **Scope:** XS
 
 ### T11: Editor client action — draw and select
