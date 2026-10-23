@@ -24,7 +24,16 @@
         <field name="model">warehouse.rack.row</field>
         <field name="arch" type="xml">
             <form string="Rack Row">
+                <header>
+                    <button name="action_generate_locations" type="object" string="Regenerate Locations" groups="stock.group_stock_manager"
+                            help="Create any missing locations of this row. Existing locations are kept."/>
+                </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_slots" type="object" class="oe_stat_button" icon="fa-th">
+                            <field name="slot_count" widget="statinfo" string="Slots"/>
+                        </button>
+                    </div>
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <div class="oe_title">
                         <label for="code"/>

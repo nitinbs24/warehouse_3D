@@ -36,6 +36,8 @@ class WarehouseRackRow(models.Model):
     levels = fields.Integer(required=True, default=5)
     level_height = fields.Float(string='Level Height (m)', digits=(6, 2), required=True, default=1.8)
     slots_per_level = fields.Integer(required=True, default=2, help="Slots side by side in one bay level.")
+    slot_location_ids = fields.One2many('stock.location', 'wh3d_rack_row_id', domain=[('wh3d_node', '=', 'slot')])
+    slot_count = fields.Integer(compute='_compute_slot_count')
 
     _code_warehouse_uniq = models.Constraint(
         'UNIQUE(warehouse_id, code)',
@@ -53,6 +55,13 @@ class WarehouseRackRow(models.Model):
         'CHECK(x >= 0 AND y >= 0)',
         'X and Y must not be negative.',
     )
+
+    @api.depends('slot_location_ids')
+    def _compute_slot_count(self):
+        counts = dict(self.env['stock.location']._read_group(
+            [('wh3d_rack_row_id', 'in', self.ids), ('wh3d_node', '=', 'slot')], ['wh3d_rack_row_id'], ['__count']))
+        for row in self:
+            row.slot_count = counts.get(row, 0)
 
     @api.constrains('code')
     def _check_code(self):
@@ -78,3 +87,82 @@ class WarehouseRackRow(models.Model):
                 raise ValidationError(self.env._(
                     "Zone location %(loc)s of row %(code)s must be inside %(stock)s.",
                     loc=row.location_id.complete_name, code=row.code, stock=stock.complete_name))
+
+    @api.constrains('location_id')
+    def _check_location_internal(self):
+        # A Virtual (view) location restarts complete_name, which would cut every generated path short.
+        for row in self:
+            if row.location_id.usage != 'internal':
+                raise ValidationError(self.env._(
+                    "Zone location %(loc)s of row %(code)s must have the type Internal, not Virtual.",
+                    loc=row.location_id.display_name, code=row.code))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        rows = super().create(vals_list)
+        rows._generate_locations()
+        return rows
+
+    def action_generate_locations(self):
+        self._generate_locations()
+        return True
+
+    def action_view_slots(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.env._("Slots of %s", self.code),
+            'res_model': 'stock.location',
+            'view_mode': 'list,form',
+            'domain': [('wh3d_rack_row_id', '=', self.id), ('wh3d_node', '=', 'slot')],
+            'context': {'create': False},
+        }
+
+    def _slot_name(self, bay, level, position):
+        if self.kind == 'pallet':
+            return f'{self.code}-{bay:02d}-{level}-{chr(64 + position)}'
+        return f'{self.code}-{bay:02d}-{level}'
+
+    def _location_tree(self):
+        """Wanted nodes, parents first: list of (key, parent_key, name). key = (node, bay, level, position)."""
+        self.ensure_one()
+        row_key = ('row', 0, 0, 0)
+        tree = [(row_key, None, self.code)]
+        for b in range(1, self.bays + 1):
+            tree.append((('bay', b, 0, 0), row_key, f'{self.code}-{b:02d}'))
+        for b in range(1, self.bays + 1):
+            for lvl in range(1, self.levels + 1):
+                parent = ('bay', b, 0, 0)
+                if self.kind == 'pallet':
+                    parent = ('level', b, lvl, 0)
+                    tree.append((parent, ('bay', b, 0, 0), f'{self.code}-{b:02d}-{lvl}'))
+                for p in range(1, self.slots_per_level + 1):
+                    tree.append((('slot', b, lvl, p), parent, self._slot_name(b, lvl, p)))
+        return tree
+
+    def _generate_locations(self):
+        """Create the missing stock.location nodes of each row. Existing ones are left as they are."""
+        Location = self.env['stock.location'].with_context(active_test=False)
+        for row in self:
+            by_key = {
+                (loc.wh3d_node, loc.wh3d_bay, loc.wh3d_level, loc.wh3d_position): loc
+                for loc in Location.search([('wh3d_rack_row_id', '=', row.id)])
+            }
+            tree = row._location_tree()
+            # One batched create per tree depth, so each node's parent already exists.
+            for depth in ('row', 'bay', 'level', 'slot'):
+                missing = [(key, parent, name) for key, parent, name in tree
+                           if key[0] == depth and key not in by_key]
+                if not missing:
+                    continue
+                created = Location.create([{
+                    'name': name,
+                    'usage': 'internal',
+                    'location_id': by_key[parent].id if parent else row.location_id.id,
+                    'company_id': row.company_id.id,
+                    # Only slots get the category, so "closest location" putaway never picks a bay or level.
+                    'storage_category_id': row.storage_category_id.id if depth == 'slot' else False,
+                    'wh3d_rack_row_id': row.id,
+                    'wh3d_node': key[0], 'wh3d_bay': key[1], 'wh3d_level': key[2], 'wh3d_position': key[3],
+                } for key, parent, name in missing])
+                by_key.update(zip((key for key, _p, _n in missing), created))

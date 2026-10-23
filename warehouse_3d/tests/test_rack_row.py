@@ -12,7 +12,7 @@ class TestRackRow(TransactionCase):
         super().setUpClass()
         cls.warehouse = cls.env.ref('stock.warehouse0')
         cls.zone = cls.env['stock.location'].create({
-            'name': 'PR', 'usage': 'view', 'location_id': cls.warehouse.lot_stock_id.id,
+            'name': 'PR', 'usage': 'internal', 'location_id': cls.warehouse.lot_stock_id.id,
         })
         cls.Row = cls.env['warehouse.rack.row']
 

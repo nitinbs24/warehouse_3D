@@ -107,3 +107,47 @@ button on Locations, and activates the internal-transfer operation type.
 
 **Order in the manifest matters.** `data` files load top to bottom: access rules, then the group
 change, then views (which define the action), then menus (which reference the action).
+
+## T2: Generating the location tree from a rack row
+
+Files: `models/warehouse_rack_row.py` (`create`, `_location_tree`, `_generate_locations`,
+`action_generate_locations`, `action_view_slots`), `views/warehouse_rack_row_views.xml`,
+`tests/test_location_generator.py`.
+
+**Overriding `create`.** `@api.model_create_multi def create(self, vals_list)` replaces the standard
+"insert records" method. We call `super().create(vals_list)` first — that runs Odoo's own create
+(validation, saving) — then generate locations for the new rows. This "call `super()`, then add your
+part" shape is how you extend *any* Odoo method, ours or Inventory's. `vals_list` is a list because
+Odoo creates records in batches.
+
+**The tree, described before it is built.** `_location_tree()` only *lists* what should exist, as
+`(key, parent_key, name)`, with key = `(node, bay, level, position)`:
+```
+pallet: P05 ─ P05-03 ─ P05-03-2 ─ P05-03-2-A      (row ─ bay ─ level ─ slot, 1+7+35+70 = 113 locations)
+shelf:  S04 ─ S04-10 ─ S04-10-3                   (row ─ bay ─ slot, no level node, 1+16+80 = 97)
+```
+`_generate_locations()` then compares that list with what is already in the database (found by the
+`wh3d_*` fields, not by name) and creates only what's missing. That's why running it twice creates
+nothing, and why the "Regenerate Locations" button can repair a deleted slot. T3 will use the same
+keys to rename and archive.
+
+**Batching for speed.** Creating 113 records one by one means 113 round trips plus recomputing each
+parent's stored fields every time. Instead we call `create([...])` once per depth (row, then all
+bays, then all levels, then all slots), so every parent exists before its children. 14 pallet rows =
+1,442 locations in about 4.6 s.
+
+**Why only slots get the storage category.** Odoo's *Closest Location* putaway
+(`stock/models/product_strategy.py`, `_get_putaway_location`) only considers child locations whose
+storage category equals the rule's. Bays and levels have none, so stock can never be put "on a bay".
+`test_closest_putaway_lands_in_a_slot` proves this with a real putaway rule. (The option's internal
+value is `closest_location`; I first wrote `closest` in the test and Odoo rejected it — a useful
+reminder that selection fields store a key, and the UI shows its label.)
+
+**Smart button.** The "Slots" counter at the top right of the form is an `oe_stat_button` showing
+a computed field (`slot_count`, counted with one `_read_group` query for all rows at once). Clicking
+it calls `action_view_slots`, which returns an *action dictionary* — a Python way to say "open this
+model, with this filter". Methods called from buttons can return such a dict to navigate.
+
+**`company_id` and `active_test`.** Generated locations get the row's company. The search uses
+`with_context(active_test=False)` so archived locations are found too; otherwise a re-generate would
+create a duplicate of a slot that was merely archived.
