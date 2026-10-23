@@ -331,3 +331,44 @@ spreadsheet — no form needed for six simple fields.
 
 **Where the fields appear.** The warehouse form's tabs are only visible with multi-step routes or
 several warehouses, so the "3D Layout" group is inserted *before* the tabs (`xpath ... position="before"`).
+
+## T6: One call that gives the 3D view everything
+
+Files: `models/stock_warehouse.py` (`wh3d_get_scene`, `wh3d_get_slots`, `_wh3d_slot_data`),
+`models/product_template.py`, `views/product_template_views.xml`, `tests/test_scene_data.py`.
+
+**RPC = the browser calling a Python method.** Any public method (name not starting with `_`) on a
+model can be called from JavaScript: `orm.call("stock.warehouse", "wh3d_get_scene", [[warehouse_id]])`.
+Odoo checks access rights as usual — an Inventory user may read warehouses, rows and stock, so they
+can load the scene. Methods starting with `_` can't be called from outside: that's how `_wh3d_slot_data`
+stays private.
+
+**What comes back**
+```
+{ building: {length, width, height},
+  areas:    [{id, name, kind, x, y, width, depth}],
+  rows:     [{id, code, kind, x, y, bays, bay_width, depth, levels, level_height, slots_per_level}],
+  slots:    [{location_id, code, row_id, bay, level, position, capacity_m3,
+              stock: null | {product_id, name, default_code, qty, uom, mixed, used_m3, fill}}] }
+```
+- `capacity_m3` = slot width (bay width ÷ slots per level) × depth × level height. P05: 2.673 m³.
+- `used_m3` = Σ product L×W×H × quantity over the slot's stock; `fill` = used ÷ capacity.
+- A product with no dimensions makes `used_m3`/`fill` `null` → T8 draws it striped grey ("no dimensions").
+- Mixed slots name the product with the largest quantity and set `mixed: true`.
+- `wh3d_get_slots(ids)` returns the same slot shape for a few slots; T9 calls it on live updates.
+
+**The N+1 query trap.** The naive way — loop over 2,340 slots and ask the database for each slot's
+stock — is 2,340+ queries ("N+1"). Instead:
+- `_read_group` gets the stock of *all* slots in one grouped query
+  (`GROUP BY location_id, product_id` with `SUM(quantity)`).
+- `read([...], load=None)` reads all rows/areas in one go; `load=None` returns plain ids instead of
+  `(id, name)` pairs.
+- The ORM's **prefetching**: when you touch `slot.wh3d_rack_row_id` for one slot in a recordset, Odoo
+  loads that field for the whole recordset at once. So loops over records are fine; loops that call
+  `search` are not.
+`test_query_count_does_not_grow_with_slots` proves it: 1 row or 3 rows, the same number of queries.
+
+**Product dimensions.** Odoo products only have weight and volume, so `product.template` gets L×W×H in
+metres (shown under Volume on the product's Inventory tab). Fields defined on `product.template` are
+visible on `product.product` too: Odoo links the two with `_inherits` (delegation inheritance —
+each variant "has a" template and borrows its fields).

@@ -10,6 +10,7 @@
         'views/warehouse_rack_row_views.xml',
         'views/stock_location_views.xml',
         'views/warehouse_layout_area_views.xml',
+        'views/product_template_views.xml',
         'views/view3d_actions.xml',
         'views/menus.xml',
     ],

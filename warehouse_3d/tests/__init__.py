@@ -5,3 +5,4 @@ from . import test_location_sync
 from . import test_location_lock
 from . import test_view3d
 from . import test_layout_area
+from . import test_scene_data

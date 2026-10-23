@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_template_form_view_wh3d" model="ir.ui.view">
+        <field name="name">product.template.form.wh3d</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='volume']" position="after">
+                <label for="wh3d_length" string="Dimensions (m)"
+                       invisible="product_variant_count &gt; 1 and not is_product_variant"/>
+                <div class="o_row" name="wh3d_dimensions"
+                     invisible="product_variant_count &gt; 1 and not is_product_variant">
+                    <field name="wh3d_length" class="oe_inline" style="max-width: 5rem;" placeholder="L"/>
+                    <span>×</span>
+                    <field name="wh3d_width" class="oe_inline" style="max-width: 5rem;" placeholder="W"/>
+                    <span>×</span>
+                    <field name="wh3d_height" class="oe_inline" style="max-width: 5rem;" placeholder="H"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

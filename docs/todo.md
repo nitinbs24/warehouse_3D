@@ -134,11 +134,11 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** One call returns everything the viewer draws (decision 7).
 
 **Acceptance criteria:**
-- [ ] `stock.warehouse.wh3d_get_scene()` returns `{building, areas[], rows[], slots[]}`; each slot has `location_id`, `code`, `row_id`, `bay`, `level`, `position`, `capacity_m3` (slot width × depth × level height; pallet slot width = bay_width ÷ slots_per_level), and `stock` (`null` or `{product_id, name, default_code, qty, uom, used_m3, fill, mixed}`; `used_m3` = Σ L×W×H×qty over the slot's quants, `fill` = used ÷ capacity, both `null` if any product lacks dimensions; mixed slots name the largest quant and set `mixed: true`).
-- [ ] `wh3d_get_slots(location_ids)` returns the same slot shape for a subset.
-- [ ] Query count does not grow with the number of slots (fixed number of `search_read`/`read_group` calls).
+- [x] `stock.warehouse.wh3d_get_scene()` returns `{building, areas[], rows[], slots[]}`; each slot has `location_id`, `code`, `row_id`, `bay`, `level`, `position`, `capacity_m3` (slot width × depth × level height; pallet slot width = bay_width ÷ slots_per_level), and `stock` (`null` or `{product_id, name, default_code, qty, uom, used_m3, fill, mixed}`; `used_m3` = Σ L×W×H×qty over the slot's quants, `fill` = used ÷ capacity, both `null` if any product lacks dimensions; mixed slots name the largest quant and set `mixed: true`).
+- [x] `wh3d_get_slots(location_ids)` returns the same slot shape for a subset.
+- [x] Query count does not grow with the number of slots (fixed number of `search_read`/`read_group` calls).
 
-**Verification:** `tests/test_scene_data.py` — payload shape, empty vs stocked slot, mixed slot, fill math (known dims × qty ÷ known capacity), product without dimensions → `fill: null`, archived slots excluded, `assertQueryCount` with 1 vs 3 rows.
+**Verification:** done 23 Oct — `tests/test_scene_data.py` 11 tests (shape, indices/capacity, empty, fill math, mixed, no-dimensions → null, archived excluded, `wh3d_get_slots` subset, same query count for 1 vs 3 rows, stock-user access, product form). Full run `0 failed, 0 error(s) of 74 tests`.
 **Dependencies:** T3, T5, product dimension fields (moved from T13 into this task: `product.template` `wh3d_length/width/height` + form view)
 **Files:** `models/stock_warehouse.py`, `models/product_template.py`, `views/product_template_views.xml`, `tests/test_scene_data.py`
 **Scope:** M
