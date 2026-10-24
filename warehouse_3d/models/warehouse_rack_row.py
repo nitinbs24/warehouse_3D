@@ -35,7 +35,7 @@ class WarehouseRackRow(models.Model):
     company_id = fields.Many2one(related='warehouse_id.company_id', store=True)
     location_id = fields.Many2one(
         'stock.location', string='Zone Location', required=True, ondelete='restrict',
-        domain="[('usage', 'in', ('view', 'internal')), ('warehouse_id', '=', warehouse_id)]",
+        domain="[('usage', '=', 'internal'), ('warehouse_id', '=', warehouse_id)]",  # see _check_location_internal
         help="Parent of this row's locations, e.g. WH/Stock/PR.")
     storage_category_id = fields.Many2one(
         'stock.storage.category', help="Applied to every slot location of this row (used by putaway).")

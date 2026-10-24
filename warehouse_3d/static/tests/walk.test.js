@@ -8,6 +8,7 @@ import {
     rackObstacles,
     stepWalker,
     walkStartAtEntrance,
+    walkKey,
     walkStartAtSlot,
 } from "@warehouse_3d/view3d/walk";
 
@@ -137,5 +138,46 @@ describe("looking around", () => {
     test("pitch stops at about ±80°", () => {
         expect(close(look({ yaw: 0, pitch: 0 }, 0, 10000).pitch, 1.4)).toBe(true);
         expect(close(look({ yaw: 0, pitch: 0 }, 0, -10000).pitch, -1.4)).toBe(true);
+    });
+});
+
+describe("keys", () => {
+    const press = (keys, key, extra = {}) => walkKey(keys, { type: "keydown", key, shiftKey: false, typing: false, ...extra });
+    const release = (keys, key, extra = {}) => walkKey(keys, { type: "keyup", key, shiftKey: false, typing: false, ...extra });
+
+    test("pressing W walks, releasing it stops", () => {
+        const down = press({}, "w");
+        expect(down.keys.forward).toBe(true);
+        expect(down.handled).toBe(true);
+        expect(release(down.keys, "w").keys.forward).toBe(false);
+    });
+
+    test("keys pressed while typing in an input don't walk", () => {
+        expect(press({}, "w", { typing: true }).keys.forward).toBe(undefined);
+    });
+
+    test("releasing W over an input still stops (CodeRabbit review)", () => {
+        // Hold W, click into Find, let go: the walker must not keep going.
+        expect(release({ forward: true }, "w", { typing: true }).keys.forward).toBe(false);
+    });
+
+    test("Shift+W (capital W) still walks, and Shift means hurry", () => {
+        const down = press({}, "W", { shiftKey: true });
+        expect(down.keys.forward && down.keys.run).toBe(true);
+    });
+
+    test("Esc asks to stop walking, except while typing", () => {
+        expect(press({}, "Escape").exit).toBe(true);
+        expect(press({}, "Escape", { typing: true }).exit).toBe(false);
+    });
+
+    test("pressing and releasing Shift while walking hurries and slows", () => {
+        const fast = press({ forward: true }, "Shift", { shiftKey: true });
+        expect(fast.keys.forward && fast.keys.run).toBe(true);
+        expect(release(fast.keys, "Shift").keys.run).toBe(false);
+    });
+
+    test("other keys are left alone", () => {
+        expect(press({}, "q").handled).toBe(false);
     });
 });

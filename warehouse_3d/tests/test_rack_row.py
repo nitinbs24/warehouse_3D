@@ -1,8 +1,11 @@
 from psycopg2 import IntegrityError
 
+from odoo import Command
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user
 from odoo.tools import mute_logger
+from odoo.tools.convert import convert_file
+from odoo.tools.safe_eval import safe_eval
 
 from .common import create_p05, create_zone, template_rows
 
@@ -81,6 +84,24 @@ class TestRackRow(TransactionCase):
         self.assertIn(self.env.ref('stock.group_stock_multi_locations'), self.env.ref('base.group_user').implied_ids)
         self.assertFalse(self.env.ref('stock.stock_location_view_tree2_editable').active)
         self.assertFalse(self.env.ref('stock.stock_location_view_form_editable').active)
+
+    def test_module_update_keeps_storage_locations_off(self):
+        # CodeRabbit review: the setting is switched on at install only; an admin's later "off" survives -u.
+        group = self.env.ref('stock.group_stock_multi_locations')
+        user_group = self.env.ref('base.group_user')
+        user_group.implied_ids = [Command.unlink(group.id)]
+        convert_file(self.env, 'warehouse_3d', 'data/res_groups.xml', {}, mode='update')
+        self.assertNotIn(group, user_group.implied_ids)
+
+    def test_zone_dropdown_offers_internal_locations_only(self):
+        # CodeRabbit review: Virtual locations were offered although _check_location_internal refuses them.
+        virtual = self.env['stock.location'].create(
+            {'name': 'VZ', 'usage': 'view', 'location_id': self.warehouse.lot_stock_id.id})
+        domain = safe_eval(self.Row._fields['location_id'].domain, {'warehouse_id': self.warehouse.id})
+        offered = self.env['stock.location'].search(domain)
+        self.assertIn(self.zone, offered)
+        self.assertNotIn(virtual, offered)
+        self.assertEqual(set(offered.mapped('usage')), {'internal'})
 
     def test_stock_manager_can_write(self):
         row = self.Row.create(self._vals())

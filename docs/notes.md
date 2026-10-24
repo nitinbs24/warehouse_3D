@@ -683,3 +683,20 @@ apply on Enter, leaving the field, or a spinner click (`change` event).
 **Unsaved changes guard.** `useSetupAction({ beforeLeave, beforeUnload })` (from `@web/search/action_hook`)
 is how Odoo client actions hook into navigation: `beforeLeave` returning `false` keeps you on the page
 (we ask with a `ConfirmationDialog`), and `beforeUnload` makes the browser warn before closing the tab.
+
+## T12b: Fixes from the CodeRabbit review
+
+CodeRabbit (an external AI reviewer, run with `/coderabbit:code-review`) reviewed everything since the
+first commit and found four minor issues. Each was reproduced by a failing test first, then fixed;
+a second CodeRabbit run over the fixes found nothing.
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | `run_tests.sh` printed **OK** when no tests ran (a misspelt tag gives "0 of 0 tests") and ignored Odoo's exit status. | Check `${PIPESTATUS[0]}` (the exit status of the first command in a pipe — `$?` would be `tee`'s) and fail when the summary is missing or says 0 tests. |
+| 2 | Walk mode: hold W, click into Find or Alt-Tab, release W → you kept walking. | Key handling moved into a pure, tested `walkKey()`: releases always count, presses while typing don't; losing window focus lets go of every key. |
+| 3 | The "turn on Storage Locations" step re-ran on every `-u`, overriding an admin who switched it off. | Wrapped in `<data noupdate="1">`: Odoo runs `noupdate` functions only at install (`odoo/tools/convert.py`, `_tag_function`). |
+| 4 | The rack row's zone dropdown offered Virtual locations that the T2 rule then refused. | Domain limited to `usage = internal`. |
+
+**Odoo idea worth knowing: `noupdate`.** Data files load at install *and* at every upgrade (`-u`).
+Records and function calls inside `<data noupdate="1">` are only loaded at install, so anything an
+administrator may change afterwards (settings, editable defaults) belongs there.

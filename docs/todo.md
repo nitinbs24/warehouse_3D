@@ -268,6 +268,19 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `static/src/editor/editor_action.{js,xml,scss}`, `static/src/editor/layout_edit.js`, `models/warehouse_rack_row.py`, `tests/test_layout_save.py`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
 
+### T12b: CodeRabbit review fixes *(added 24 Oct after `/coderabbit:code-review`)*
+**Description:** Fix the 4 minor findings of the CodeRabbit review of all work since the first commit (see `docs/notes.md` T12b).
+
+**Acceptance criteria:**
+- [x] `run_tests.sh` fails when Odoo exits non-zero or no tests ran (misspelt tag).
+- [x] Walk mode: key releases always count, presses while typing don't, focus loss stops walking; Shift alone still hurries.
+- [x] Storage Locations setting switched on at install only (`noupdate`); zone dropdown offers Internal locations only.
+
+**Verification:** done 24 Oct — red first for all four: `./run_tests.sh /warehouse_3d:TestTypo` printed OK (now exits 1 with "no tests ran"); 7 new Hoot key tests; walk tour step (hold W, window blur → walker stops); 2 Python tests (module update keeps setting off; zone domain). Full run `0 failed, 0 error(s) of 111 tests`, 75 Hoot. CodeRabbit re-run on the fixes: 0 findings.
+**Dependencies:** T12
+**Files:** `run_tests.sh`, `data/res_groups.xml`, `models/warehouse_rack_row.py`, `static/src/view3d/walk.js`, `static/src/view3d/scene.js`, `static/tests/walk.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_rack_row.py`
+**Scope:** S
+
 ### Checkpoint C
 - [ ] `TEST` green, nothing skipped
 - [ ] Manual: lay out a small warehouse from scratch in the editor, see it in 3D, receive stock into it

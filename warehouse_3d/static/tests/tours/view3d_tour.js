@@ -308,6 +308,21 @@ registry.category("web_tour.tours").add("warehouse_3d_walk", {
             },
         },
         {
+            content: "Hold W, then the window loses focus (Alt-Tab): the walker stops",
+            trigger: ".o_wh3d_view[data-mode='walk']",
+            async run() {
+                pressKey("keydown", "w");
+                await wait(200);
+                window.dispatchEvent(new Event("blur"));
+                await wait(100);
+                const x1 = this.anchor.dataset.walkX;
+                await wait(400);
+                if (this.anchor.dataset.walkX !== x1) {
+                    throw new Error(`still walking after focus loss: ${x1} -> ${this.anchor.dataset.walkX}`);
+                }
+            },
+        },
+        {
             content: "Esc goes back to the orbit view",
             trigger: ".o_wh3d_view[data-mode='walk']",
             run: () => pressKey("keydown", "Escape"),

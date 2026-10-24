@@ -11,6 +11,12 @@ export const RADIUS = 0.3; // the walker is a circle this wide on the floor
 export const WALK_SPEED = 1.4; // metres per second, an ordinary walking pace
 export const RUN_FACTOR = 2.5; // with Shift
 const MAX_STAND_OFF = 2.5;
+const WALK_KEYS = {
+    w: "forward", ArrowUp: "forward",
+    s: "back", ArrowDown: "back",
+    a: "left", ArrowLeft: "left",
+    d: "right", ArrowRight: "right",
+};
 
 /** Stand in the aisle in front of a slot, mid-aisle (at most 2.5 m back), facing the rack. */
 export function walkStartAtSlot(row, slot, rows, building) {
@@ -109,4 +115,28 @@ export function look(pose, dx, dy) {
         yaw: pose.yaw - dx * LOOK_SPEED,
         pitch: Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pose.pitch + dy * LOOK_SPEED)),
     };
+}
+
+/**
+ * Apply one key event to the held keys. ``event`` = {type, key, shiftKey, typing}; ``typing`` is
+ * true when the key went to an input (e.g. Find). Returns {keys, handled, exit}.
+ * Presses while typing are ignored, but releases always count: hold W, click into Find, let go,
+ * and the walker must still stop (CodeRabbit review).
+ */
+export function walkKey(keys, { type, key, shiftKey, typing }) {
+    const down = type === "keydown";
+    if (down && typing) {
+        return { keys, handled: false, exit: false };
+    }
+    if (down && key === "Escape") {
+        return { keys, handled: true, exit: true };
+    }
+    if (key === "Shift") {
+        return { keys: { ...keys, run: down }, handled: false, exit: false };
+    }
+    const action = WALK_KEYS[key.length === 1 ? key.toLowerCase() : key];
+    if (!action) {
+        return { keys, handled: false, exit: false };
+    }
+    return { keys: { ...keys, [action]: down, run: shiftKey }, handled: true, exit: false };
 }

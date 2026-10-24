@@ -11,7 +11,7 @@ import {
     toWorld,
 } from "@warehouse_3d/view3d/layout";
 import { fillBand, loadBox } from "@warehouse_3d/view3d/occupancy";
-import { EYE_HEIGHT, look, moveVector, rackObstacles, stepWalker } from "@warehouse_3d/view3d/walk";
+import { EYE_HEIGHT, look, moveVector, rackObstacles, stepWalker, walkKey } from "@warehouse_3d/view3d/walk";
 
 // The prototype's light palette.
 const COLORS = {
@@ -27,12 +27,6 @@ const COLORS = {
     accent: 0xe0701b,
     stock: 0x9aa5b1, // neutral load colour
     stripe: 0xd3d9df,
-};
-const WALK_KEYS = {
-    w: "forward", ArrowUp: "forward",
-    s: "back", ArrowDown: "back",
-    a: "left", ArrowLeft: "left",
-    d: "right", ArrowRight: "right",
 };
 export const BAND_COLORS = { low: 0x1f8a70, mid: 0xcf9b12, high: 0xb3261e };
 const LABEL = { fg: "#1B2430", muted: "#5B6676", bg: "#FFFFFF", line: "#D3D9E0" };
@@ -86,6 +80,8 @@ export class WarehouseScene {
         this.onWalk = onWalk;
         this.walk = null;
         this.onWalkKey = (ev) => this.handleWalkKey(ev);
+        // Alt-Tab away while holding W: the key-up goes to the other window, so let go of everything.
+        this.onWalkBlur = () => this.walk && (this.walk.keys = {});
         this.stockVisible = true;
         this.colourByOccupancy = false;
         this.stockMeshes = [];
@@ -404,6 +400,7 @@ export class WarehouseScene {
             this.camera.updateProjectionMatrix();
             window.addEventListener("keydown", this.onWalkKey);
             window.addEventListener("keyup", this.onWalkKey);
+            window.addEventListener("blur", this.onWalkBlur);
         }
         this.anim = null;
         this.walk = { ...pose, pitch: 0, keys: {}, last: performance.now() };
@@ -418,6 +415,7 @@ export class WarehouseScene {
         }
         window.removeEventListener("keydown", this.onWalkKey);
         window.removeEventListener("keyup", this.onWalkKey);
+        window.removeEventListener("blur", this.onWalkBlur);
         this.walk = null;
         this.camera.near = 0.5;
         this.camera.updateProjectionMatrix();
@@ -430,18 +428,15 @@ export class WarehouseScene {
 
     handleWalkKey(ev) {
         const target = ev.target;
-        if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) {
-            return; // typing in Find must not walk
-        }
-        const down = ev.type === "keydown";
-        if (down && ev.key === "Escape") {
+        const typing = Boolean(target && (target.isContentEditable
+            || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)));
+        const result = walkKey(this.walk.keys, { type: ev.type, key: ev.key, shiftKey: ev.shiftKey, typing });
+        if (result.exit) {
             this.exitWalk();
             return;
         }
-        const action = WALK_KEYS[ev.key.length === 1 ? ev.key.toLowerCase() : ev.key];
-        this.walk.keys.run = ev.shiftKey;
-        if (action) {
-            this.walk.keys[action] = down;
+        this.walk.keys = result.keys;
+        if (result.handled && !typing) {
             ev.preventDefault(); // arrow keys would otherwise scroll the page
         }
     }
@@ -527,6 +522,7 @@ export class WarehouseScene {
         this.renderer.setAnimationLoop(null);
         window.removeEventListener("keydown", this.onWalkKey);
         window.removeEventListener("keyup", this.onWalkKey);
+        window.removeEventListener("blur", this.onWalkBlur);
         const canvas = this.renderer.domElement;
         canvas.removeEventListener("pointerdown", this.onPointerDown);
         canvas.removeEventListener("pointerup", this.onPointerUp);
