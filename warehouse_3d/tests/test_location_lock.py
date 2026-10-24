@@ -17,8 +17,8 @@ class TestLocationLock(TransactionCase):
             'warehouse_id': warehouse.id, 'location_id': cls.pr.id,
         })
         Location = cls.env['stock.location']
-        cls.slot_1 = Location.search([('name', '=', 'P15-01-1-A')])
-        cls.slot_7 = Location.search([('name', '=', 'P15-07-1-A')])
+        cls.slot_1 = Location.search([('name', '=', 'P15-01-1-A'), ('warehouse_id', '=', warehouse.id)])
+        cls.slot_7 = Location.search([('name', '=', 'P15-07-1-A'), ('warehouse_id', '=', warehouse.id)])
 
     def test_renaming_a_generated_location_is_refused(self):
         with self.assertRaisesRegex(UserError, 'P15'):

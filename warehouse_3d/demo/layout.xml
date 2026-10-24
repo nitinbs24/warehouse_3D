@@ -1,0 +1,580 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Template warehouse, part 2: the floor plan of docs/CLAUDE.md and its opening stock.
+     60 x 40 m, U-flow (all docks on the y = 40 m wall). Generated from the handoff numbers;
+     tests/common.py template_rows() holds the same rows for the tests. -->
+<odoo>
+    <!-- Floor areas and dock doors (drawn only; they hold no stock). -->
+    <record id="area_1" model="warehouse.layout.area">
+        <field name="name">Receiving</field>
+        <field name="kind">area</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">0.5</field>
+        <field name="y">25</field>
+        <field name="width">19.5</field>
+        <field name="depth">13.5</field>
+    </record>
+    <record id="area_2" model="warehouse.layout.area">
+        <field name="name">Charging</field>
+        <field name="kind">area</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">21</field>
+        <field name="y">25</field>
+        <field name="width">8</field>
+        <field name="depth">5.5</field>
+    </record>
+    <record id="area_3" model="warehouse.layout.area">
+        <field name="name">Office</field>
+        <field name="kind">area</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">21</field>
+        <field name="y">31.5</field>
+        <field name="width">8</field>
+        <field name="depth">8</field>
+    </record>
+    <record id="area_4" model="warehouse.layout.area">
+        <field name="name">Packing</field>
+        <field name="kind">area</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">30</field>
+        <field name="y">25</field>
+        <field name="width">9</field>
+        <field name="depth">8</field>
+    </record>
+    <record id="area_5" model="warehouse.layout.area">
+        <field name="name">Shipping</field>
+        <field name="kind">area</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">40</field>
+        <field name="y">25</field>
+        <field name="width">19.5</field>
+        <field name="depth">13.5</field>
+    </record>
+    <record id="dock_1" model="warehouse.layout.area">
+        <field name="name">Inbound dock 1</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">3</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+    <record id="dock_2" model="warehouse.layout.area">
+        <field name="name">Inbound dock 2</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">8</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+    <record id="dock_3" model="warehouse.layout.area">
+        <field name="name">Inbound dock 3</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">13</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+    <record id="dock_4" model="warehouse.layout.area">
+        <field name="name">Outbound dock 1</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">44</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+    <record id="dock_5" model="warehouse.layout.area">
+        <field name="name">Outbound dock 2</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">49</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+    <record id="dock_6" model="warehouse.layout.area">
+        <field name="name">Outbound dock 3</field>
+        <field name="kind">dock</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">54</field>
+        <field name="y">38.4</field>
+        <field name="width">3</field>
+        <field name="depth">1.6</field>
+    </record>
+
+    <!-- Pallet racking: 14 faces, 7 bays x 2.7 m, 5 levels x 1.8 m, 2 pallets per bay level = 980 positions. -->
+    <record id="row_p01" model="warehouse.rack.row">
+        <field name="code">P01</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">0.2</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p02" model="warehouse.rack.row">
+        <field name="code">P02</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">4.3</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p03" model="warehouse.rack.row">
+        <field name="code">P03</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">5.6</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p04" model="warehouse.rack.row">
+        <field name="code">P04</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">9.7</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p05" model="warehouse.rack.row">
+        <field name="code">P05</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">11.0</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p06" model="warehouse.rack.row">
+        <field name="code">P06</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">15.1</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p07" model="warehouse.rack.row">
+        <field name="code">P07</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">16.4</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p08" model="warehouse.rack.row">
+        <field name="code">P08</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">20.5</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p09" model="warehouse.rack.row">
+        <field name="code">P09</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">21.8</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p10" model="warehouse.rack.row">
+        <field name="code">P10</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">25.9</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p11" model="warehouse.rack.row">
+        <field name="code">P11</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">27.2</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p12" model="warehouse.rack.row">
+        <field name="code">P12</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">31.3</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p13" model="warehouse.rack.row">
+        <field name="code">P13</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">32.6</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+    <record id="row_p14" model="warehouse.rack.row">
+        <field name="code">P14</field>
+        <field name="kind">pallet</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_pr"/>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="x">36.7</field>
+        <field name="y">1.0</field>
+        <field name="bays">7</field>
+        <field name="bay_width">2.7</field>
+        <field name="depth">1.1</field>
+        <field name="levels">5</field>
+        <field name="level_height">1.8</field>
+        <field name="slots_per_level">2</field>
+    </record>
+
+    <!-- Shelving pick zone: 17 faces, 16 bays x 1.0 m, 5 shelves x 0.4 m = 1,360 bins. -->
+    <record id="row_s01" model="warehouse.rack.row">
+        <field name="code">S01</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">39.6</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s02" model="warehouse.rack.row">
+        <field name="code">S02</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">40.2</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s03" model="warehouse.rack.row">
+        <field name="code">S03</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">42.0</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s04" model="warehouse.rack.row">
+        <field name="code">S04</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">42.6</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s05" model="warehouse.rack.row">
+        <field name="code">S05</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">44.4</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s06" model="warehouse.rack.row">
+        <field name="code">S06</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">45.0</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s07" model="warehouse.rack.row">
+        <field name="code">S07</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">46.8</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s08" model="warehouse.rack.row">
+        <field name="code">S08</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">47.4</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s09" model="warehouse.rack.row">
+        <field name="code">S09</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">49.2</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s10" model="warehouse.rack.row">
+        <field name="code">S10</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">49.8</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s11" model="warehouse.rack.row">
+        <field name="code">S11</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">51.6</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s12" model="warehouse.rack.row">
+        <field name="code">S12</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">52.2</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s13" model="warehouse.rack.row">
+        <field name="code">S13</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">54.0</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s14" model="warehouse.rack.row">
+        <field name="code">S14</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">54.6</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s15" model="warehouse.rack.row">
+        <field name="code">S15</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">56.4</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s16" model="warehouse.rack.row">
+        <field name="code">S16</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">57.0</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+    <record id="row_s17" model="warehouse.rack.row">
+        <field name="code">S17</field>
+        <field name="kind">shelf</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="location_id" ref="zone_sh"/>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+        <field name="x">59.0</field>
+        <field name="y">2.0</field>
+        <field name="bays">16</field>
+        <field name="bay_width">1.0</field>
+        <field name="depth">0.6</field>
+        <field name="levels">5</field>
+        <field name="level_height">0.4</field>
+        <field name="slots_per_level">1</field>
+    </record>
+
+    <!-- Opening stock, about 65 % of slots, as one inventory adjustment (fixed seed: same result every install). -->
+    <function model="stock.warehouse" name="_wh3d_fill_template_stock">
+        <value eval="ref('warehouse_template')"/>
+    </function>
+</odoo>

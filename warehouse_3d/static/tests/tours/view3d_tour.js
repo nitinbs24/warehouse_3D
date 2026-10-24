@@ -172,7 +172,7 @@ registry.category("web_tour.tours").add("warehouse_3d_live", {
             async run() {
                 const call = (model, method, args, kwargs = {}) =>
                     rpc(`/web/dataset/call_kw/${model}/${method}`, { model, method, args, kwargs });
-                const [location] = await call("stock.location", "search", [[["name", "=", "P05-01-1-A"]]]);
+                const [location] = await call("stock.location", "search", [[["name", "=", "P05-01-1-A"], ["warehouse_id.code", "=", "WH"]]]);
                 const [product] = await call("product.product", "search", [[["name", "=", "Basmati rice pallet"]]]);
                 const quantId = await call("stock.quant", "create",
                     [{ product_id: product, location_id: location, inventory_quantity: 1 }],
@@ -454,7 +454,7 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_edit", {
             async run() {
                 const count = await rpc("/web/dataset/call_kw/stock.location/search_count", {
                     model: "stock.location", method: "search_count",
-                    args: [[["name", "=like", "P07-%"], ["wh3d_node", "=", "slot"]]], kwargs: {},
+                    args: [[["name", "=like", "P07-%"], ["wh3d_node", "=", "slot"], ["warehouse_id.code", "=", "WH"]]], kwargs: {},
                 });
                 if (count !== 70) {
                     throw new Error(`expected 70 P07 slots, found ${count}`);

@@ -38,7 +38,7 @@ class TestView3dTour(HttpCase):
             'name': 'Basmati rice pallet', 'is_storable': True,
             'wh3d_length': 1.2, 'wh3d_width': 1.0, 'wh3d_height': 1.1,  # 1.32 m³ of a 2.673 m³ slot = 49 %
         })
-        slot = self.env['stock.location'].search([('name', '=', 'P05-03-2-A')])
+        slot = self.env['stock.location'].search([('name', '=', 'P05-03-2-A'), ('warehouse_id', '=', warehouse.id)])
         self.env['stock.quant']._update_available_quantity(rice, slot, 1)
         self.start_tour('/odoo', 'warehouse_3d_stock', login='admin')
 
@@ -73,7 +73,7 @@ class TestView3dTour(HttpCase):
         create_p05(self.env, warehouse, zone)                          # x 9.7
         create_p05(self.env, warehouse, zone, code='P06', x=20.5)
         product = self.env['product.product'].create({'name': 'Rice', 'is_storable': True})
-        slot = self.env['stock.location'].search([('name', '=', 'P05-07-1-A')])
+        slot = self.env['stock.location'].search([('name', '=', 'P05-07-1-A'), ('warehouse_id', '=', warehouse.id)])
         self.env['stock.quant']._update_available_quantity(product, slot, 3)
         self.start_tour('/odoo', 'warehouse_3d_editor_edit', login='admin')
 
@@ -93,6 +93,10 @@ class TestView3dScreenshot(HttpCase):
 
         with patch.object(ChromeBrowser, '_wait_code_ok', wait_then_screenshot):
             self.start_tour(url, tour, login='admin')
+
+    def test_screenshot_demo_warehouse(self):
+        # Nothing created here: the 3D view as it opens on a fresh demo database (Warehaven DC).
+        self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_screenshot', 'wh3d_demo_')
 
     def test_screenshot_editor(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
@@ -115,7 +119,7 @@ class TestView3dScreenshot(HttpCase):
             + [{'name': f'Dock {i + 1}', 'kind': 'dock', 'x': x, 'y': 38.4, 'width': 3, 'depth': 1.6,
                 'warehouse_id': warehouse.id} for i, x in enumerate(docks)])
 
-    def _seed_stock(self):
+    def _seed_stock(self, warehouse):
         # Seeded stock across all fill bands, plus one product without dimensions.
         rng = random.Random(20261023)
         Product = self.env['product.product']
@@ -131,7 +135,7 @@ class TestView3dScreenshot(HttpCase):
         bins = [Product.create({'name': f'Small part {i}', 'is_storable': True,
                                 'wh3d_length': 0.3, 'wh3d_width': 0.2, 'wh3d_height': 0.1}) for i in range(3)]
         Quant = self.env['stock.quant']
-        for slot in self.env['stock.location'].search([('wh3d_node', '=', 'slot')]):
+        for slot in self.env['stock.location'].search([('wh3d_node', '=', 'slot'), ('warehouse_id', '=', warehouse.id)]):
             if rng.random() < 0.65:
                 if slot.name.startswith('P'):
                     Quant._update_available_quantity(rng.choice(products), slot, 1)
@@ -141,11 +145,11 @@ class TestView3dScreenshot(HttpCase):
     def test_screenshot_walk(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
         self._template_layout(warehouse)
-        self._seed_stock()
+        self._seed_stock(warehouse)
         self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_walk_screenshot', 'wh3d_walk_')
 
     def test_screenshot_template_layout(self):
         warehouse = self.env['stock.warehouse'].search([], limit=1)
         self._template_layout(warehouse)
-        self._seed_stock()
+        self._seed_stock(warehouse)
         self._screenshot('/odoo/action-warehouse_3d.action_wh3d_view3d', 'warehouse_3d_screenshot', 'wh3d_view3d_')

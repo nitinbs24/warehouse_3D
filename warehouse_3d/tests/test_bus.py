@@ -15,7 +15,8 @@ class TestStockBus(TransactionCase):
         cls.stock = cls.warehouse.lot_stock_id
         create_p05(cls.env, cls.warehouse)
         cls.slots = cls.env['stock.location'].search(
-            [('name', 'in', ['P05-01-1-A', 'P05-01-1-B', 'P05-02-1-A'])], order='name')
+            [('name', 'in', ['P05-01-1-A', 'P05-01-1-B', 'P05-02-1-A']), ('warehouse_id', '=', cls.warehouse.id)],
+            order='name')
         cls.product = cls.env['product.product'].create({'name': 'Rice 25 kg', 'is_storable': True})
         cls.supplier = cls.env.ref('stock.stock_location_suppliers')
 

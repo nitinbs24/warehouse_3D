@@ -17,6 +17,7 @@
     'demo': [
         'demo/catalogue.xml',
         'demo/product.template.csv',
+        'demo/layout.xml',
     ],
     'assets': {
         'web.assets_backend': [

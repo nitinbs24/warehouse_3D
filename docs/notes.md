@@ -736,3 +736,41 @@ That's why fill % uses our own `wh3d_length/width/height` (T6), not Odoo's volum
   the whole demo file was rejected.
 - Odoo treats a demo-data failure as a **warning** ("installed without demo data") and carries on.
   `run_tests.sh` now fails on that message, otherwise the template tests would be the only clue.
+
+## T14: The template warehouse "Warehaven DC" and its opening stock
+
+Files: `demo/catalogue.xml` (now also the warehouse), `demo/layout.xml`, `models/stock_warehouse.py`
+(`wh3d_default_warehouse_id`, `_wh3d_plan_template_stock`, `_wh3d_fill_template_stock`), the two views'
+start-up, `tests/test_template.py` (`TestTemplateLayout`), several tests (lookups scoped to their warehouse),
+`docs/screenshots/t14-demo-warehouse.png`.
+
+**A warehouse of its own.** The template lives in a separate warehouse, *Warehaven DC* (code WHV),
+not in the default *WH*. Creating a `stock.warehouse` record makes Odoo build its whole location
+tree and operation types (WHV/Stock, receipts, deliveries…). The demo XML then refers to its stock
+location with `eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"`, because that
+location was created by code and has no XML id of its own. Keeping the template apart means the
+template and anything you try in WH (and the tests, which work in WH) never collide.
+
+**Which warehouse the views open.** `wh3d_default_warehouse_id()` returns the first warehouse that has
+rack rows, else the first warehouse, so a fresh demo database opens straight on Warehaven DC.
+
+**The floor plan as data.** `demo/layout.xml` holds the 5 areas, 6 dock doors and 31 rack rows with
+the handoff's numbers (generated once from them; `tests/common.py` has the same list for tests).
+Creating each rack row runs T2's generator, so the 980 pallet positions and 1,360 shelf bins appear
+as real Inventory locations at install.
+
+**Opening stock: plan, then book.** `_wh3d_plan_template_stock` only *decides*, using a seeded random
+generator (same seed → same stock on every install): about 65 % of slots get one product — bulk goods
+on pallet rows, small parts on shelves, fast movers (A) six times as likely as slow ones (C) — in a
+quantity aimed at one of the three fill bands, so "Colour by occupancy" shows green, amber and red.
+`_wh3d_fill_template_stock` then books the plan exactly like a person would: counted quantities in
+*inventory mode* and **Apply** (`action_apply_inventory`), so every quantity has a stock move behind it
+in Inventory's history. A `<function>` tag in the demo file calls it once at install. Whole template:
+about 25 s.
+
+**Tests had to learn about a second warehouse.** With the template installed, a test that looks up
+"P05-07-1-A" by name finds two (WH's and WHV's). Every name lookup in the tests now also filters on
+the location's `warehouse_id` (a stored field Odoo keeps on every location).
+
+**Splitting "decide" from "do"** (`_plan…` returns a list, `_fill…` writes it) is what makes the
+determinism test possible: plan twice with the same seed, compare the lists, no database writes.

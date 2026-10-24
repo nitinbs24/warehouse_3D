@@ -61,29 +61,39 @@
         <field name="max_weight">25</field>
     </record>
 
-    <!-- Zones: the parents of the rack rows' location trees. Internal, so paths read WH/Stock/PR/… -->
+    <!-- The template warehouse. A warehouse of its own (not the default WH), so the template layout
+         and anything you try out in WH never collide. Creating it makes Odoo add WHV/Stock etc. -->
+    <record id="warehouse_template" model="stock.warehouse">
+        <field name="name">Warehaven DC</field>
+        <field name="code">WHV</field>
+        <field name="wh3d_length">60</field>
+        <field name="wh3d_width">40</field>
+        <field name="wh3d_height">10</field>
+    </record>
+
+    <!-- Zones: the parents of the rack rows' location trees. Internal, so paths read WHV/Stock/PR/… -->
     <record id="zone_pr" model="stock.location">
         <field name="name">PR</field>
         <field name="usage">internal</field>
-        <field name="location_id" ref="stock.stock_location_stock"/>
+        <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
     </record>
     <record id="zone_sh" model="stock.location">
         <field name="name">SH</field>
         <field name="usage">internal</field>
-        <field name="location_id" ref="stock.stock_location_stock"/>
+        <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
     </record>
 
-    <!-- Putaway (Odoo standard): goods arriving in WH/Stock go to the first slot of their zone
+    <!-- Putaway (Odoo standard): goods arriving in WHV/Stock go to the first slot of their zone
          that has the matching storage category and room ("Closest Location"). -->
     <record id="putaway_bulk" model="stock.putaway.rule">
-        <field name="location_in_id" ref="stock.stock_location_stock"/>
+        <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
         <field name="category_id" ref="categ_bulk"/>
         <field name="location_out_id" ref="zone_pr"/>
         <field name="sublocation">closest_location</field>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
     </record>
     <record id="putaway_small_parts" model="stock.putaway.rule">
-        <field name="location_in_id" ref="stock.stock_location_stock"/>
+        <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
         <field name="category_id" ref="categ_small_parts"/>
         <field name="location_out_id" ref="zone_sh"/>
         <field name="sublocation">closest_location</field>

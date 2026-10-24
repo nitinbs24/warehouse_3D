@@ -81,7 +81,8 @@ export class View3D extends Component {
     async loadScene() {
         let warehouseId = this.props.action.context?.warehouse_id;
         if (!warehouseId) {
-            [warehouseId] = await this.orm.search("stock.warehouse", [], { limit: 1 });
+            // The first warehouse with a rack layout (e.g. the template "Warehaven DC"), else the first one.
+            warehouseId = await this.orm.call("stock.warehouse", "wh3d_default_warehouse_id", []);
         }
         return this.orm.call("stock.warehouse", "wh3d_get_scene", [[warehouseId]]);
     }

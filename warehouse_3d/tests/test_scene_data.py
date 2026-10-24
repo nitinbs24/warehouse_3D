@@ -37,7 +37,7 @@ class TestSceneData(TransactionCase):
         }
 
     def _slot(self, name):
-        return self.env['stock.location'].search([('name', '=', name)])
+        return self.env['stock.location'].search([('name', '=', name), ('warehouse_id', '=', self.warehouse.id)])
 
     def _put(self, product, slot_name, qty):
         self.env['stock.quant']._update_available_quantity(product, self._slot(slot_name), qty)
@@ -106,7 +106,7 @@ class TestSceneData(TransactionCase):
 
     def test_layout_has_building_areas_and_rows_but_no_slots(self):
         layout = self.warehouse.wh3d_get_layout()
-        self.assertEqual(set(layout), {'warehouse_id', 'building', 'areas', 'rows'})
+        self.assertEqual(set(layout), {'warehouse_id', 'name', 'building', 'areas', 'rows'})
         self.assertEqual(layout['warehouse_id'], self.warehouse.id)
         self.assertEqual(layout['rows'], self.warehouse.wh3d_get_scene()['rows'])
 

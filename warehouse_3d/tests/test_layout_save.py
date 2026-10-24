@@ -64,7 +64,7 @@ class TestLayoutSave(TransactionCase):
         self.assertEqual(self.p05.x, 9.7)
 
     def test_stock_guard_refuses_everything(self):
-        slot = self.env['stock.location'].search([('name', '=', 'P05-07-1-A')])
+        slot = self.env['stock.location'].search([('name', '=', 'P05-07-1-A'), ('warehouse_id', '=', self.warehouse.id)])
         product = self.env['product.product'].create({'name': 'Rice', 'is_storable': True})
         self.env['stock.quant']._update_available_quantity(product, slot, 3)
         with self.assertRaisesRegex(UserError, 'P05-07-1-A'):

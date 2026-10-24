@@ -304,16 +304,16 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Scope:** M
 
 ### T14: Template layout + generated locations + opening stock
-**Description:** The 60×40 m DC from the handoff as demo data, filled to ~65%.
+**Description:** The 60×40 m DC from the handoff as demo data, filled to ~65%. *(Decided 24 Oct: in its own warehouse "Warehaven DC" (WHV), not WH, so the template and anything tried in WH — including the tests — never collide; the views open the first warehouse with rack rows.)*
 
 **Acceptance criteria:**
-- [ ] Demo XML: building 60×40×10, 5 areas + 6 docks (PR/SH zones already in T13), 31 rack rows at the handoff x-positions; generation yields **980 pallet + 1,360 shelf = 2,340** slot locations.
-- [ ] `<function>` fills opening stock with a fixed seed: 60–70% of slots occupied per kind, pallet slots hold one bulk product, shelf bins small parts, A-class over-represented; quantities chosen so stocked slots spread across all three fill bands (each band ≥ 15 % of stocked slots); reinstalling gives the same result.
-- [ ] Install with demo completes in < 3 min.
+- [x] Demo XML: building 60×40×10, 5 areas + 6 docks (PR/SH zones already in T13), 31 rack rows at the handoff x-positions; generation yields **980 pallet + 1,360 shelf = 2,340** slot locations.
+- [x] `<function>` fills opening stock with a fixed seed: 60–70% of slots occupied per kind, pallet slots hold one bulk product, shelf bins small parts, A-class over-represented; quantities chosen so stocked slots spread across all three fill bands (each band ≥ 15 % of stocked slots); reinstalling gives the same result.
+- [x] Install with demo completes in < 3 min.
 
 **Verification:** `tests/test_template.py` — slot counts, occupancy band, fill-band spread, determinism (two runs of the filler on fresh rows produce identical quants), no row overlaps. Manual: 3D view of the template vs the prototype screenshot.
 **Dependencies:** T13, T3, T10
-**Files:** `demo/layout.xml`, `demo/rack_rows.xml`, `models/stock_warehouse.py` (demo filler), `tests/test_template.py`
+**Files:** `demo/catalogue.xml`, `demo/layout.xml`, `models/stock_warehouse.py`, `static/src/view3d/view3d_action.js`, `static/src/editor/editor_action.js`, `tests/test_template.py`, tests scoped to their warehouse (`test_bus`, `test_layout_save`, `test_location_generator`, `test_location_lock`, `test_scene_data`, `test_view3d`, tours)
 **Scope:** M
 
 ### T15: End-to-end Inventory tour + README

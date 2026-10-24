@@ -116,5 +116,6 @@ class TestLocationGenerator(TransactionCase):
         for i in range(14):
             self._pallet(code=f'P{i + 1:02d}', x=i * 2.6)
         elapsed = time.time() - start
-        self.assertEqual(self.env['stock.location'].search_count([('wh3d_node', '=', 'slot')]), 980)
+        self.assertEqual(self.env['stock.location'].search_count(
+            [('wh3d_node', '=', 'slot'), ('warehouse_id', '=', self.warehouse.id)]), 980)
         self.assertLess(elapsed, 30, f"generation took {elapsed:.1f}s")
