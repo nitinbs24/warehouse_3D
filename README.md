@@ -4,10 +4,7 @@ An Odoo 19 Community add-on that lets you **design a warehouse layout and see it
 Inventory, with live stock**. Rack rows you draw become real Inventory locations; the 3D view shows
 those locations with the stock Odoo holds in them, and updates as receipts and deliveries happen.
 
-Final-year CSE project (VVCE), built step by step in `docs/todo.md` with learning notes per step in
-`docs/notes.md`.
-
-![3D view of the template warehouse](docs/screenshots/t14-demo-warehouse.png)
+The working, planning and notes are available within docs.
 
 ## What it does
 
