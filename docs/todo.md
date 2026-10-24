@@ -7,7 +7,7 @@ Every task is test-first: write the failing test(s) in **Verification**, see the
 Every task ends with: full module test run green with **no skipped browser tests**, an entry in `docs/notes.md`, and a suggested commit message. Nitin commits; Claude never does.
 **Claude stops after every task and reports progress; the next task starts only when Nitin says "continue".**
 
-`TEST` = `warehouse_3D/run_tests.sh` (fresh `wh3d_test` DB with demo, port 8079, fails on any error/failure/skipped browser test). One class: `./run_tests.sh /warehouse_3d:TestName`.
+`TEST` = `<venv python> warehouse_3D/run_tests.py` (Linux and Windows; `run_tests.sh` wraps it on Linux): fresh `wh3d_test` DB with demo, port 8079, fails on any error/failure/skipped browser test/failed demo data/no tests. One class: `run_tests.py /warehouse_3d:TestName`.
 Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tests`); their Python drivers in `tests/test_tours.py`.
 
 ---
@@ -320,16 +320,16 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Prove the module "plays nicely with Inventory" in one scripted flow, and leave the team a guide.
 
 **Acceptance criteria:**
-- [ ] Tour: receipt of a bulk product as a pallet → validate → putaway puts it in an empty pallet slot → 3D view shows it there; delivery from that slot → it disappears.
-- [ ] `warehouse_3D/README.md`: what it is, install, run, test, architecture diagram, where each concept lives, known limits (no rotation, standard putaway only, uninstall leaves locations).
-- [ ] Uninstall on a copy DB succeeds and Inventory still opens.
+- [x] Tour: receipt of a bulk product as a pallet → validate → putaway puts it in an empty pallet slot → 3D view shows it there; delivery from that slot → it disappears.
+- [x] `warehouse_3D/README.md`: what it is, install, run, test, architecture diagram, where each concept lives, known limits (no rotation, standard putaway only, uninstall leaves locations).
+- [x] Uninstall on a copy DB succeeds and Inventory still opens.
 
-**Verification:** tour green in `TEST`; manual uninstall check.
+**Verification:** done 24 Oct — `tests/test_inventory_flow.py`: Python flow test (receipt → putaway into the first empty pallet slot → scene data + bus → delivery → empty) and tour `warehouse_3d_inventory_flow` (same, live in the 3D view). Uninstall checked on throwaway databases: without demo data clean; with demo data Odoo logs an error removing the template warehouse and leaves it (documented). `run_tests.py` replaces the bash runner (Linux + Windows); misspelt tag / broken test / missing config / protected db name all exit 1. README with Fedora (tested) and Windows (untested) setup. Full run via `run_tests.py`: `0 failed, 0 error(s) of 134 tests`, 75 Hoot.
 **Dependencies:** T9, T14
-**Files:** `static/tests/tours/inventory_flow_tour.js`, `tests/test_tours.py`, `/…/warehouse_3D/README.md`
+**Files:** `tests/test_inventory_flow.py`, `static/tests/tours/view3d_tour.js`, `run_tests.py`, `run_tests.sh`, `README.md`
 **Scope:** S
 
 ### Checkpoint D — Complete
-- [ ] All success criteria in `docs/plan.md` met; `TEST` green, nothing skipped
+- [x] All success criteria in `docs/plan.md` met; `TEST` green, nothing skipped *(24 Oct: fresh demo DB opens Warehaven DC in 3D — T14; receipts/deliveries update it live — T9, T15; editing a row regenerates its locations — T3, T12; 134 tests + 75 Hoot green; every task explained in notes.md)*
 - [ ] Demo walkthrough rehearsed with Nitin + teammate
 - [ ] Ready for the next plan: custom putaway strategies + experiment

@@ -484,3 +484,85 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_edit", {
         { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P07']" },
     ],
 });
+
+// End to end on the template warehouse: Inventory books a receipt (Odoo's standard putaway picks
+// the slot) and a delivery while the 3D view is open; the view follows both without reloading.
+const flow = {};
+
+async function callKw(model, method, args, kwargs = {}) {
+    return rpc(`/web/dataset/call_kw/${model}/${method}`, { model, method, args, kwargs });
+}
+
+async function bookPicking(typeField, fromLocation, toLocation, qty) {
+    const picking = await callKw("stock.picking", "create", [{
+        picking_type_id: flow.warehouse[typeField][0],
+        location_id: fromLocation, location_dest_id: toLocation,
+        move_ids: [[0, 0, { product_id: flow.productId, product_uom_qty: qty,
+            location_id: fromLocation, location_dest_id: toLocation }]],
+    }]);
+    await callKw("stock.picking", "action_confirm", [[picking]]);
+    await callKw("stock.picking", "action_assign", [[picking]]);
+    const [{ move_ids }] = await callKw("stock.picking", "read", [[picking], ["move_ids"]]);
+    await callKw("stock.move", "write", [move_ids, { quantity: qty, picked: true }]);
+    await callKw("stock.picking", "button_validate", [[picking]]);
+    return move_ids;
+}
+
+registry.category("web_tour.tours").add("warehouse_3d_inventory_flow", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        {
+            content: "The 3D view opened the template warehouse",
+            trigger: ".o_wh3d_view[data-row-count='31'][data-updates='0'] .o_wh3d_canvas canvas",
+        },
+        {
+            content: "Inventory receives 10 bags into WHV/Stock; putaway sends them to a pallet slot",
+            trigger: ".o_wh3d_view",
+            async run() {
+                [flow.warehouse] = await callKw("stock.warehouse", "search_read",
+                    [[["code", "=", "WHV"]], ["in_type_id", "out_type_id", "lot_stock_id"]]);
+                [flow.productId] = await callKw("product.product", "search", [[["default_code", "=", "PR-1001"]]]);
+                [flow.supplier] = await callKw("stock.location", "search", [[["usage", "=", "supplier"]]], { limit: 1 });
+                [flow.customer] = await callKw("stock.location", "search", [[["usage", "=", "customer"]]], { limit: 1 });
+                const moves = await bookPicking("in_type_id", flow.supplier, flow.warehouse.lot_stock_id[0], 10);
+                const [line] = await callKw("stock.move.line", "search_read",
+                    [[["move_id", "in", moves]], ["location_dest_id"]]);
+                flow.slotId = line.location_dest_id[0];
+                [{ name: flow.slotCode }] = await callKw("stock.location", "read", [[flow.slotId], ["name"]]);
+                if (!/^P\d\d-\d\d-\d-[AB]$/.test(flow.slotCode)) {
+                    throw new Error(`putaway chose ${flow.slotCode}, not a pallet slot`);
+                }
+            },
+        },
+        {
+            content: "Live update arrived (no reload)",
+            trigger: ".o_wh3d_view[data-updates='1']",
+        },
+        {
+            content: "Find the slot putaway chose",
+            trigger: ".o_wh3d_find input",
+            run() {
+                this.anchor.value = flow.slotCode;
+                this.anchor.dispatchEvent(new Event("input", { bubbles: true }));
+            },
+        },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        {
+            content: "The panel shows the 10 bags just received",
+            trigger: ".o_wh3d_selected:contains(PR-1001):contains(10 Units)",
+        },
+        {
+            content: "Inventory delivers the 10 bags from that slot",
+            trigger: ".o_wh3d_view",
+            async run() {
+                await bookPicking("out_type_id", flow.slotId, flow.customer, 10);
+            },
+        },
+        {
+            content: "The slot is empty again, without a reload",
+            trigger: ".o_wh3d_view[data-updates='2'] .o_wh3d_selected:contains(Empty. Available for putaway.)",
+        },
+    ],
+});

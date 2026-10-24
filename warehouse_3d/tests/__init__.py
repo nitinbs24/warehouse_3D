@@ -10,3 +10,4 @@ from . import test_js
 from . import test_bus
 from . import test_layout_save
 from . import test_template
+from . import test_inventory_flow

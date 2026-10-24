@@ -774,3 +774,28 @@ the location's `warehouse_id` (a stored field Odoo keeps on every location).
 
 **Splitting "decide" from "do"** (`_plan…` returns a list, `_fill…` writes it) is what makes the
 determinism test possible: plan twice with the same seed, compare the lists, no database writes.
+
+## T15: End to end, a test runner for every OS, and the README
+
+Files: `tests/test_inventory_flow.py`, `static/tests/tours/view3d_tour.js` (`warehouse_3d_inventory_flow`),
+`run_tests.py` (new), `run_tests.sh` (now a wrapper), `README.md`.
+
+**The whole point, as one test.** On the template warehouse: a receipt of 10 bags into WHV/Stock →
+Odoo's standard putaway sends them to the first empty pallet slot → the scene data shows them and a
+bus message went out → a delivery takes them out → the slot is empty and first in line again. The
+tour does the same through Odoo's normal API *while the 3D view is open* and watches the panel
+change twice without reloading. These tests passed on their first run: they only connect pieces
+built and tested in T2–T13, no new module code.
+
+**One test runner for Linux and Windows.** The bash script couldn't run on Windows, so the runner is
+now Python (`run_tests.py`), started with the virtualenv's Python. It reads paths from environment
+variables (`WH3D_ODOO_BIN`, `WH3D_CONF`, …) with this machine's paths as defaults, drops the test
+database through `psycopg2` (no PostgreSQL command-line tools needed), streams Odoo's log, and keeps
+every check: errors, skipped browser tests, failed demo data, Odoo's exit status, "0 tests". It refuses
+to drop anything named `postgres`/`template*`. Checked: misspelt tag, broken test, missing config and a
+protected database name all exit 1.
+
+**Uninstalling (checked on throwaway databases).** A normal database uninstalls cleanly: Inventory's
+menus and screens load, the generated locations remain as ordinary locations. On a *demo* database
+Odoo logs an error while removing the template warehouse — Odoo's own routes still reference the
+warehouse's operation types — skips it and finishes. Documented under "Known limits".
