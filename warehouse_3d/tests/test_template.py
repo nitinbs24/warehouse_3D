@@ -1,6 +1,6 @@
 from odoo.tests import Form, TransactionCase
 
-from .common import create_p05, template_rows
+from .common import create_p05, template_rows, template_warehouse
 
 
 class TestTemplateCatalogue(TransactionCase):
@@ -9,8 +9,8 @@ class TestTemplateCatalogue(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.warehouse = cls.env.ref('warehouse_3d.warehouse_template')
-        cls.bulk = cls.env.ref('warehouse_3d.categ_bulk')
+        cls.warehouse = template_warehouse(cls.env)
+        cls.bulk =cls.env.ref('warehouse_3d.categ_bulk')
         cls.small = cls.env.ref('warehouse_3d.categ_small_parts')
         cls.products = cls.env['product.template'].search([('categ_id', 'in', (cls.bulk | cls.small).ids)])
 
@@ -97,8 +97,8 @@ class TestTemplateLayout(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.warehouse = cls.env.ref('warehouse_3d.warehouse_template')
-        cls.scene = cls.warehouse.wh3d_get_scene()
+        cls.warehouse = template_warehouse(cls.env)
+        cls.scene =cls.warehouse.wh3d_get_scene()
         cls.row_kind = {r['id']: r['kind'] for r in cls.scene['rows']}
 
     def _slots(self, kind):

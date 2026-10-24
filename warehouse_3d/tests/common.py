@@ -1,4 +1,5 @@
 """Shared test data. Kept small on purpose: each test still says what it needs."""
+from unittest import SkipTest
 
 # The handoff's P05 record (docs/CLAUDE.md): 7 bays × 5 levels × 2 = 70 pallet slots.
 P05 = {
@@ -17,6 +18,14 @@ def create_p05(env, warehouse, zone=None, **overrides):
     zone = zone or create_zone(env, warehouse)
     return env['warehouse.rack.row'].create(
         dict(P05, warehouse_id=warehouse.id, location_id=zone.id, **overrides))
+
+
+def template_warehouse(env):
+    """The demo template warehouse (WHV); skips the test on databases created without demo data."""
+    warehouse = env.ref('warehouse_3d.warehouse_template', raise_if_not_found=False)
+    if not warehouse:
+        raise SkipTest('needs the demo data (database created with --with-demo)')
+    return warehouse
 
 
 def template_rows():

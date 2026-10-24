@@ -10,7 +10,7 @@ Run it with the Python of your Odoo 19 virtualenv:
 Paths come from environment variables, defaulting to the original Fedora setup:
     WH3D_ODOO_BIN  path to odoo-bin                       (default /mnt/CODE/Workspace/odoo/odoo19/odoo-bin)
     WH3D_CONF      Odoo config with db_host/db_user/...   (default /mnt/CODE/Workspace/odoo/odoo19.conf)
-    WH3D_TEST_DB   throwaway database name, DROPPED first (default wh3d_test)
+    WH3D_TEST_DB   throwaway database name, DROPPED first; must start with wh3d_test (default wh3d_test)
     WH3D_PORT      HTTP port for browser tests            (default 8079)
 
 Exit status 0 only if tests ran and none failed, errored or were skipped for lack of a browser.
@@ -43,8 +43,8 @@ def drop_test_database():
     import psycopg2
     from psycopg2 import sql
 
-    if not re.fullmatch(r"[A-Za-z0-9_]+", DB) or DB in {"postgres", "template0", "template1"}:
-        fail(f"refusing to drop database {DB!r}")
+    if not re.fullmatch(r"wh3d_test[A-Za-z0-9_]*", DB):  # never a real database by mistake
+        fail(f"refusing to drop database {DB!r}: test database names must start with wh3d_test")
     parser = configparser.ConfigParser(interpolation=None)
     if not parser.read(CONF):
         fail(f"Odoo config not found: {CONF} (set WH3D_CONF)")

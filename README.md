@@ -144,8 +144,12 @@ $env:WH3D_CONF     = "C:\work\odoo19.conf"
 .\venv19\Scripts\python warehouse_3D\run_tests.py
 ```
 
-Other settings: `WH3D_TEST_DB` (default `wh3d_test`), `WH3D_PORT` (default `8079`, so tests run while
+Other settings: `WH3D_TEST_DB` (default `wh3d_test`; the runner only accepts names starting with
+`wh3d_test`, so it can never drop a real database), `WH3D_PORT` (default `8079`, so tests run while
 a dev server uses 8069).
+
+Tests that need the template warehouse are skipped, with the reason "needs the demo data", when Odoo
+runs the module's tests on a database created without demo data.
 
 ## How it is built
 

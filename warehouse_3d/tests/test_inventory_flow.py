@@ -2,6 +2,8 @@ import json
 
 from odoo.tests import HttpCase, TransactionCase, tagged
 
+from .common import template_warehouse
+
 
 class TestInventoryFlow(TransactionCase):
     """The module inside Inventory's normal work, on the template warehouse (demo data):
@@ -10,7 +12,7 @@ class TestInventoryFlow(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.warehouse = cls.env.ref('warehouse_3d.warehouse_template')
+        cls.warehouse = template_warehouse(cls.env)
         cls.product = cls.env['product.product'].search(
             [('categ_id', '=', cls.env.ref('warehouse_3d.categ_bulk').id)], order='default_code', limit=1)
         cls.supplier = cls.env.ref('stock.stock_location_suppliers')
@@ -75,4 +77,5 @@ class TestInventoryFlow(TransactionCase):
 class TestInventoryFlowTour(HttpCase):
 
     def test_receipt_and_delivery_seen_live_in_3d(self):
+        template_warehouse(self.env)
         self.start_tour('/odoo', 'warehouse_3d_inventory_flow', login='admin')

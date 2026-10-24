@@ -329,6 +329,12 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Files:** `tests/test_inventory_flow.py`, `static/tests/tours/view3d_tour.js`, `run_tests.py`, `run_tests.sh`, `README.md`
 **Scope:** S
 
+### T15b: CodeRabbit fixes for T13–T15
+- [x] Demo-dependent test classes skip with a reason on databases without demo data
+- [x] `run_tests.py` only drops databases whose names start with `wh3d_test`
+
+**Verification:** done 24 Oct. Without demo data: before `1 failed, 3 error(s) of 112`, after `0 failed, 0 error(s) of 112` (4 classes skipped). With demo: `0 failed, 0 error(s) of 134`, 75 Hoot. Bad db names (`warehaven`, `postgres`, `template1`, `wh3d_test;drop`, `wh3d_tes`) exit 1 before connecting.
+
 ### Checkpoint D — Complete
 - [x] All success criteria in `docs/plan.md` met; `TEST` green, nothing skipped *(24 Oct: fresh demo DB opens Warehaven DC in 3D — T14; receipts/deliveries update it live — T9, T15; editing a row regenerates its locations — T3, T12; 134 tests + 75 Hoot green; every task explained in notes.md)*
 - [ ] Demo walkthrough rehearsed with Nitin + teammate

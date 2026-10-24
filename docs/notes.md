@@ -799,3 +799,22 @@ protected database name all exit 1.
 menus and screens load, the generated locations remain as ordinary locations. On a *demo* database
 Odoo logs an error while removing the template warehouse — Odoo's own routes still reference the
 warehouse's operation types — skips it and finishes. Documented under "Known limits".
+
+## T15b: CodeRabbit review of T13–T15
+
+Files: `tests/common.py` (`template_warehouse`), `tests/test_template.py`, `tests/test_inventory_flow.py`,
+`run_tests.py`, `README.md`.
+
+**Tests that need demo data skip themselves without it.** Our runner always installs demo data, but
+Odoo's usual `-i warehouse_3d --test-enable` on a database without demo data errored in four classes:
+`env.ref('warehouse_3d.warehouse_template')` raises when the record doesn't exist. `template_warehouse(env)`
+looks it up with `raise_if_not_found=False` and raises `unittest.SkipTest` with the reason. A `SkipTest`
+in `setUpClass` skips the whole class, and Odoo logs it as "skipped … needs the demo data". The runner
+can't hide a real problem this way: it still fails when demo data doesn't load.
+Proof: without demo data, before `1 failed, 3 error(s) of 112`, after `0 failed, 0 error(s) of 112`
+with the 4 classes skipped. With demo data, `0 failed, 0 error(s) of 134` and 75 Hoot tests.
+
+**The runner only drops databases named `wh3d_test…`.** Before, `WH3D_TEST_DB=warehaven` would have
+dropped the real database. A refusal list (`postgres`, templates) can't cover your own databases; an
+allow-list prefix can. Checked: `warehaven`, `postgres`, `template1`, `wh3d_test;drop`, `wh3d_tes` all
+exit 1 before connecting.
