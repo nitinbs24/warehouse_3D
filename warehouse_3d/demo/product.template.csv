@@ -1,0 +1,121 @@
+id,name,default_code,categ_id/id,type,is_storable,weight,volume,wh3d_length,wh3d_width,wh3d_height,wh3d_abc_class
+product_pr_001,Basmati rice 25 kg bag (Annapurna),PR-1001,warehouse_3d.categ_bulk,consu,True,25.3,0.06,0.8,0.5,0.15,C
+product_pr_002,Basmati rice 25 kg bag (Kaveri),PR-1002,warehouse_3d.categ_bulk,consu,True,25.3,0.06,0.8,0.5,0.15,B
+product_pr_003,Basmati rice 10 kg bag (Annapurna),PR-1003,warehouse_3d.categ_bulk,consu,True,10.2,0.0231,0.55,0.35,0.12,C
+product_pr_004,Basmati rice 10 kg bag (Kaveri),PR-1004,warehouse_3d.categ_bulk,consu,True,10.2,0.0231,0.55,0.35,0.12,A
+product_pr_005,Sona masoori rice 25 kg bag (Annapurna),PR-1005,warehouse_3d.categ_bulk,consu,True,25.2,0.06,0.8,0.5,0.15,C
+product_pr_006,Sona masoori rice 25 kg bag (Kaveri),PR-1006,warehouse_3d.categ_bulk,consu,True,25.2,0.06,0.8,0.5,0.15,C
+product_pr_007,Wheat flour 10 kg bag (Annapurna),PR-1007,warehouse_3d.categ_bulk,consu,True,10.1,0.021,0.5,0.35,0.12,C
+product_pr_008,Wheat flour 10 kg bag (Kaveri),PR-1008,warehouse_3d.categ_bulk,consu,True,10.1,0.021,0.5,0.35,0.12,A
+product_pr_009,Wheat flour 5 kg ×4 bale (Annapurna),PR-1009,warehouse_3d.categ_bulk,consu,True,20.3,0.0394,0.45,0.35,0.25,A
+product_pr_010,Wheat flour 5 kg ×4 bale (Kaveri),PR-1010,warehouse_3d.categ_bulk,consu,True,20.3,0.0394,0.45,0.35,0.25,B
+product_pr_011,Sugar 50 kg bag (Annapurna),PR-1011,warehouse_3d.categ_bulk,consu,True,50.2,0.0891,0.9,0.55,0.18,C
+product_pr_012,Sugar 50 kg bag (Kaveri),PR-1012,warehouse_3d.categ_bulk,consu,True,50.2,0.0891,0.9,0.55,0.18,B
+product_pr_013,Sugar 1 kg ×20 bale (Annapurna),PR-1013,warehouse_3d.categ_bulk,consu,True,20.4,0.0338,0.45,0.3,0.25,B
+product_pr_014,Sugar 1 kg ×20 bale (Kaveri),PR-1014,warehouse_3d.categ_bulk,consu,True,20.4,0.0338,0.45,0.3,0.25,C
+product_pr_015,Iodised salt 1 kg ×25 bale (Annapurna),PR-1015,warehouse_3d.categ_bulk,consu,True,25.3,0.0338,0.45,0.3,0.25,C
+product_pr_016,Iodised salt 1 kg ×25 bale (Kaveri),PR-1016,warehouse_3d.categ_bulk,consu,True,25.3,0.0338,0.45,0.3,0.25,C
+product_pr_017,Toor dal 30 kg bag (Annapurna),PR-1017,warehouse_3d.categ_bulk,consu,True,30.2,0.064,0.8,0.5,0.16,B
+product_pr_018,Toor dal 30 kg bag (Kaveri),PR-1018,warehouse_3d.categ_bulk,consu,True,30.2,0.064,0.8,0.5,0.16,C
+product_pr_019,Sunflower oil 15 L tin (Annapurna),PR-1019,warehouse_3d.categ_bulk,consu,True,14.8,0.0202,0.24,0.24,0.35,A
+product_pr_020,Sunflower oil 15 L tin (Kaveri),PR-1020,warehouse_3d.categ_bulk,consu,True,14.8,0.0202,0.24,0.24,0.35,C
+product_pr_021,Sunflower oil 1 L ×12 case (Annapurna),PR-1021,warehouse_3d.categ_bulk,consu,True,11.8,0.0284,0.35,0.27,0.3,B
+product_pr_022,Sunflower oil 1 L ×12 case (Kaveri),PR-1022,warehouse_3d.categ_bulk,consu,True,11.8,0.0284,0.35,0.27,0.3,A
+product_pr_023,Groundnut oil 15 L tin (Annapurna),PR-1023,warehouse_3d.categ_bulk,consu,True,14.9,0.0202,0.24,0.24,0.35,A
+product_pr_024,Groundnut oil 15 L tin (Kaveri),PR-1024,warehouse_3d.categ_bulk,consu,True,14.9,0.0202,0.24,0.24,0.35,A
+product_pr_025,Drinking water 1 L ×12 case (Annapurna),PR-1025,warehouse_3d.categ_bulk,consu,True,12.4,0.0248,0.33,0.25,0.3,C
+product_pr_026,Drinking water 1 L ×12 case (Kaveri),PR-1026,warehouse_3d.categ_bulk,consu,True,12.4,0.0248,0.33,0.25,0.3,C
+product_pr_027,Drinking water 20 L jar (Annapurna),PR-1027,warehouse_3d.categ_bulk,consu,True,20.8,0.035,0.27,0.27,0.48,A
+product_pr_028,Drinking water 20 L jar (Kaveri),PR-1028,warehouse_3d.categ_bulk,consu,True,20.8,0.035,0.27,0.27,0.48,C
+product_pr_029,Detergent powder 1 kg ×12 case (Annapurna),PR-1029,warehouse_3d.categ_bulk,consu,True,12.5,0.036,0.4,0.3,0.3,C
+product_pr_030,Detergent powder 1 kg ×12 case (Kaveri),PR-1030,warehouse_3d.categ_bulk,consu,True,12.5,0.036,0.4,0.3,0.3,C
+product_pr_031,Glucose biscuits ×48 case (Annapurna),PR-1031,warehouse_3d.categ_bulk,consu,True,5.2,0.0338,0.45,0.3,0.25,C
+product_pr_032,Glucose biscuits ×48 case (Kaveri),PR-1032,warehouse_3d.categ_bulk,consu,True,5.2,0.0338,0.45,0.3,0.25,C
+product_pr_033,Instant noodles ×96 case (Annapurna),PR-1033,warehouse_3d.categ_bulk,consu,True,7.4,0.066,0.55,0.4,0.3,B
+product_pr_034,Instant noodles ×96 case (Kaveri),PR-1034,warehouse_3d.categ_bulk,consu,True,7.4,0.066,0.55,0.4,0.3,B
+product_pr_035,Paper towel rolls ×24 case (Annapurna),PR-1035,warehouse_3d.categ_bulk,consu,True,3.5,0.108,0.6,0.4,0.45,A
+product_pr_036,Paper towel rolls ×24 case (Kaveri),PR-1036,warehouse_3d.categ_bulk,consu,True,3.5,0.108,0.6,0.4,0.45,C
+product_pr_037,Toilet paper ×48 case (Annapurna),PR-1037,warehouse_3d.categ_bulk,consu,True,5.0,0.12,0.6,0.5,0.4,C
+product_pr_038,Toilet paper ×48 case (Kaveri),PR-1038,warehouse_3d.categ_bulk,consu,True,5.0,0.12,0.6,0.5,0.4,C
+product_pr_039,Floor cleaner 5 L ×4 case (Annapurna),PR-1039,warehouse_3d.categ_bulk,consu,True,21.0,0.0384,0.4,0.3,0.32,A
+product_pr_040,Floor cleaner 5 L ×4 case (Kaveri),PR-1040,warehouse_3d.categ_bulk,consu,True,21.0,0.0384,0.4,0.3,0.32,C
+product_pr_041,Toilet soap ×72 case (Annapurna),PR-1041,warehouse_3d.categ_bulk,consu,True,9.0,0.024,0.4,0.3,0.2,C
+product_pr_042,Toilet soap ×72 case (Kaveri),PR-1042,warehouse_3d.categ_bulk,consu,True,9.0,0.024,0.4,0.3,0.2,C
+product_pr_043,Aluminium foil rolls ×24 case (Annapurna),PR-1043,warehouse_3d.categ_bulk,consu,True,6.0,0.0338,0.45,0.3,0.25,C
+product_pr_044,Aluminium foil rolls ×24 case (Kaveri),PR-1044,warehouse_3d.categ_bulk,consu,True,6.0,0.0338,0.45,0.3,0.25,B
+product_pr_045,Garbage bags ×50 packs case (Annapurna),PR-1045,warehouse_3d.categ_bulk,consu,True,8.0,0.0525,0.5,0.35,0.3,C
+product_pr_046,Garbage bags ×50 packs case (Kaveri),PR-1046,warehouse_3d.categ_bulk,consu,True,8.0,0.0525,0.5,0.35,0.3,B
+product_pr_047,Tea 1 kg ×12 case (Annapurna),PR-1047,warehouse_3d.categ_bulk,consu,True,12.5,0.03,0.4,0.3,0.25,B
+product_pr_048,Tea 1 kg ×12 case (Kaveri),PR-1048,warehouse_3d.categ_bulk,consu,True,12.5,0.03,0.4,0.3,0.25,B
+product_pr_049,Instant coffee 200 g ×24 case (Annapurna),PR-1049,warehouse_3d.categ_bulk,consu,True,5.6,0.024,0.4,0.3,0.2,A
+product_pr_050,Instant coffee 200 g ×24 case (Kaveri),PR-1050,warehouse_3d.categ_bulk,consu,True,5.6,0.024,0.4,0.3,0.2,B
+product_pr_051,Milk powder 1 kg ×12 case (Annapurna),PR-1051,warehouse_3d.categ_bulk,consu,True,12.6,0.0376,0.42,0.32,0.28,A
+product_pr_052,Milk powder 1 kg ×12 case (Kaveri),PR-1052,warehouse_3d.categ_bulk,consu,True,12.6,0.0376,0.42,0.32,0.28,B
+product_pr_053,Ghee 1 L ×12 case (Annapurna),PR-1053,warehouse_3d.categ_bulk,consu,True,11.4,0.0214,0.36,0.27,0.22,C
+product_pr_054,Ghee 1 L ×12 case (Kaveri),PR-1054,warehouse_3d.categ_bulk,consu,True,11.4,0.0214,0.36,0.27,0.22,B
+product_pr_055,Tomato ketchup 1 kg ×12 case (Annapurna),PR-1055,warehouse_3d.categ_bulk,consu,True,13.0,0.0266,0.38,0.28,0.25,B
+product_pr_056,Tomato ketchup 1 kg ×12 case (Kaveri),PR-1056,warehouse_3d.categ_bulk,consu,True,13.0,0.0266,0.38,0.28,0.25,C
+product_pr_057,Corn flakes 500 g ×24 case (Annapurna),PR-1057,warehouse_3d.categ_bulk,consu,True,12.8,0.096,0.6,0.4,0.4,B
+product_pr_058,Corn flakes 500 g ×24 case (Kaveri),PR-1058,warehouse_3d.categ_bulk,consu,True,12.8,0.096,0.6,0.4,0.4,C
+product_pr_059,Soft drink 2 L ×6 case (Annapurna),PR-1059,warehouse_3d.categ_bulk,consu,True,12.6,0.024,0.33,0.22,0.33,C
+product_pr_060,Soft drink 2 L ×6 case (Kaveri),PR-1060,warehouse_3d.categ_bulk,consu,True,12.6,0.024,0.33,0.22,0.33,B
+product_sh_001,Toothpaste 150 g,SH-1001,warehouse_3d.categ_small_parts,consu,True,0.18,0.0004,0.19,0.05,0.04,B
+product_sh_002,USB-C charger 20 W,SH-1002,warehouse_3d.categ_small_parts,consu,True,0.12,0.0003,0.1,0.07,0.04,B
+product_sh_003,AA batteries 4-pack,SH-1003,warehouse_3d.categ_small_parts,consu,True,0.11,0.0002,0.12,0.08,0.02,B
+product_sh_004,Shampoo 340 ml,SH-1004,warehouse_3d.categ_small_parts,consu,True,0.38,0.0007,0.07,0.05,0.2,C
+product_sh_005,Garam masala 100 g,SH-1005,warehouse_3d.categ_small_parts,consu,True,0.11,0.0002,0.1,0.06,0.04,B
+product_sh_006,Coconut hair oil 200 ml,SH-1006,warehouse_3d.categ_small_parts,consu,True,0.22,0.0004,0.06,0.04,0.16,C
+product_sh_007,Wired earphones,SH-1007,warehouse_3d.categ_small_parts,consu,True,0.06,0.0003,0.12,0.08,0.03,B
+product_sh_008,LED bulb 9 W,SH-1008,warehouse_3d.categ_small_parts,consu,True,0.06,0.0006,0.07,0.07,0.12,B
+product_sh_009,Ballpoint pens 10-pack,SH-1009,warehouse_3d.categ_small_parts,consu,True,0.09,0.0002,0.16,0.07,0.02,B
+product_sh_010,A5 notebook,SH-1010,warehouse_3d.categ_small_parts,consu,True,0.2,0.0006,0.21,0.15,0.02,C
+product_sh_011,"Phone case, assorted",SH-1011,warehouse_3d.categ_small_parts,consu,True,0.05,0.0003,0.17,0.09,0.02,A
+product_sh_012,Instant coffee 50 g,SH-1012,warehouse_3d.categ_small_parts,consu,True,0.08,0.0006,0.08,0.08,0.1,C
+product_sh_013,Face wash 100 ml,SH-1013,warehouse_3d.categ_small_parts,consu,True,0.13,0.0003,0.17,0.05,0.04,A
+product_sh_014,Hand sanitiser 500 ml,SH-1014,warehouse_3d.categ_small_parts,consu,True,0.55,0.001,0.08,0.06,0.2,C
+product_sh_015,Deodorant 150 ml,SH-1015,warehouse_3d.categ_small_parts,consu,True,0.18,0.0004,0.05,0.05,0.17,B
+product_sh_016,Razors 3-pack,SH-1016,warehouse_3d.categ_small_parts,consu,True,0.06,0.0004,0.16,0.08,0.03,B
+product_sh_017,Sunscreen 50 ml,SH-1017,warehouse_3d.categ_small_parts,consu,True,0.07,0.0002,0.13,0.05,0.03,C
+product_sh_018,Lip balm,SH-1018,warehouse_3d.categ_small_parts,consu,True,0.02,0.0001,0.09,0.03,0.02,C
+product_sh_019,Adhesive bandages ×20,SH-1019,warehouse_3d.categ_small_parts,consu,True,0.03,0.0002,0.1,0.08,0.02,C
+product_sh_020,HDMI cable 1.5 m,SH-1020,warehouse_3d.categ_small_parts,consu,True,0.14,0.001,0.2,0.12,0.04,A
+product_sh_021,USB flash drive 32 GB,SH-1021,warehouse_3d.categ_small_parts,consu,True,0.03,0.0002,0.12,0.07,0.02,A
+product_sh_022,Power bank 10000 mAh,SH-1022,warehouse_3d.categ_small_parts,consu,True,0.24,0.0004,0.16,0.09,0.03,C
+product_sh_023,USB-C cable 1 m,SH-1023,warehouse_3d.categ_small_parts,consu,True,0.05,0.0003,0.15,0.09,0.02,C
+product_sh_024,Extension board 4-socket,SH-1024,warehouse_3d.categ_small_parts,consu,True,0.45,0.0018,0.3,0.1,0.06,B
+product_sh_025,Screwdriver set,SH-1025,warehouse_3d.categ_small_parts,consu,True,0.35,0.0011,0.22,0.12,0.04,C
+product_sh_026,Insulation tape,SH-1026,warehouse_3d.categ_small_parts,consu,True,0.03,0.0001,0.07,0.07,0.02,B
+product_sh_027,Super glue 3 g,SH-1027,warehouse_3d.categ_small_parts,consu,True,0.01,0.0001,0.12,0.07,0.01,B
+product_sh_028,Scissors 8 inch,SH-1028,warehouse_3d.categ_small_parts,consu,True,0.09,0.0004,0.22,0.09,0.02,B
+product_sh_029,Stapler,SH-1029,warehouse_3d.categ_small_parts,consu,True,0.15,0.0005,0.16,0.06,0.05,C
+product_sh_030,Sticky notes 3-pack,SH-1030,warehouse_3d.categ_small_parts,consu,True,0.1,0.0003,0.09,0.08,0.04,C
+product_sh_031,Marker set 4 colours,SH-1031,warehouse_3d.categ_small_parts,consu,True,0.06,0.0002,0.15,0.08,0.02,C
+product_sh_032,Glue stick 15 g,SH-1032,warehouse_3d.categ_small_parts,consu,True,0.03,0.0001,0.09,0.03,0.03,C
+product_sh_033,Measuring tape 5 m,SH-1033,warehouse_3d.categ_small_parts,consu,True,0.18,0.0003,0.08,0.08,0.04,C
+product_sh_034,LED torch,SH-1034,warehouse_3d.categ_small_parts,consu,True,0.15,0.0004,0.16,0.05,0.05,C
+product_sh_035,Mosquito repellent refill,SH-1035,warehouse_3d.categ_small_parts,consu,True,0.06,0.0003,0.1,0.06,0.05,C
+product_sh_036,Air freshener 300 ml,SH-1036,warehouse_3d.categ_small_parts,consu,True,0.25,0.0008,0.06,0.06,0.21,A
+product_sh_037,Shoe polish 40 g,SH-1037,warehouse_3d.categ_small_parts,consu,True,0.05,0.0002,0.08,0.08,0.03,A
+product_sh_038,Dish sponges ×3,SH-1038,warehouse_3d.categ_small_parts,consu,True,0.04,0.0006,0.14,0.1,0.04,B
+product_sh_039,Cling film 30 m,SH-1039,warehouse_3d.categ_small_parts,consu,True,0.25,0.0008,0.32,0.05,0.05,A
+product_sh_040,Zip-lock bags ×25,SH-1040,warehouse_3d.categ_small_parts,consu,True,0.12,0.0009,0.2,0.15,0.03,A
+product_sh_041,Candles ×6,SH-1041,warehouse_3d.categ_small_parts,consu,True,0.3,0.0006,0.2,0.08,0.04,C
+product_sh_042,Matchboxes ×10,SH-1042,warehouse_3d.categ_small_parts,consu,True,0.1,0.0003,0.12,0.06,0.04,C
+product_sh_043,Biscuits 200 g,SH-1043,warehouse_3d.categ_small_parts,consu,True,0.21,0.0006,0.19,0.06,0.05,C
+product_sh_044,Chocolate bar ×6,SH-1044,warehouse_3d.categ_small_parts,consu,True,0.27,0.0005,0.18,0.1,0.03,C
+product_sh_045,Potato chips 100 g,SH-1045,warehouse_3d.categ_small_parts,consu,True,0.11,0.0032,0.25,0.18,0.07,C
+product_sh_046,Roasted peanuts 200 g,SH-1046,warehouse_3d.categ_small_parts,consu,True,0.21,0.0007,0.16,0.11,0.04,C
+product_sh_047,Masala oats 500 g,SH-1047,warehouse_3d.categ_small_parts,consu,True,0.52,0.0014,0.19,0.12,0.06,C
+product_sh_048,Honey 500 g,SH-1048,warehouse_3d.categ_small_parts,consu,True,0.65,0.0008,0.09,0.07,0.13,C
+product_sh_049,Mango pickle 300 g,SH-1049,warehouse_3d.categ_small_parts,consu,True,0.45,0.0007,0.08,0.08,0.11,B
+product_sh_050,Tomato ketchup 500 g,SH-1050,warehouse_3d.categ_small_parts,consu,True,0.55,0.0007,0.07,0.05,0.2,A
+product_sh_051,Sambar powder 200 g,SH-1051,warehouse_3d.categ_small_parts,consu,True,0.21,0.0005,0.14,0.09,0.04,A
+product_sh_052,Baby wipes ×72,SH-1052,warehouse_3d.categ_small_parts,consu,True,0.45,0.0013,0.19,0.11,0.06,B
+product_sh_053,Hair clips 12-pack,SH-1053,warehouse_3d.categ_small_parts,consu,True,0.04,0.0002,0.14,0.08,0.02,B
+product_sh_054,Comb,SH-1054,warehouse_3d.categ_small_parts,consu,True,0.02,0.0001,0.19,0.04,0.01,C
+product_sh_055,Nail cutter,SH-1055,warehouse_3d.categ_small_parts,consu,True,0.03,0.0001,0.09,0.04,0.02,C
+product_sh_056,Toothbrush ×2,SH-1056,warehouse_3d.categ_small_parts,consu,True,0.05,0.0004,0.21,0.07,0.03,A
+product_sh_057,Mouthwash 250 ml,SH-1057,warehouse_3d.categ_small_parts,consu,True,0.3,0.0007,0.07,0.05,0.19,C
+product_sh_058,Body lotion 400 ml,SH-1058,warehouse_3d.categ_small_parts,consu,True,0.45,0.0008,0.07,0.05,0.22,C
+product_sh_059,Hair conditioner 180 ml,SH-1059,warehouse_3d.categ_small_parts,consu,True,0.2,0.0004,0.06,0.04,0.17,B
+product_sh_060,Talcum powder 300 g,SH-1060,warehouse_3d.categ_small_parts,consu,True,0.33,0.0008,0.07,0.07,0.17,A

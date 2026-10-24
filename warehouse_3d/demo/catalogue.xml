@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Template warehouse, part 1: what is stored and where it may go (docs/CLAUDE.md, "Template data").
+     Loaded only on databases created with demo data (odoo-bin option with-demo).
+     Note: XML comments may not contain two hyphens in a row. -->
+<odoo>
+    <!-- Product categories: the putaway rules below route by category. -->
+    <record id="categ_bulk" model="product.category">
+        <field name="name">Bulk goods (pallets)</field>
+        <field name="parent_id" ref="product.product_category_goods"/>
+    </record>
+    <record id="categ_small_parts" model="product.category">
+        <field name="name">Small parts (shelving)</field>
+        <field name="parent_id" ref="product.product_category_goods"/>
+    </record>
+
+    <!-- Package types. Dimensions in mm (Odoo's default length unit), weights in kg. -->
+    <record id="package_pallet" model="stock.package.type">
+        <field name="name">Pallet (EUR-size)</field>
+        <field name="packaging_length">1200</field>
+        <field name="width">1000</field>
+        <field name="height">1500</field>
+        <field name="base_weight">25</field>
+        <field name="max_weight">1000</field>
+    </record>
+    <record id="package_carton" model="stock.package.type">
+        <field name="name">Carton</field>
+        <field name="packaging_length">600</field>
+        <field name="width">400</field>
+        <field name="height">400</field>
+        <field name="base_weight">0.5</field>
+        <field name="max_weight">25</field>
+    </record>
+    <record id="package_tote" model="stock.package.type">
+        <field name="name">Tote</field>
+        <field name="packaging_length">600</field>
+        <field name="width">400</field>
+        <field name="height">300</field>
+        <field name="base_weight">1.5</field>
+        <field name="max_weight">20</field>
+    </record>
+
+    <!-- Storage categories: what a slot accepts. Rack rows copy theirs onto every slot. -->
+    <record id="storcat_pallet_bulk" model="stock.storage.category">
+        <field name="name">Pallet rack – bulk</field>
+        <field name="allow_new_product">empty</field>
+        <field name="max_weight">1000</field>
+    </record>
+    <record id="storcat_pallet_bulk_capacity" model="stock.storage.category.capacity">
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="package_type_id" ref="package_pallet"/>
+        <field name="quantity">1</field>
+    </record>
+    <record id="storcat_shelf_small" model="stock.storage.category">
+        <field name="name">Shelving – small parts</field>
+        <field name="allow_new_product">mixed</field>
+        <field name="max_weight">40</field>
+    </record>
+    <record id="storcat_golden_zone" model="stock.storage.category">
+        <field name="name">Golden zone</field>
+        <field name="allow_new_product">mixed</field>
+        <field name="max_weight">25</field>
+    </record>
+
+    <!-- Zones: the parents of the rack rows' location trees. Internal, so paths read WH/Stock/PR/… -->
+    <record id="zone_pr" model="stock.location">
+        <field name="name">PR</field>
+        <field name="usage">internal</field>
+        <field name="location_id" ref="stock.stock_location_stock"/>
+    </record>
+    <record id="zone_sh" model="stock.location">
+        <field name="name">SH</field>
+        <field name="usage">internal</field>
+        <field name="location_id" ref="stock.stock_location_stock"/>
+    </record>
+
+    <!-- Putaway (Odoo standard): goods arriving in WH/Stock go to the first slot of their zone
+         that has the matching storage category and room ("Closest Location"). -->
+    <record id="putaway_bulk" model="stock.putaway.rule">
+        <field name="location_in_id" ref="stock.stock_location_stock"/>
+        <field name="category_id" ref="categ_bulk"/>
+        <field name="location_out_id" ref="zone_pr"/>
+        <field name="sublocation">closest_location</field>
+        <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+    </record>
+    <record id="putaway_small_parts" model="stock.putaway.rule">
+        <field name="location_in_id" ref="stock.stock_location_stock"/>
+        <field name="category_id" ref="categ_small_parts"/>
+        <field name="location_out_id" ref="zone_sh"/>
+        <field name="sublocation">closest_location</field>
+        <field name="storage_category_id" ref="storcat_shelf_small"/>
+    </record>
+</odoo>

@@ -14,6 +14,10 @@
         'views/view3d_actions.xml',
         'views/menus.xml',
     ],
+    'demo': [
+        'demo/catalogue.xml',
+        'demo/product.template.csv',
+    ],
     'assets': {
         'web.assets_backend': [
             'warehouse_3d/static/src/view3d/**/*',

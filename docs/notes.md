@@ -700,3 +700,39 @@ a second CodeRabbit run over the fixes found nothing.
 **Odoo idea worth knowing: `noupdate`.** Data files load at install *and* at every upgrade (`-u`).
 Records and function calls inside `<data noupdate="1">` are only loaded at install, so anything an
 administrator may change afterwards (settings, editable defaults) belongs there.
+
+## T13: The template catalogue (demo data)
+
+Files: `demo/catalogue.xml`, `demo/product.template.csv`, `models/product_template.py`
+(`wh3d_abc_class`), `views/product_template_views.xml`, `__manifest__.py` (`demo` list),
+`tests/test_template.py`, `run_tests.sh`.
+
+**Demo data vs data.** Files under `data` load into every database; files under `demo` only into
+databases created with demo data (`--with-demo`). The template warehouse is demo data, so a real
+company's database never gets 120 made-up products. `run_tests.sh` always creates its test database
+with demo data.
+
+**XML for structure, CSV for lists.** The handful of records with relations (categories, package
+types, storage categories and their capacity lines, the PR/SH zones, two putaway rules) are XML
+`<record>`s with ids other records can `ref`. The 120 products are one CSV: column names are field
+names, `categ_id/id` points at an XML id, `id` gives each row its own external id. One row per product
+is far easier to review than 120 XML blocks. (The CSV was generated once from a short list of real
+product types — two brands per bulk item — with a fixed random seed for the ABC classes: 20 % A,
+30 % B, 50 % C.)
+
+**Standard putaway, configured — not coded.** Two `stock.putaway.rule` records send *Bulk goods*
+arriving in WH/Stock to the PR zone and *Small parts* to SH, with sublocation *Closest Location* and a
+storage category. Odoo then picks the first slot (in name order) whose storage category matches and
+which has room: *Pallet rack – bulk* allows one pallet per slot and only into an empty slot.
+`test_standard_putaway_fills_empty_pallet_slots_in_order` shows it: P90-01-1-A first, then -1-B once
+A holds stock. This is the "standard" baseline the later research compares against.
+
+**Units.** Package type sizes are in **mm** (Odoo's default length unit), product weight in kg,
+product volume in m³ — and Odoo keeps volume to **2 decimals**, so a toothpaste tube reads 0.00 m³.
+That's why fill % uses our own `wh3d_length/width/height` (T6), not Odoo's volume.
+
+**Two lessons from this task.**
+- XML comments may not contain `--`. My first header comment mentioned the `--with-demo` option and
+  the whole demo file was rejected.
+- Odoo treats a demo-data failure as a **warning** ("installed without demo data") and carries on.
+  `run_tests.sh` now fails on that message, otherwise the template tests would be the only clue.

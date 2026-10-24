@@ -294,20 +294,20 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 **Description:** Demo data for the inventory side of the template (handoff "Template data to load").
 
 **Acceptance criteria:**
-- [ ] `product.template` gains `wh3d_abc_class` (A/B/C), shown on the product form (dimension fields already exist from T6). Not used for colour.
-- [ ] Demo XML: package types Pallet/Carton/Tote (with dimensions, max weight); storage categories "Pallet rack – bulk" (1 Pallet package per slot, mixing: empty only), "Shelving – small parts" (max weight, mixing allowed), "Golden zone"; ~120 products across pallet/shelf categories, extending the prototype's catalogue, **every one** with L×W×H, weight, volume and ABC class (≈20% A).
-- [ ] Putaway rules: bulk category → `WH/Stock/PR` closest; small-parts category → `WH/Stock/SH` closest.
+- [x] `product.template` gains `wh3d_abc_class` (A/B/C), shown on the product form (dimension fields already exist from T6). Not used for colour.
+- [x] Demo XML: package types Pallet/Carton/Tote (with dimensions, max weight); storage categories "Pallet rack – bulk" (1 Pallet package per slot, mixing: empty only), "Shelving – small parts" (max weight, mixing allowed), "Golden zone"; ~120 products across pallet/shelf categories, extending the prototype's catalogue, **every one** with L×W×H, weight, volume and ABC class (≈20% A).
+- [x] Putaway rules: bulk category → `WH/Stock/PR` closest; small-parts category → `WH/Stock/SH` closest. *(The PR/SH zone locations moved here from T14, since the rules need them.)*
 
-**Verification:** `tests/test_template.py` (product count, every product has dims/class, ABC share 15–25%, categories have capacities). Python putaway test: incoming pallet package of a bulk product resolves via `_get_putaway_strategy` to an empty `P..` slot.
+**Verification:** done 24 Oct — `tests/test_template.py` 10 tests (120 products split bulk/small parts, every product with dims/weight/volume/class, unique codes, A share 20 %, package types, storage categories and capacity, zones, putaway rules, standard putaway fills empty slots in order, ABC on the form). Full run `0 failed, 0 error(s) of 121 tests`. `run_tests.sh` now also fails when demo data doesn't install.
 **Dependencies:** T2
-**Files:** `models/product_template.py`, `views/product_template_views.xml`, `demo/package_types.xml`, `demo/storage_categories.xml`, `demo/products.xml`, `demo/putaway_rules.xml`, `tests/test_template.py`
+**Files:** `models/product_template.py`, `views/product_template_views.xml`, `demo/catalogue.xml`, `demo/product.template.csv`, `__manifest__.py`, `run_tests.sh`, `tests/test_template.py`
 **Scope:** M
 
 ### T14: Template layout + generated locations + opening stock
 **Description:** The 60×40 m DC from the handoff as demo data, filled to ~65%.
 
 **Acceptance criteria:**
-- [ ] Demo XML: building 60×40×10, PR/SH zone locations, 5 areas + 6 docks, 31 rack rows at the handoff x-positions; generation yields **980 pallet + 1,360 shelf = 2,340** slot locations.
+- [ ] Demo XML: building 60×40×10, 5 areas + 6 docks (PR/SH zones already in T13), 31 rack rows at the handoff x-positions; generation yields **980 pallet + 1,360 shelf = 2,340** slot locations.
 - [ ] `<function>` fills opening stock with a fixed seed: 60–70% of slots occupied per kind, pallet slots hold one bulk product, shelf bins small parts, A-class over-represented; quantities chosen so stocked slots spread across all three fill bands (each band ≥ 15 % of stocked slots); reinstalling gives the same result.
 - [ ] Install with demo completes in < 3 min.
 

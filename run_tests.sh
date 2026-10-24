@@ -21,6 +21,10 @@ ODOO_STATUS=${PIPESTATUS[0]}
 if grep -qE "websocket-client module is not installed|Chrome executable not found|chrome devtools|Chrome headless connection|Error during Chrome connection" "$LOG"; then
     echo "FAIL: browser tests were skipped" >&2; exit 1
 fi
+# Odoo only *warns* when demo data fails (and installs without it); the template tests need it.
+if grep -q "demo data failed to install" "$LOG"; then
+    echo "FAIL: demo data failed to install (see the traceback above)" >&2; exit 1
+fi
 if grep -qE " (ERROR|CRITICAL) " "$LOG"; then
     echo "FAIL: errors in log" >&2; exit 1
 fi

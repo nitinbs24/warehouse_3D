@@ -9,3 +9,4 @@ from . import test_scene_data
 from . import test_js
 from . import test_bus
 from . import test_layout_save
+from . import test_template

@@ -101,7 +101,7 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 - [ ] **Checkpoint C** — design a layout in the editor, see it in 3D, locations follow
 
 ### Phase 4 — Template warehouse + end-to-end
-- [ ] T13: Template catalogue: package types, storage categories, products, putaway rules
+- [x] T13: Template catalogue: package types, storage categories, products, putaway rules
 - [ ] T14: Template layout + generated locations + opening stock
 - [ ] T15: End-to-end Inventory tour, README for the team
 - [ ] **Checkpoint D (complete)** — success criteria above all met

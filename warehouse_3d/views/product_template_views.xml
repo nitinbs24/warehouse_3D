@@ -16,6 +16,7 @@
                     <span>×</span>
                     <field name="wh3d_height" class="oe_inline" style="max-width: 5rem;" placeholder="H"/>
                 </div>
+                <field name="wh3d_abc_class"/>
             </xpath>
         </field>
     </record>
