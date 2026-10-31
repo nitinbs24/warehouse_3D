@@ -2,6 +2,8 @@ import { describe, expect, test } from "@odoo/hoot";
 import {
     aisleClearance,
     areaBox,
+    areaColor,
+    dockGeometry,
     floorGeometry,
     openSide,
     rackGeometry,
@@ -133,5 +135,58 @@ describe("aisleClearance", () => {
     test("up to the wall when nothing stands in front", () => {
         expect(Math.abs(aisleClearance(P05, [P05], BUILDING, -1) - 9.7) < 1e-9).toBe(true);
         expect(Math.abs(aisleClearance(P05, [P05], BUILDING, 1) - (60 - 10.8)) < 1e-9).toBe(true);
+    });
+});
+
+describe("dockGeometry", () => {
+    const dock = (over) => ({ x: 18.5, y: 38.4, width: 3, depth: 1.6, ...over });
+
+    test("back wall (the template's): pad on the floor, frame just outside the wall", () => {
+        const { pad, frame } = dockGeometry(dock(), BUILDING);
+        expectBox(pad, [-10, 0.03, 19.2, 3, 0.06, 1.6]);
+        expect(frame.length).toBe(3);
+        for (const box of frame) {
+            expect(Math.abs(box[2] - 20.1) < 1e-9).toBe(true); // wall at z = +20, 0.1 m outside
+        }
+    });
+
+    test("front wall: frame at z = -20.1", () => {
+        const { frame } = dockGeometry(dock({ y: 0 }), BUILDING);
+        expect(frame.length).toBe(3);
+        expect(Math.abs(frame[0][2] + 20.1) < 1e-9).toBe(true);
+    });
+
+    test("left wall: posts stand at the door's two ends along z, lintel runs along z", () => {
+        const side = { x: 0, y: 13.5, width: 1.6, depth: 3 };
+        const { pad, frame } = dockGeometry(side, BUILDING);
+        expectBox(pad, [-30 + 0.8, 0.03, 13.5 + 1.5 - 20, 1.6, 0.06, 3]);
+        expect(frame.length).toBe(3);
+        const [postA, postB, lintel] = frame;
+        for (const box of frame) {
+            expect(Math.abs(box[0] + 30.1) < 1e-9).toBe(true); // wall at x = -30, 0.1 m outside
+        }
+        expect(Math.abs(postA[2] - (-5 - 1.6)) < 1e-9).toBe(true);
+        expect(Math.abs(postB[2] - (-5 + 1.6)) < 1e-9).toBe(true);
+        expectBox(lintel, [-30.1, 3.6, -5, 0.15, 0.2, 3.35]);
+    });
+
+    test("right wall: frame at x = +30.1", () => {
+        const { frame } = dockGeometry({ x: 58.4, y: 13.5, width: 1.6, depth: 3 }, BUILDING);
+        expect(frame.length).toBe(3);
+        expect(Math.abs(frame[0][0] - 30.1) < 1e-9).toBe(true);
+    });
+
+    test("a dock touching no wall gets a pad but no frame", () => {
+        expect(dockGeometry({ x: 10, y: 10, width: 3, depth: 1.6 }, BUILDING).frame.length).toBe(0);
+    });
+});
+
+describe("areaColor", () => {
+    test("#rrggbb becomes the number Three.js wants; anything else falls back", () => {
+        expect(areaColor({ color: "#ff8000" }, 0x123456)).toBe(0xff8000);
+        expect(areaColor({ color: "#FF8000" }, 0x123456)).toBe(0xff8000);
+        for (const bad of [undefined, "", "red", "#12345", "url(x)", "#12345g"]) {
+            expect(areaColor({ color: bad }, 0x123456)).toBe(0x123456);
+        }
     });
 });

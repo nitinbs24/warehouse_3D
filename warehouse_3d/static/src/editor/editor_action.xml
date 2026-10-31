@@ -18,24 +18,18 @@
                                   t-att-x1="line.x1" t-att-y1="line.y1" t-att-x2="line.x2" t-att-y2="line.y2"
                                   t-att-class="line.major ? 'o_major' : ''" vector-effect="non-scaling-stroke"/>
                         </g>
-                        <g t-foreach="docks" t-as="dock" t-key="dock.id" class="o_wh3d_dock">
-                            <t t-set="r" t-value="areaRect(dock)"/>
-                            <rect t-att-x="r.x" t-att-y="r.y" t-att-width="r.w" t-att-height="r.h"
-                                  vector-effect="non-scaling-stroke"/>
-                        </g>
                         <g t-foreach="state.areas" t-as="area" t-key="area.id"
-                           class="o_wh3d_area"
-                           t-att-class="{ o_selected: state.selectedAreaId === area.id, o_invalid: areaIssues[area.id], o_new: area.id &lt; 0 }"
+                           t-att-class="{ o_wh3d_area: area.kind === 'area', o_wh3d_dock: area.kind === 'dock', o_selected: state.selectedAreaId === area.id, o_invalid: areaIssues[area.id], o_new: area.id &lt; 0 }"
                            t-att-data-name="area.name" tabindex="0" role="button"
-                           t-att-aria-label="'Area ' + area.name + (areaIssues[area.id] ? ': ' + areaIssues[area.id] : '')"
+                           t-att-aria-label="(area.kind === 'dock' ? 'Dock door ' : 'Area ') + area.name + (areaIssues[area.id] ? ': ' + areaIssues[area.id] : '')"
                            t-att-aria-pressed="state.selectedAreaId === area.id ? 'true' : 'false'"
                            t-on-pointerdown="(ev) => this.onAreaPointerDown(ev, area)"
                            t-on-click="() => this.selectArea(area)" t-on-focus="() => this.selectArea(area)"
                            t-on-keydown="(ev) => this.onAreaKeydown(ev, area)">
                             <t t-set="r" t-value="areaRect(area)"/>
                             <rect t-att-x="r.x" t-att-y="r.y" t-att-width="r.w" t-att-height="r.h"
-                                  t-att-fill="area.color" vector-effect="non-scaling-stroke"/>
-                            <text t-att-x="r.x + r.w / 2" t-att-y="r.y + r.h / 2"
+                                  t-att-fill="area.kind === 'area' ? area.color : false" vector-effect="non-scaling-stroke"/>
+                            <text t-if="area.kind === 'area'" t-att-x="r.x + r.w / 2" t-att-y="r.y + r.h / 2"
                                   text-anchor="middle" dominant-baseline="middle" t-esc="area.name"/>
                         </g>
                         <g t-foreach="state.rows" t-as="row" t-key="row.id"
@@ -55,7 +49,7 @@
                                   text-anchor="middle" t-esc="row.code"/>
                         </g>
                         <!-- Outside the area's own group, so grabbing a handle doesn't also move the area. -->
-                        <t t-if="selectedArea">
+                        <t t-if="selectedArea and selectedArea.kind === 'area'">
                             <rect t-foreach="handles" t-as="h" t-key="h.edge" class="o_wh3d_handle"
                                   t-att-class="'o_h_' + h.edge" t-att-data-edge="h.edge"
                                   t-att-x="h.x - handleSize / 2" t-att-y="h.y - handleSize / 2"
@@ -96,34 +90,49 @@
                     <div class="o_wh3d_palette_items">
                         <button t-foreach="areaTypes" t-as="type" t-key="type.key" type="button"
                                 class="btn btn-light btn-sm o_wh3d_palette_item" t-att-name="'add_area_' + type.key"
-                                draggable="true" t-on-dragstart="(ev) => this.onPaletteDragStart(ev, type)"
+                                draggable="true" t-on-dragstart="(ev) => this.onPaletteDragStart(ev, type.key)"
                                 t-on-click="() => this.addArea(type)">
                             <span class="o_wh3d_swatch" t-att-style="'background:' + type.color"/>
                             <t t-esc="type.label"/>
                         </button>
+                        <button type="button" class="btn btn-light btn-sm o_wh3d_palette_item" name="add_dock"
+                                draggable="true" t-on-dragstart="(ev) => this.onPaletteDragStart(ev, 'dock')"
+                                t-on-click="() => this.addDock()">
+                            <span class="o_wh3d_swatch o_wh3d_swatch_dock"/>
+                            Dock door
+                        </button>
                     </div>
-                    <p class="o_wh3d_note">Drag onto the plan, or click to add in the middle. Areas are drawings only: no stock or locations.</p>
+                    <p class="o_wh3d_note">Drag onto the plan, or click to add in the middle. Areas are drawings only: no stock or locations. A dock door snaps to the nearest wall.</p>
                 </section>
 
                 <section class="o_wh3d_card" t-if="selectedArea" name="area_card">
                     <t t-set="area" t-value="selectedArea"/>
-                    <p class="o_wh3d_label">Area</p>
+                    <p class="o_wh3d_label" t-esc="area.kind === 'dock' ? 'Dock door' : 'Area'"/>
                     <p class="o_wh3d_code" t-esc="area.name"/>
                     <p t-if="areaIssues[area.id]" class="o_wh3d_err" t-esc="areaIssues[area.id]"/>
                     <div class="o_wh3d_fields">
                         <label for="o_wh3d_a_name">Name</label>
                         <input id="o_wh3d_a_name" name="area_name" class="form-control form-control-sm" t-att-value="area.name"
                                t-on-change="(ev) => this.onAreaField('name', ev)"/>
-                        <label for="o_wh3d_a_color">Colour</label>
-                        <input id="o_wh3d_a_color" name="area_color" type="color" class="form-control form-control-sm form-control-color"
-                               t-att-value="area.color" t-on-change="(ev) => this.onAreaField('color', ev)"/>
-                        <t t-foreach="[['x', 'X (m)'], ['y', 'Y (m)'], ['width', 'Width (m)'], ['depth', 'Depth (m)']]" t-as="f" t-key="f[0]">
-                            <label t-att-for="'o_wh3d_a_' + f[0]" t-esc="f[1]"/>
-                            <input t-att-id="'o_wh3d_a_' + f[0]" t-att-name="'area_' + f[0]" type="number" min="0" step="0.1"
-                                   class="form-control form-control-sm" t-att-value="area[f[0]]"
-                                   t-on-change="(ev) => this.onAreaField(f[0], ev)"/>
+                        <t t-if="area.kind === 'area'">
+                            <label for="o_wh3d_a_color">Colour</label>
+                            <input id="o_wh3d_a_color" name="area_color" type="color" class="form-control form-control-sm form-control-color"
+                                   t-att-value="area.color" t-on-change="(ev) => this.onAreaField('color', ev)"/>
+                            <t t-foreach="[['x', 'X (m)'], ['y', 'Y (m)'], ['width', 'Width (m)'], ['depth', 'Depth (m)']]" t-as="f" t-key="f[0]">
+                                <label t-att-for="'o_wh3d_a_' + f[0]" t-esc="f[1]"/>
+                                <input t-att-id="'o_wh3d_a_' + f[0]" t-att-name="'area_' + f[0]" type="number" min="0" step="0.1"
+                                       class="form-control form-control-sm" t-att-value="area[f[0]]"
+                                       t-on-change="(ev) => this.onAreaField(f[0], ev)"/>
+                            </t>
+                        </t>
+                        <t t-else="">
+                            <label for="o_wh3d_a_opening">Opening (m)</label>
+                            <input id="o_wh3d_a_opening" name="area_opening" type="number" min="2" step="0.1"
+                                   class="form-control form-control-sm" t-att-value="dockOpening(area)"
+                                   t-on-change="(ev) => this.onAreaField('opening', ev)"/>
                         </t>
                     </div>
+                    <p t-if="area.kind === 'dock'" class="o_wh3d_note">Drag the door along any wall; it jumps to the nearest wall.</p>
                     <button type="button" class="btn btn-outline-danger btn-sm" name="delete_area" t-on-click="deleteArea">Delete</button>
                 </section>
 
@@ -167,7 +176,7 @@
                     <p class="o_wh3d_label">Floor</p>
                     <p class="o_wh3d_note">
                         Building <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m ·
-                        <t t-esc="state.rows.length"/> rack rows · <t t-esc="state.areas.length"/> areas · <t t-esc="docks.length"/> docks
+                        <t t-esc="state.rows.length"/> rack rows · <t t-esc="areaCount"/> areas · <t t-esc="dockCount"/> docks
                     </p>
                 </section>
             </aside>

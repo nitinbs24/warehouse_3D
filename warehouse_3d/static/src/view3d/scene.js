@@ -1,6 +1,7 @@
 import {
     aisleClearance,
     areaBox,
+    areaColor,
     cameraView,
     dockGeometry,
     floorGeometry,
@@ -148,7 +149,15 @@ export class WarehouseScene {
     buildAreas(areas) {
         const floorAreas = areas.filter((a) => a.kind === "area");
         const docks = areas.filter((a) => a.kind === "dock").map((d) => dockGeometry(d, this.building));
-        this.addInstanced(floorAreas.map((a) => areaBox(a, this.building)), this.material(COLORS.area));
+        // One draw call per colour: managers pick a colour per area, and there are only a few colours.
+        const byColor = new Map();
+        for (const area of floorAreas) {
+            const color = areaColor(area, COLORS.area);
+            byColor.set(color, [...(byColor.get(color) || []), areaBox(area, this.building)]);
+        }
+        for (const [color, boxes] of byColor) {
+            this.addInstanced(boxes, this.material(color));
+        }
         this.addInstanced(docks.map((d) => d.pad), this.material(COLORS.dock));
         this.addInstanced(docks.flatMap((d) => d.frame), this.material(COLORS.steel));
     }
@@ -338,6 +347,10 @@ export class WarehouseScene {
         for (const area of areas.filter((a) => a.kind === "area")) {
             const [x, z] = toWorld(this.building, area.x + area.width / 2, area.y + area.depth / 2);
             this.addLabel(area.name, [x, 0.9, z], 1.4, true);
+        }
+        for (const dock of areas.filter((a) => a.kind === "dock")) {
+            const [x, z] = toWorld(this.building, dock.x + dock.width / 2, dock.y + dock.depth / 2);
+            this.addLabel(dock.name, [x, 4.2, z], 0.55, false); // above the door frame; hides behind racks
         }
         rows.forEach((row, i) => {
             const height = row.kind === "pallet" ? 0.6 : 0.34;

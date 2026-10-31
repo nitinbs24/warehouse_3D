@@ -6,11 +6,14 @@ import {
     diffLayout,
     layoutProblems,
     newArea,
+    newDock,
     newRow,
     nextCode,
     resizeArea,
     rowsOverlap,
+    setDockOpening,
     snap,
+    snapDockToWall,
 } from "@warehouse_3d/editor/layout_edit";
 
 const BUILDING = { length: 60, width: 40, height: 10 };
@@ -195,5 +198,66 @@ describe("diffAreas", () => {
 
     test("no edits, nothing to save", () => {
         expect(diffAreas([RECEIVING], [{ ...RECEIVING }])).toEqual({ create: [], write: [], delete: [] });
+    });
+});
+
+const DOCK = { id: 7, name: "Dock door 1", kind: "dock", x: 18.5, y: 0, width: 3, depth: 1.6, color: "#e3a22b" };
+
+describe("snapDockToWall", () => {
+    test("a point near each wall puts the door flush on that wall (opening 3 m, thickness 1.6 m)", () => {
+        expect(snapDockToWall([20, 0.3], BUILDING, 3)).toEqual({ x: 18.5, y: 0, width: 3, depth: 1.6 });
+        expect(snapDockToWall([20, 39.9], BUILDING, 3)).toEqual({ x: 18.5, y: 38.4, width: 3, depth: 1.6 });
+        expect(snapDockToWall([0.2, 15], BUILDING, 3)).toEqual({ x: 0, y: 13.5, width: 1.6, depth: 3 });
+        expect(snapDockToWall([59.9, 15], BUILDING, 3)).toEqual({ x: 58.4, y: 13.5, width: 1.6, depth: 3 });
+    });
+
+    test("the nearest wall wins, so a door dragged across the floor changes walls", () => {
+        expect(snapDockToWall([5, 10], BUILDING, 3).x).toBe(0); // 5 m from the left wall, 10 from the front
+        expect(snapDockToWall([30, 3], BUILDING, 3).y).toBe(0);
+    });
+
+    test("it slides along the wall in 0.1 m steps and never past the wall's ends", () => {
+        expect(snapDockToWall([20.04, 0], BUILDING, 3).x).toBe(18.5);
+        expect(snapDockToWall([0.5, 0], BUILDING, 3).x).toBe(0);
+        expect(snapDockToWall([59.9, 0], BUILDING, 3).x).toBe(57);
+        expect(snapDockToWall([0, 39], BUILDING, 3).y).toBe(37);
+    });
+
+    test("the result always touches a wall and stays inside the building", () => {
+        for (const point of [[0, 0], [60, 40], [30, 20], [-5, 50], [12.34, 5.67]]) {
+            const d = { id: 1, name: "D", kind: "dock", ...snapDockToWall(point, BUILDING, 3) };
+            expect(Object.keys(areaProblems([d], [], BUILDING)).length).toBe(0);
+        }
+    });
+});
+
+describe("docks", () => {
+    test("newDock is a 3 m door on the wall nearest the drop, named with the next free number", () => {
+        const dock = newDock([20, 0], BUILDING, -3, [DOCK, { ...DOCK, id: 8, name: "Dock door 4" }]);
+        expect([dock.id, dock.name, dock.kind, dock.color]).toEqual([-3, "Dock door 5", "dock", "#e3a22b"]);
+        expect([dock.y, dock.width, dock.depth]).toEqual([0, 3, 1.6]);
+        expect(newDock([20, 0], BUILDING, -4, []).name).toBe("Dock door 1");
+    });
+
+    test("setDockOpening keeps the door's centre and its wall", () => {
+        expect(setDockOpening(DOCK, 5, BUILDING)).toEqual({ x: 17.5, y: 0, width: 5, depth: 1.6 });
+        const side = { ...DOCK, x: 0, y: 13.5, width: 1.6, depth: 3 };
+        expect(setDockOpening(side, 5, BUILDING)).toEqual({ x: 0, y: 12.5, width: 1.6, depth: 5 });
+    });
+
+    test("an opening under 2 m is refused (the door would no longer find its own wall)", () => {
+        expect(setDockOpening(DOCK, 1, BUILDING)).toEqual({ x: 18.5, y: 0, width: 3, depth: 1.6 });
+    });
+
+    test("a door must touch a wall; it may sit in front of racks; outside is still outside", () => {
+        expect(areaProblems([{ ...DOCK, y: 10 }], [], BUILDING)[7]).toMatch(/wall/);
+        expect(Object.keys(areaProblems([{ ...DOCK, x: 9.7, y: 0, width: 3, depth: 1.6 }], [P05], BUILDING)).length).toBe(0);
+        expect(areaProblems([{ ...DOCK, x: 58.5 }], [], BUILDING)[7]).toMatch(/outside/);
+        expect(Object.keys(areaProblems([DOCK], [], BUILDING)).length).toBe(0);
+    });
+
+    test("diffAreas sends a moved door's position and size", () => {
+        const moved = { ...DOCK, ...snapDockToWall([0.2, 15], BUILDING, 3) };
+        expect(diffAreas([DOCK], [moved]).write).toEqual([{ id: 7, vals: { x: 0, y: 13.5, width: 1.6, depth: 3 } }]);
     });
 });

@@ -73,7 +73,7 @@ class TestLayoutArea(TransactionCase):
     def test_color_defaults_to_grey_and_must_be_hex(self):
         self.assertEqual(self._area().color, '#c3d0dc')
         self.assertEqual(self._area(color='#1A2b3C').color, '#1A2b3C')
-        for bad in ('red', '#12345', '#12345g', 'url(x)'):
+        for bad in ('red', '#12345', '#12345g', 'url(x)', '#aabbcc\n'):
             with self.subTest(color=bad), self.assertRaisesRegex(ValidationError, 'color'):
                 self._area(color=bad)
 
@@ -106,3 +106,11 @@ class TestLayoutArea(TransactionCase):
         self._area(x=20.0, y=5.0, width=3.0, depth=3.0)
         with self.assertRaisesRegex(ValidationError, 'Receiving'):
             row.x = 19.5
+
+    def test_rows_of_two_warehouses_are_not_compared_with_each_others_areas(self):
+        other = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        here = create_p05(self.env, self.warehouse, create_zone(self.env, self.warehouse), x=40.0)
+        there = create_p05(self.env, other, x=20.5)          # x 20.5–21.6: same coordinates as the area below
+        self._area(x=20.0, y=5.0, width=3.0, depth=3.0)       # in self.warehouse, not in `other`
+        (here | there).write({'y': 2.0})                      # one write, rows of both warehouses
+        self.assertEqual(there.y, 2.0)

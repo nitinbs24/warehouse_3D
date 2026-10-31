@@ -133,7 +133,10 @@ export function newArea(type, [px, py], building, tmpId) {
     };
 }
 
-/** {area id: message} for every area with no size, outside the building, or on top of a rack row. */
+/**
+ * {id: message} for every area or dock door with no size or outside the building; a floor area on
+ * top of a rack row; a dock door touching no wall. (Doors may stand in front of racks.)
+ */
 export function areaProblems(areas, rows, building) {
     const problems = {};
     for (const area of areas) {
@@ -142,6 +145,11 @@ export function areaProblems(areas, rows, building) {
             problems[area.id] = `${area.name} has no size.`;
         } else if (!insideRect(r, building)) {
             problems[area.id] = `${area.name} is outside the ${building.length} × ${building.width} m building.`;
+        } else if (area.kind === "dock") {
+            const touches = Math.min(r.x, r.y, building.length - r.x - r.w, building.width - r.y - r.h) <= EPS;
+            if (!touches) {
+                problems[area.id] = `${area.name} must touch a wall.`;
+            }
         } else {
             const row = rows.find((o) => rectsOverlap(r, rowRect(o)));
             if (row) {
@@ -176,4 +184,59 @@ export function resizeArea(area, edge, [px, py]) {
         depth = bottom - y;
     }
     return { x: round2(x), y: round2(y), width: round2(width), depth: round2(depth) };
+}
+
+// --- dock doors: always on a wall ---
+
+const DOCK_THICKNESS = 1.6; // metres, across the wall
+const DEFAULT_DOCK_OPENING = 3; // metres, along the wall
+const MIN_DOCK_OPENING = 2; // above the thickness, so a door's centre is always nearer its own wall than a neighbour's
+export const DOCK_COLOR = "#e3a22b";
+
+/**
+ * A door of ``opening`` metres on the wall nearest plan point ``[px, py]``: {x, y, width, depth} flush
+ * on that wall, slid along it in 0.1 m steps and kept within the wall's ends. On the left and right
+ * walls the opening runs along y, so width and depth swap.
+ */
+export function snapDockToWall([px, py], building, opening = DEFAULT_DOCK_OPENING) {
+    const { length: L, width: W } = building;
+    const distance = { front: py, back: W - py, left: px, right: L - px };
+    const wall = Object.keys(distance).reduce((a, b) => (distance[b] < distance[a] ? b : a));
+    const along = (centre, wallLength) => round2(Math.max(0, Math.min(snap(centre - opening / 2), wallLength - opening)));
+    const T = DOCK_THICKNESS;
+    switch (wall) {
+        case "front":
+            return { x: along(px, L), y: 0, width: opening, depth: T };
+        case "back":
+            return { x: along(px, L), y: round2(W - T), width: opening, depth: T };
+        case "left":
+            return { x: 0, y: along(py, W), width: T, depth: opening };
+        default:
+            return { x: round2(L - T), y: along(py, W), width: T, depth: opening };
+    }
+}
+
+const dockOpening = (dock) => Math.max(dock.width, dock.depth);
+const dockCentre = (dock) => [dock.x + dock.width / 2, dock.y + dock.depth / 2];
+
+/** The door moved so its centre is at ``centre``: it jumps to whichever wall is nearest. */
+export function moveDock(dock, centre, building) {
+    return snapDockToWall(centre, building, dockOpening(dock));
+}
+
+/** The door with a new opening, on the same wall around the same centre (under 2 m: unchanged). */
+export function setDockOpening(dock, opening, building) {
+    if (!(opening >= MIN_DOCK_OPENING)) {
+        return { x: dock.x, y: dock.y, width: dock.width, depth: dock.depth };
+    }
+    return snapDockToWall(dockCentre(dock), building, opening);
+}
+
+/** A new door dropped at plan point ``point``, named with the next free "Dock door N". */
+export function newDock(point, building, tmpId, areas) {
+    const used = areas.filter((a) => a.kind === "dock").map((a) => parseInt(/(\d+)$/.exec(a.name)?.[1] ?? 0, 10));
+    return {
+        id: tmpId, name: `Dock door ${Math.max(0, ...used) + 1}`, kind: "dock", color: DOCK_COLOR,
+        ...snapDockToWall(point, building),
+    };
 }

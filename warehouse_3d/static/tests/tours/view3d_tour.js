@@ -554,6 +554,64 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_areas", {
     ],
 });
 
+// Dock doors: add from the palette, drag across the floor to another wall, change the opening, save,
+// see it in 3D, delete.
+registry.category("web_tour.tours").add("warehouse_3d_editor_docks", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        // 1. A new door lands on the front wall: 3 m wide, 1.6 m thick.
+        { trigger: ".o_wh3d_palette button[name='add_dock']", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1'] svg .o_wh3d_dock.o_new.o_selected[data-name='Dock door 1'] rect[width='3'][height='1.6']" },
+        { trigger: ".o_wh3d_editor_panel input[name='area_opening']:value(3)" },
+        // 2. Dragged to the left side of the floor, it jumps to the left wall and turns (1.6 m × 3 m).
+        dragSvg("Drag the door to the left wall", ".o_wh3d_editor svg .o_wh3d_dock[data-name='Dock door 1'] rect", -29, 12),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_dock[data-name='Dock door 1'] rect[width='1.6'][height='3']" },
+        // 3. A wider opening keeps it on that wall.
+        setField("area_opening", 5),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_dock[data-name='Dock door 1'] rect[width='1.6'][height='5']" },
+        { trigger: ".o_wh3d_editor:not(:has(.o_invalid))" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_dock:not(.o_new)[data-name='Dock door 1']" },
+        {
+            content: "The server has the door on the left wall",
+            trigger: ".o_wh3d_editor",
+            async run() {
+                const [dock] = await callKw("warehouse.layout.area", "search_read",
+                    [[["name", "=", "Dock door 1"]], ["x", "y", "width", "depth", "kind"]]);
+                if (!dock || dock.kind !== "dock" || dock.x !== 0 || dock.width !== 1.6 || dock.depth !== 5) {
+                    throw new Error(`unexpected door ${JSON.stringify(dock)}`);
+                }
+            },
+        },
+        // 4. The 3D view opens with the new door (its frame and label are built from the same data).
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".o_wh3d_view .o_wh3d_canvas canvas" },
+        // 5. Back in the editor: select the door, delete it, save.
+        ...openEditor(),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_dock[data-name='Dock door 1']", run() {
+            this.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        } },
+        { trigger: ".o_wh3d_editor_panel button[name='delete_area']", run: "click" },
+        { trigger: ".modal:contains(Delete dock door Dock door 1?) .btn-danger", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1']:not(:has(.o_wh3d_dock[data-name='Dock door 1']))" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']:not(:has(.o_wh3d_dock[data-name='Dock door 1']))" },
+        {
+            content: "The server no longer has it",
+            trigger: ".o_wh3d_editor",
+            async run() {
+                const count = await callKw("warehouse.layout.area", "search_count", [[["name", "=", "Dock door 1"]]]);
+                if (count) {
+                    throw new Error(`expected the door to be deleted, found ${count}`);
+                }
+            },
+        },
+    ],
+});
+
 // End to end on the template warehouse: Inventory books a receipt (Odoo's standard putaway picks
 // the slot) and a delivery while the 3D view is open; the view follows both without reloading.
 const flow = {};

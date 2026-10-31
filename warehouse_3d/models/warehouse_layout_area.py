@@ -39,7 +39,7 @@ class WarehouseLayoutArea(models.Model):
     @api.constrains('color')
     def _check_color(self):
         for area in self:
-            if not COLOR_RE.match(area.color or ''):
+            if not COLOR_RE.fullmatch(area.color or ''):
                 raise ValidationError(self.env._(
                     "Area %(name)s: the color must look like #rrggbb, e.g. #c3d0dc.", name=area.name))
 

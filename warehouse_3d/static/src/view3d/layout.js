@@ -37,22 +37,40 @@ export function areaBox(area, building) {
     return [cx, 0.012, cz, area.width, 0.02, area.depth];
 }
 
-/** Dock pad on the floor, plus a door frame when the dock touches a long wall. */
+/** A floor area's colour (#rrggbb) as the number Three.js wants; ``fallback`` when it isn't one. */
+export function areaColor(area, fallback) {
+    return /^#[0-9a-f]{6}$/i.test(area.color) ? parseInt(area.color.slice(1), 16) : fallback;
+}
+
+/**
+ * Dock pad on the floor, plus a door frame when the dock touches a wall. A door is wider along the
+ * wall than it is thick, so ``width >= depth`` means front or back wall (opening along x), else a
+ * side wall (opening along y).
+ */
 export function dockGeometry(dock, building) {
+    const { length: L, width: W } = building;
     const [cx, cz] = toWorld(building, dock.x + dock.width / 2, dock.y + dock.depth / 2);
     const pad = [cx, 0.03, cz, dock.width, 0.06, dock.depth];
-    const W = building.width;
-    let wallZ = null;
-    if (dock.y + dock.depth >= W - 0.01) {
-        wallZ = W / 2 + 0.1;
-    } else if (dock.y <= 0.01) {
-        wallZ = -W / 2 - 0.1;
+    let frame = [];
+    if (dock.width >= dock.depth) {
+        const wallZ = dock.y + dock.depth >= W - 0.01 ? W / 2 + 0.1 : dock.y <= 0.01 ? -W / 2 - 0.1 : null;
+        if (wallZ !== null) {
+            frame = [
+                [cx - dock.width / 2 - 0.1, 1.8, wallZ, 0.15, 3.6, 0.15],
+                [cx + dock.width / 2 + 0.1, 1.8, wallZ, 0.15, 3.6, 0.15],
+                [cx, 3.6, wallZ, dock.width + 0.35, 0.2, 0.15],
+            ];
+        }
+    } else {
+        const wallX = dock.x + dock.width >= L - 0.01 ? L / 2 + 0.1 : dock.x <= 0.01 ? -L / 2 - 0.1 : null;
+        if (wallX !== null) {
+            frame = [
+                [wallX, 1.8, cz - dock.depth / 2 - 0.1, 0.15, 3.6, 0.15],
+                [wallX, 1.8, cz + dock.depth / 2 + 0.1, 0.15, 3.6, 0.15],
+                [wallX, 3.6, cz, 0.15, 0.2, dock.depth + 0.35],
+            ];
+        }
     }
-    const frame = wallZ === null ? [] : [
-        [cx - dock.width / 2 - 0.1, 1.8, wallZ, 0.15, 3.6, 0.15],
-        [cx + dock.width / 2 + 0.1, 1.8, wallZ, 0.15, 3.6, 0.15],
-        [cx, 3.6, wallZ, dock.width + 0.35, 0.2, 0.15],
-    ];
     return { pad, frame };
 }
 

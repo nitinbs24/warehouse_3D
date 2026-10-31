@@ -158,7 +158,7 @@ class StockWarehouse(models.Model):
         eps = 1e-6
         for area in areas.filtered(lambda a: a.kind == 'area'):
             ax0, ay0, ax1, ay1 = area._wh3d_footprint()
-            for row in rows.filtered('active'):
+            for row in rows.filtered(lambda r: r.active and r.warehouse_id == area.warehouse_id):
                 x0, y0, x1, y1 = row._wh3d_footprint()
                 if ax0 < x1 - eps and x0 < ax1 - eps and ay0 < y1 - eps and y0 < ay1 - eps:
                     raise ValidationError(self.env._(

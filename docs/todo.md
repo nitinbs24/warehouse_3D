@@ -358,6 +358,12 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Files:** `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `models/warehouse_rack_row.py`, `views/warehouse_layout_area_views.xml`, `tests/test_layout_area.py`, `tests/test_layout_save.py`
 **Scope:** M
 
+### T16b: CodeRabbit review fixes for T16–T17 *(added 31 Oct after `/coderabbit:code-review`)*
+- [x] `_check_wh3d_areas_clear_of_rows` only compares an area with rows of its own warehouse (a write touching rows of two warehouses no longer raises a false overlap).
+- [x] The colour check uses `fullmatch`, so `"#aabbcc\n"` is refused (`$` matches before a trailing newline).
+
+**Verification:** done 31 Oct — two new tests in `tests/test_layout_area.py` failed first, then passed; `TestLayoutArea` + `TestLayoutSave` `0 failed, 0 error(s) of 36 tests`; full run `0 failed, 0 error(s) of 152 tests`, 90 Hoot.
+
 ### T17: Editor — areas: palette, drag-drop, move, resize, edit, delete, save
 **Description:** Floor areas become editable in the Layout Editor, saved in the same all-or-nothing call as rows. Dock doors stay drawn-only until T18.
 
@@ -372,5 +378,17 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Dependencies:** T16, T12
 **Files:** `static/src/editor/layout_edit.js`, `static/src/editor/editor_action.js`, `.xml`, `.scss`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
-### T18: Dock doors on all four walls + 3D colours, labels, side-wall frames *(not started)*
+### T18: Dock doors on all four walls + 3D colours, labels, side-wall frames
+**Description:** Dock doors become editable like areas, but always on a wall; the 3D view shows each area in its own colour, door frames on all four walls, and door names.
+
+**Acceptance criteria:**
+- [x] Palette item "Dock door": drag onto the plan (lands on the wall nearest the drop) or click (front wall, middle). New doors are 3 m wide, 1.6 m thick, named "Dock door N".
+- [x] Dragging (or arrow-keying) a door makes it jump to the nearest of the four walls and slide along it in 0.1 m steps; on the left and right walls it turns (width and depth swap). No floating doors.
+- [x] Side panel: name, opening (≥ 2 m), delete with confirmation. A door off every wall or outside the building shows red and blocks Save (mirrors T16); doors may stand in front of racks.
+- [x] 3D: floor areas drawn in their own colour (fallback grey), door frames on the left and right walls too, a name label above every door.
+
+**Verification:** done 31 Oct — Hoot: `snapDockToWall` on all four walls, nearest wall wins, clamping, always-valid result; `newDock`, `setDockOpening`, `areaProblems` for docks, `diffAreas` of a moved door (`layout_edit.test.js`); `dockGeometry` on all four walls and `areaColor` (`layout.test.js`, the first tests `dockGeometry` has had). Tour `warehouse_3d_editor_docks`: add a door, drag it to the left wall (it turns), widen it, save and check the server row, open the 3D view, delete it and check the server. Full run `0 failed, 0 error(s) of 153 tests`, 105 Hoot (was 90). *Not covered by a test:* the look of the 3D colours, side-wall frames and labels (checked only by the 3D view opening without errors), HTML5 drop of the dock item, arrow-key nudging of doors.
+**Dependencies:** T16, T17
+**Files:** `static/src/editor/layout_edit.js`, `editor_action.js`, `.xml`, `.scss`, `static/src/view3d/layout.js`, `scene.js`, `static/tests/layout_edit.test.js`, `layout.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
+**Scope:** M
 ### T19: Demo colours, wrap-up, README, intent doc *(not started)*

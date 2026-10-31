@@ -84,6 +84,12 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_editor_areas', login='admin')
 
 
+    def test_editor_docks_add_drag_to_wall_resize_delete(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, warehouse, create_zone(self.env, warehouse))
+        self.start_tour('/odoo', 'warehouse_3d_editor_docks', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""

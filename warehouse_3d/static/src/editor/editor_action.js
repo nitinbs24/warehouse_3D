@@ -21,9 +21,12 @@ import {
     diffAreas,
     diffLayout,
     layoutProblems,
+    moveDock,
     newArea,
+    newDock,
     newRow,
     resizeArea,
+    setDockOpening,
     snap,
 } from "@warehouse_3d/editor/layout_edit";
 
@@ -38,7 +41,8 @@ const EDGES = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s:
  * Everything is drawn in metres inside one <g transform>, so zooming and panning only change
  * that transform. Rows and floor areas can be dragged, edited, added and deleted (areas come from a
  * palette and can also be resized); nothing reaches the server until Save, which sends every
- * change in one all-or-nothing call (wh3d_save_layout). Dock doors are drawn but not editable yet.
+ * change in one all-or-nothing call (wh3d_save_layout). Dock doors are areas of kind "dock" that
+ * always sit on one of the four walls: dragging one makes it jump to the nearest wall.
  */
 export class LayoutEditor extends Component {
     static template = "warehouse_3d.LayoutEditor";
@@ -86,10 +90,8 @@ export class LayoutEditor extends Component {
         this.layout = layout;
         this.original = layout.rows.map((r) => ({ ...r }));
         this.state.rows = layout.rows.map((r) => ({ ...r }));
-        this.docks = layout.areas.filter((a) => a.kind === "dock");
-        const areas = layout.areas.filter((a) => a.kind === "area");
-        this.originalAreas = areas.map((a) => ({ ...a }));
-        this.state.areas = areas.map((a) => ({ ...a }));
+        this.originalAreas = layout.areas.map((a) => ({ ...a }));
+        this.state.areas = layout.areas.map((a) => ({ ...a }));
         this.grid = gridLines(layout.building);
     }
 
@@ -127,6 +129,19 @@ export class LayoutEditor extends Component {
 
     get selectedArea() {
         return this.state.areas.find((a) => a.id === this.state.selectedAreaId) || null;
+    }
+
+    get areaCount() {
+        return this.state.areas.filter((a) => a.kind === "area").length;
+    }
+
+    get dockCount() {
+        return this.state.areas.length - this.areaCount;
+    }
+
+    /** A dock's opening along its wall, in metres (its other size is the wall's thickness). */
+    dockOpening(dock) {
+        return Math.max(dock.width, dock.depth);
     }
 
     /** Resize handles of the selected area: {edge, x, y} in metres, plus their size in metres. */
@@ -174,7 +189,7 @@ export class LayoutEditor extends Component {
     }
 
     onPointerDown(ev) {
-        if (ev.button !== 0 || ev.target.closest(".o_wh3d_row, .o_wh3d_area, .o_wh3d_handle")) {
+        if (ev.button !== 0 || ev.target.closest(".o_wh3d_row, .o_wh3d_area, .o_wh3d_dock, .o_wh3d_handle")) {
             return; // rows, areas and handles start their own drag
         }
         this.drag = { x: ev.clientX, y: ev.clientY, view: this.state.view, moved: false };
@@ -193,7 +208,7 @@ export class LayoutEditor extends Component {
         if (ev.button !== 0) {
             return;
         }
-        this.itemDrag = { list, id: item.id, x: ev.clientX, y: ev.clientY, from: { x: item.x, y: item.y }, moved: false };
+        this.itemDrag = { list, id: item.id, x: ev.clientX, y: ev.clientY, from: { x: item.x, y: item.y, width: item.width, depth: item.depth }, moved: false };
         this.planRef.el.setPointerCapture?.(ev.pointerId);
     }
 
@@ -232,8 +247,14 @@ export class LayoutEditor extends Component {
             const { list, id, from } = this.itemDrag;
             const item = this.state[list].find((i) => i.id === id);
             const scale = this.state.view.scale;
-            item.x = snap(from.x + dx / scale);
-            item.y = snap(from.y + dy / scale);
+            if (item.kind === "dock") {
+                // The door follows the mouse by its centre and snaps to the nearest wall.
+                const centre = [from.x + from.width / 2 + dx / scale, from.y + from.depth / 2 + dy / scale];
+                Object.assign(item, moveDock(from, centre, this.layout.building));
+            } else {
+                item.x = snap(from.x + dx / scale);
+                item.y = snap(from.y + dy / scale);
+            }
             this.select(list, item);
         } else {
             this.userMoved = true;
@@ -277,10 +298,15 @@ export class LayoutEditor extends Component {
         }
     }
 
-    /** Arrow keys nudge the focused row or area by 0.1 m (1 m with Shift). */
-    onRowKeydown(ev, row) {
+    /** The arrow key's move in metres: 0.1 m, or 1 m with Shift. Undefined for other keys. */
+    arrowMove(ev) {
         const step = ev.shiftKey ? 1 : 0.1;
-        const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
+        return { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
+    }
+
+    /** Arrow keys nudge the focused row by 0.1 m (1 m with Shift). */
+    onRowKeydown(ev, row) {
+        const move = this.arrowMove(ev);
         if (move) {
             ev.preventDefault();
             row.x = snap(row.x + move[0]);
@@ -314,6 +340,14 @@ export class LayoutEditor extends Component {
         }
     }
 
+    /** A dock door dropped on the plan lands on the wall nearest the drop; clicked, on the front wall's middle. */
+    addDock(at) {
+        const { length } = this.layout.building;
+        const dock = newDock(at || [length / 2, 0], this.layout.building, this.nextTmpId--, this.state.areas);
+        this.state.areas.push(dock);
+        this.selectArea(dock);
+    }
+
     /** A palette item was dragged onto the plan, or clicked (then it lands in the middle of the view). */
     addArea(type, at) {
         const { clientWidth, clientHeight } = this.planRef.el;
@@ -323,8 +357,8 @@ export class LayoutEditor extends Component {
         this.selectArea(area);
     }
 
-    onPaletteDragStart(ev, type) {
-        ev.dataTransfer.setData(AREA_DRAG_TYPE, type.key);
+    onPaletteDragStart(ev, key) {
+        ev.dataTransfer.setData(AREA_DRAG_TYPE, key);
         ev.dataTransfer.effectAllowed = "copy";
     }
 
@@ -335,10 +369,12 @@ export class LayoutEditor extends Component {
     }
 
     onPlanDrop(ev) {
-        const type = AREA_TYPES.find((t) => t.key === ev.dataTransfer.getData(AREA_DRAG_TYPE));
-        if (type) {
+        const key = ev.dataTransfer.getData(AREA_DRAG_TYPE);
+        const type = AREA_TYPES.find((t) => t.key === key);
+        if (type || key === "dock") {
             ev.preventDefault();
-            this.addArea(type, this.planPoint(ev));
+            const at = this.planPoint(ev);
+            return type ? this.addArea(type, at) : this.addDock(at);
         }
     }
 
@@ -348,6 +384,8 @@ export class LayoutEditor extends Component {
         const raw = ev.target.value;
         if (field === "name") {
             area.name = raw.trim() || area.name;
+        } else if (field === "opening") {
+            Object.assign(area, setDockOpening(area, parseFloat(raw), this.layout.building));
         } else if (field === "color") {
             area.color = /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : area.color;
         } else {
@@ -359,13 +397,19 @@ export class LayoutEditor extends Component {
     }
 
     onAreaKeydown(ev, area) {
-        this.onRowKeydown(ev, area); // same arrow-key nudging
+        const move = area.kind === "dock" && this.arrowMove(ev);
+        if (!move) {
+            return this.onRowKeydown(ev, area); // areas nudge like rows
+        }
+        ev.preventDefault();
+        const centre = [area.x + area.width / 2 + move[0], area.y + area.depth / 2 + move[1]];
+        Object.assign(area, moveDock(area, centre, this.layout.building));
     }
 
     deleteArea() {
         const area = this.selectedArea;
         this.dialog.add(ConfirmationDialog, {
-            title: _t("Delete area %s?", area.name),
+            title: area.kind === "dock" ? _t("Delete dock door %s?", area.name) : _t("Delete area %s?", area.name),
             body: _t("It is only a drawing: no stock or locations are affected. The deletion is saved with Save."),
             confirmLabel: _t("Delete"),
             confirmClass: "btn-danger",

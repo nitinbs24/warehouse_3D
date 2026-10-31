@@ -78,7 +78,13 @@ $wh3d-ed-invalid: #b3261e;
         pointer-events: none;
     }
 
-    .o_wh3d_area {
+    // Doors have one colour; areas set theirs in the fill attribute.
+    .o_wh3d_dock rect {
+        fill: $wh3d-ed-dock;
+    }
+
+    .o_wh3d_area,
+    .o_wh3d_dock {
         cursor: pointer;
         outline: none;
 
@@ -117,10 +123,6 @@ $wh3d-ed-invalid: #b3261e;
             font-weight: 600;
             fill: $o-gray-700;
         }
-    }
-
-    .o_wh3d_dock rect {
-        fill: $wh3d-ed-dock;
     }
 
     .o_wh3d_row {
@@ -182,6 +184,10 @@ $wh3d-ed-invalid: #b3261e;
     &.o_h_e, &.o_h_w { cursor: ew-resize; }
     &.o_h_nw, &.o_h_se { cursor: nwse-resize; }
     &.o_h_ne, &.o_h_sw { cursor: nesw-resize; }
+}
+
+.o_wh3d_swatch_dock {
+    background: $wh3d-ed-dock;
 }
 
 .o_wh3d_palette_items {

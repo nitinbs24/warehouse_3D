@@ -883,3 +883,51 @@ rule is CSS, which wins over an attribute, so a problem still shows on any colou
 
 **Not changed:** server rules (T16). The client mirror only gives early feedback; Save is still refused
 by the server if the two ever disagreed.
+
+## T16b: CodeRabbit review of T16–T17
+
+Files: `models/stock_warehouse.py`, `models/warehouse_layout_area.py`, `tests/test_layout_area.py`.
+
+**Put the guard where both callers share it.** The area constraint passed only one building's rows to
+`_check_wh3d_areas_clear_of_rows`, but the row constraint passed all areas of every warehouse among
+`self` together with all of `self`. A single `write` on rows of two warehouses (a CSV import, say) then
+compared a row with an area of another building. Filtering by `warehouse_id` inside the helper fixes
+it for every caller at once, instead of each caller promising to pass the right records.
+
+**`$` is not "end of string" in Python.** It also matches just before a trailing newline, so
+`re.match(r'^#[0-9a-f]{6}$', "#aabbcc\n")` succeeds. `fullmatch` has to match the whole value.
+For a value that ends up in CSS this matters, hence the test with `"#aabbcc\n"`.
+
+## T18: Dock doors on any wall, and the 3D look of areas
+
+Files: `static/src/editor/layout_edit.js`, `editor_action.js`, `.xml`, `.scss`, `static/src/view3d/layout.js`,
+`scene.js`, the matching tests and tour.
+
+**A door is an area of kind `dock`, so it rides the T17 pipeline for free.** Docks used to be filtered out
+of the editor's state; now `state.areas` holds both kinds. Selection, the unsaved-changes flag, Save,
+Discard, delete and the problem list all work unchanged. Only three things differ for a door: how it
+moves, which fields the panel shows, and its problem rule.
+
+**"Always on a wall" is a function, not a rule the user can break.** `snapDockToWall(point, building,
+opening)` picks the wall with the smallest distance to the point, then slides the door along it. The
+door is a rectangle with a fixed thickness (1.6 m) across the wall and a variable opening along it, so
+on the left and right walls `width` and `depth` swap. Whatever the mouse does, the result touches a
+wall, which is the same thing the server checks (T16). Dragging uses the door's *centre* (so it
+follows the mouse as a whole), computed from the sizes at drag start because the sizes change when it
+turns a corner.
+
+**Minimum opening 2 m, thickness 1.6 m.** When the opening is changed, the door's centre is snapped
+again. A centre is 0.8 m from its own wall; with an opening of at least 2 m it is at least 1 m from the
+adjacent wall, so the door never jumps to the wrong wall. Below 2 m the field is ignored.
+
+**3D tells walls apart by shape.** `dockGeometry` used to test only the front and back walls. A door with
+`width >= depth` is wider along x, so it can only be on those two walls; otherwise it is on a side wall
+and its frame is laid out along z (posts at both ends of the opening, lintel along z). Looking at shape
+and not at "touching" avoids guessing for a door in a corner.
+
+**One draw call per colour.** `addInstanced` draws many identical boxes with one material, so areas are
+grouped by colour (`areaColor` turns `#rrggbb` into the number Three.js wants, with a grey fallback).
+Managers use a handful of colours, so this stays a handful of draw calls. Door labels reuse `addLabel`
+(text above the frame, hidden behind racks); area labels were already floating pills.
+
+**Not changed:** the server (T16 already knew about docks and all four walls).
