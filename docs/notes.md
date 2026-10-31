@@ -953,3 +953,18 @@ doors, and a test must do the same, or `created_areas` silently has fewer keys.)
 `noupdate`. Edits made in the editor to those demo records are overwritten; records a manager adds are
 not. Making the layout `noupdate` would stop that, but would also stop template fixes reaching existing
 demo databases, so it stays a documented limit.
+
+## T18b: Overlapping areas in 3D (CodeRabbit)
+
+Files: `static/src/view3d/layout.js` (`areaLifts`), `scene.js`, `static/tests/layout.test.js`.
+
+**Z-fighting.** Two surfaces at exactly the same height are drawn by the GPU in whichever order its depth
+test happens to resolve, so which colour you see can change with the camera. Grouping the areas by
+colour (T18) created that: before, overlapping areas shared one material and looked identical either way.
+We allow overlapping areas on purpose (a "Dispatch staging" zone inside "Receiving"), so the fix is to
+give every area its own height: `areaLifts` ranks areas by size, biggest lowest, and lifts each by
+1 cm per rank. A smaller area then always sits on top of the bigger one it overlaps.
+
+**Why a cap.** Dock pads are 6 cm tall. Four ranks would put a stack's top at 6.2 cm, above a pad, so the
+lift stops at 3 steps (top 5.2 cm); areas nested more than four deep share the top level. The limit is
+written next to the code in the `shortcut:` comment, as the project does for known limits.

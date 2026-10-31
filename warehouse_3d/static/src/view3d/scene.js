@@ -2,6 +2,7 @@ import {
     aisleClearance,
     areaBox,
     areaColor,
+    areaLifts,
     cameraView,
     dockGeometry,
     floorGeometry,
@@ -151,10 +152,13 @@ export class WarehouseScene {
         const docks = areas.filter((a) => a.kind === "dock").map((d) => dockGeometry(d, this.building));
         // One draw call per colour: managers pick a colour per area, and there are only a few colours.
         const byColor = new Map();
-        for (const area of floorAreas) {
+        const lifts = areaLifts(floorAreas);
+        floorAreas.forEach((area, i) => {
             const color = areaColor(area, COLORS.area);
-            byColor.set(color, [...(byColor.get(color) || []), areaBox(area, this.building)]);
-        }
+            const box = areaBox(area, this.building);
+            box[1] += lifts[i]; // overlapping areas of different colours must not share a height
+            byColor.set(color, [...(byColor.get(color) || []), box]);
+        });
         for (const [color, boxes] of byColor) {
             this.addInstanced(boxes, this.material(color));
         }

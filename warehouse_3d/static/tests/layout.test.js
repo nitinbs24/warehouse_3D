@@ -3,6 +3,7 @@ import {
     aisleClearance,
     areaBox,
     areaColor,
+    areaLifts,
     dockGeometry,
     floorGeometry,
     openSide,
@@ -188,5 +189,26 @@ describe("areaColor", () => {
         for (const bad of [undefined, "", "red", "#12345", "url(x)", "#12345g"]) {
             expect(areaColor({ color: bad }, 0x123456)).toBe(0x123456);
         }
+    });
+});
+
+describe("areaLifts", () => {
+    const big = { width: 20, depth: 12 };
+    const small = { width: 5, depth: 5 };
+
+    test("a smaller area is lifted above a bigger one, whatever the order they come in", () => {
+        expect(areaLifts([big, small])).toEqual([0, 0.01]);
+        expect(areaLifts([small, big])).toEqual([0.01, 0]);
+    });
+
+    test("areas that overlap nothing still get distinct lifts (cheap, and always right)", () => {
+        expect(areaLifts([big, small, { width: 8, depth: 6 }])).toEqual([0, 0.02, 0.01]);
+    });
+
+    test("equal sizes keep their order, and lifts stop at 3 steps so a stack stays under a dock pad", () => {
+        const same = { width: 4, depth: 4 };
+        expect(areaLifts([same, same])).toEqual([0, 0.01]);
+        expect(Math.max(...areaLifts(Array(8).fill(same)))).toBe(0.03);
+        expect(areaLifts([])).toEqual([]);
     });
 });

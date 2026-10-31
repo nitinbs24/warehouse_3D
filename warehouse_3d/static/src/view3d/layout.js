@@ -37,6 +37,21 @@ export function areaBox(area, building) {
     return [cx, 0.012, cz, area.width, 0.02, area.depth];
 }
 
+/**
+ * How far (metres) to lift each floor area off the floor, in the order given: bigger areas lowest, so a
+ * smaller area drawn inside a bigger one always shows on top instead of flickering (z-fighting).
+ * shortcut: the lift stops at 3 steps, so a stack's top (5.2 cm) stays under a dock pad (6 cm); areas
+ * nested more than four deep share the top level. Upgrade if anyone does that.
+ */
+export function areaLifts(areas) {
+    const bySize = areas.map((a, i) => i).sort((i, j) => areas[j].width * areas[j].depth - areas[i].width * areas[i].depth || i - j);
+    const lifts = new Array(areas.length);
+    bySize.forEach((index, rank) => {
+        lifts[index] = Math.min(rank, 3) * 0.01;
+    });
+    return lifts;
+}
+
 /** A floor area's colour (#rrggbb) as the number Three.js wants; ``fallback`` when it isn't one. */
 export function areaColor(area, fallback) {
     return /^#[0-9a-f]{6}$/i.test(area.color) ? parseInt(area.color.slice(1), 16) : fallback;

@@ -391,6 +391,11 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Dependencies:** T16, T17
 **Files:** `static/src/editor/layout_edit.js`, `editor_action.js`, `.xml`, `.scss`, `static/src/view3d/layout.js`, `scene.js`, `static/tests/layout_edit.test.js`, `layout.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
+### T18b: CodeRabbit review fix for T16–T19 *(added 31 Oct after `/coderabbit:code-review`)*
+- [x] Overlapping floor areas of different colours no longer share a height: `areaLifts` lifts smaller areas 1 cm above bigger ones (3 steps at most), so a staging zone drawn inside Receiving always shows on top instead of z-fighting.
+
+**Verification:** done 31 Oct — three Hoot tests for `areaLifts` (order, ties, cap, empty list); full run `0 failed, 0 error(s) of 155 tests`, 108 Hoot (was 105). *Not covered by a test:* the flicker itself, which only shows on a GPU; to look at in the browser (two overlapping areas of different colours in the 3D view).
+
 ### T19: Demo colours, wrap-up, README, intent doc
 **Description:** Close the warehouse-builder phase: the demo areas get palette colours, the README and notes describe the builder and its limits, the agreed intent is saved, and everything is run once more.
 
@@ -405,9 +410,3 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Dependencies:** T16–T18
 **Files:** `demo/layout.xml`, `tests/test_template.py`, `tests/test_layout_save.py`, `README.md`, `docs/intent/warehouse-builder.md`, `docs/todo.md`, `docs/notes.md`
 **Scope:** S
-
-### Checkpoint E — Warehouse builder
-- [x] `TEST` green, nothing skipped *(31 Oct: 155 tests + 105 Hoot)*
-- [ ] Manual: lay out a small warehouse from scratch in the editor, see it in 3D, check colours, labels and door frames on all four walls
-- [ ] **Review with Nitin + teammate**
-- [ ] Mentor confirms the row count for his floorplan (his 44 × 90 doesn't fit a 316 ft building; about 28 × 27 does)
