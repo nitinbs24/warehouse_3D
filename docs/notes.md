@@ -818,3 +818,32 @@ with the 4 classes skipped. With demo data, `0 failed, 0 error(s) of 134` and 75
 dropped the real database. A refusal list (`postgres`, templates) can't cover your own databases; an
 allow-list prefix can. Checked: `warehaven`, `postgres`, `template1`, `wh3d_test;drop`, `wh3d_tes` all
 exit 1 before connecting.
+
+## T16: Areas and dock doors join the one Save call
+
+Files: `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `models/warehouse_rack_row.py`,
+`views/warehouse_layout_area_views.xml`, `tests/test_layout_area.py`, `tests/test_layout_save.py`.
+
+**Why areas ride on `wh3d_save_layout`.** The editor already sends rows in one RPC and the server applies
+them in a savepoint, so a half-saved layout can't exist. Making areas a second call would bring back
+exactly that risk (rows saved, areas refused). So the payload just gained an optional `areas` key with
+the same `create / write / delete` shape, and the old keys still work. Tmp ids are negative on the
+client for rows *and* areas, so the reply has a separate `created_areas` map instead of mixing them.
+
+**Same trick for the checks: defer, then check the end state.** `@api.constrains` runs after every
+`write`, which would refuse a swap halfway through. Rows already skip their constraint when the
+context key `wh3d_defer_layout_check` is set; the area model now does the same, and `wh3d_save_layout`
+calls `_check_layout()` on the touched rows and areas once everything is applied.
+`_check_inside_building` became `_check_layout` on areas and also holds the two new rules.
+
+**Rules.** A dock must touch a wall (`min(x0, y0, length - x1, width - y1)` within 1 µm of zero);
+that is all four walls. A floor area must not overlap a rack row; the check lives once in
+`stock.warehouse._check_wh3d_areas_clear_of_rows` and is called from both sides (area changed, row
+changed). Docks are skipped there: a door sits in the wall line, and areas may overlap one another
+because a "staging" zone inside a big "receiving" zone is a normal drawing.
+
+**Colour is validated on the server.** `color` ends up in CSS and in a canvas drawing, so it must match
+`#rrggbb` (`COLOR_RE`) and nothing else. The client never decides what is safe.
+
+**Not changed:** the demo XML isn't `noupdate`, so updating the module re-applies it and overwrites edits
+made in the builder; to be listed in the README's known limits in T19.

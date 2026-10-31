@@ -1,9 +1,14 @@
 import { describe, expect, test } from "@odoo/hoot";
 import {
+    AREA_TYPES,
+    areaProblems,
+    diffAreas,
     diffLayout,
     layoutProblems,
+    newArea,
     newRow,
     nextCode,
+    resizeArea,
     rowsOverlap,
     snap,
 } from "@warehouse_3d/editor/layout_edit";
@@ -88,5 +93,107 @@ describe("diffLayout", () => {
 
     test("no edits, nothing to save", () => {
         expect(diffLayout([P05], [{ ...P05 }])).toEqual({ create: [], write: [], delete: [] });
+    });
+});
+
+const RECEIVING = { id: 1, name: "Receiving", kind: "area", x: 25, y: 25, width: 5, depth: 5, color: "#c3d0dc" };
+
+describe("area palette", () => {
+    test("every type has a name, a #rrggbb colour and a positive default size; Custom is last", () => {
+        expect(AREA_TYPES.length).toBeGreaterThan(5);
+        for (const type of AREA_TYPES) {
+            expect(type.color).toMatch(/^#[0-9a-f]{6}$/i);
+            expect(type.width > 0 && type.depth > 0).toBe(true);
+        }
+        expect(AREA_TYPES.at(-1).key).toBe("custom");
+        expect(new Set(AREA_TYPES.map((t) => t.key)).size).toBe(AREA_TYPES.length);
+    });
+});
+
+describe("newArea", () => {
+    const packing = AREA_TYPES.find((t) => t.key === "packing");
+
+    test("is centred on the drop point, snapped, with the type's name, colour and size", () => {
+        const area = newArea(packing, [30.04, 20.02], BUILDING, -1);
+        expect([area.id, area.name, area.kind, area.color]).toEqual([-1, packing.label, "area", packing.color]);
+        expect([area.width, area.depth]).toEqual([packing.width, packing.depth]);
+        expect(area.x).toBe(snap(30.04 - packing.width / 2));
+        expect(area.y).toBe(snap(20.02 - packing.depth / 2));
+    });
+
+    test("a drop near a wall is pulled back inside the building", () => {
+        const area = newArea(packing, [-5, 100], BUILDING, -2);
+        expect(area.x).toBe(0);
+        expect(area.y).toBe(snap(BUILDING.width - packing.depth));
+        expect(Object.keys(areaProblems([area], [], BUILDING)).length).toBe(0);
+    });
+});
+
+describe("areaProblems", () => {
+    test("an area inside the building, clear of rows, is fine; touching a row is fine", () => {
+        expect(Object.keys(areaProblems([RECEIVING], [P05], BUILDING)).length).toBe(0);
+        expect(Object.keys(areaProblems([{ ...RECEIVING, x: 10.8, y: 5 }], [P05], BUILDING)).length).toBe(0);
+    });
+
+    test("overlapping a row names the area and the row", () => {
+        const problems = areaProblems([{ ...RECEIVING, x: 10, y: 5 }], [P05], BUILDING);
+        expect(problems[1]).toMatch(/Receiving/);
+        expect(problems[1]).toMatch(/P05/);
+    });
+
+    test("sticking out of the building is a problem", () => {
+        expect(areaProblems([{ ...RECEIVING, x: 58 }], [], BUILDING)[1]).toMatch(/outside/i);
+    });
+
+    test("areas may overlap each other", () => {
+        const staging = { ...RECEIVING, id: 2, name: "Staging", x: 26, y: 26, width: 2, depth: 2 };
+        expect(Object.keys(areaProblems([RECEIVING, staging], [], BUILDING)).length).toBe(0);
+    });
+
+    test("a zero-size area is a problem", () => {
+        expect(areaProblems([{ ...RECEIVING, width: 0 }], [], BUILDING)[1]).toMatch(/size/i);
+    });
+});
+
+describe("resizeArea", () => {
+    test("dragging the east edge changes only the width, snapped", () => {
+        expect(resizeArea(RECEIVING, "e", [33.04, 99])).toEqual({ x: 25, y: 25, width: 8, depth: 5 });
+    });
+
+    test("dragging the west edge moves x and keeps the east edge in place", () => {
+        expect(resizeArea(RECEIVING, "w", [23, 0])).toEqual({ x: 23, y: 25, width: 7, depth: 5 });
+    });
+
+    test("north and south work the same way along y", () => {
+        expect(resizeArea(RECEIVING, "n", [0, 22])).toEqual({ x: 25, y: 22, width: 5, depth: 8 });
+        expect(resizeArea(RECEIVING, "s", [0, 28.96])).toEqual({ x: 25, y: 25, width: 5, depth: 4 });
+    });
+
+    test("a corner changes both sides", () => {
+        expect(resizeArea(RECEIVING, "se", [32, 29])).toEqual({ x: 25, y: 25, width: 7, depth: 4 });
+        expect(resizeArea(RECEIVING, "nw", [24, 24])).toEqual({ x: 24, y: 24, width: 6, depth: 6 });
+    });
+
+    test("it can't shrink below 0.5 m or flip over the opposite edge", () => {
+        expect(resizeArea(RECEIVING, "e", [10, 0]).width).toBe(0.5);
+        expect(resizeArea(RECEIVING, "w", [40, 0])).toEqual({ x: 29.5, y: 25, width: 0.5, depth: 5 });
+    });
+});
+
+describe("diffAreas", () => {
+    test("lists what to create, change and delete", () => {
+        const original = [RECEIVING, { ...RECEIVING, id: 2, name: "Office" }];
+        const current = [{ ...RECEIVING, x: 26, color: "#112233" }, { ...RECEIVING, id: -1, name: "Packing" }];
+        const diff = diffAreas(original, current);
+        expect(diff.write).toEqual([{ id: 1, vals: { x: 26, color: "#112233" } }]);
+        expect(diff.delete).toEqual([2]);
+        expect(diff.create.length).toBe(1);
+        expect(diff.create[0].tmp_id).toBe(-1);
+        expect(diff.create[0].vals).toEqual({ name: "Packing", kind: "area", x: 25, y: 25, width: 5, depth: 5,
+            color: "#c3d0dc" });
+    });
+
+    test("no edits, nothing to save", () => {
+        expect(diffAreas([RECEIVING], [{ ...RECEIVING }])).toEqual({ create: [], write: [], delete: [] });
     });
 });

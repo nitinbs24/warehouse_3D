@@ -19,9 +19,17 @@ class TestLayoutSave(TransactionCase):
         self.p05 = create_p05(self.env, self.warehouse, self.zone)                        # x 9.7–10.8
         self.p06 = create_p05(self.env, self.warehouse, self.zone, code='P06', x=20.5)    # x 20.5–21.6
 
-    def _save(self, create=(), write=(), delete=()):
-        return self.Row.wh3d_save_layout(self.warehouse.id, {
-            'create': list(create), 'write': list(write), 'delete': list(delete)})
+    def _save(self, create=(), write=(), delete=(), areas=None):
+        changes = {'create': list(create), 'write': list(write), 'delete': list(delete)}
+        if areas is not None:
+            changes['areas'] = areas
+        return self.Row.wh3d_save_layout(self.warehouse.id, changes)
+
+    def _area(self, **overrides):
+        vals = {'name': 'Receiving', 'kind': 'area', 'x': 25.0, 'y': 25.0, 'width': 5.0, 'depth': 5.0,
+                'warehouse_id': self.warehouse.id}
+        vals.update(overrides)
+        return self.env['warehouse.layout.area'].create(vals)
 
     def _slots(self, row):
         return self.env['stock.location'].search_count([('wh3d_rack_row_id', '=', row.id), ('wh3d_node', '=', 'slot')])
@@ -93,3 +101,84 @@ class TestLayoutSave(TransactionCase):
         with self.assertRaises(AccessError):
             self.Row.with_user(user).wh3d_save_layout(self.warehouse.id, {
                 'create': [], 'write': [{'id': self.p05.id, 'vals': {'x': 10.0}}], 'delete': []})
+
+    # --- areas and dock doors ride in the same save (changes['areas'])
+
+    def test_area_create_write_delete_in_one_save(self):
+        keep, drop = self._area(name='Keep'), self._area(name='Drop', x=35.0)
+        result = self._save(areas={
+            'create': [{'tmp_id': -1, 'vals': {'name': 'Packing', 'kind': 'area', 'x': 40.0, 'y': 25.0,
+                                               'width': 6.0, 'depth': 4.0, 'color': '#aabbcc'}},
+                       {'tmp_id': -2, 'vals': {'name': 'Door 1', 'kind': 'dock', 'x': 3.0, 'y': 38.4,
+                                               'width': 3.0, 'depth': 1.6}}],
+            'write': [{'id': keep.id, 'vals': {'x': 26.0, 'name': 'Moved'}}],
+            'delete': [drop.id]})
+        Area = self.env['warehouse.layout.area']
+        self.assertEqual((keep.x, keep.name), (26.0, 'Moved'))
+        self.assertFalse(drop.exists())
+        self.assertEqual(Area.browse(result['created_areas'][-1]).color, '#aabbcc')
+        self.assertEqual(Area.browse(result['created_areas'][-2]).kind, 'dock')
+        self.assertEqual({a['name'] for a in result['layout']['areas']}, {'Moved', 'Packing', 'Door 1'})
+        self.assertTrue(all('color' in a for a in result['layout']['areas']))
+
+    def test_rows_and_areas_save_together(self):
+        result = self._save(write=[{'id': self.p05.id, 'vals': {'x': 11.0}}],
+                            areas={'create': [{'tmp_id': -1, 'vals': {
+                                'name': 'Office', 'kind': 'area', 'x': 5.0, 'y': 5.0, 'width': 3.0, 'depth': 3.0}}]})
+        self.assertEqual(self.p05.x, 11.0)
+        self.assertEqual(len(result['created_areas']), 1)
+
+    def test_area_overlapping_a_row_refuses_everything(self):
+        area = self._area()
+        with self.assertRaisesRegex(ValidationError, 'overlap'):
+            self._save(write=[{'id': self.p06.id, 'vals': {'y': 5.0}}],        # valid on its own
+                       areas={'write': [{'id': area.id, 'vals': {'x': 20.0, 'y': 5.0}}]})  # lands on P06
+        self.assertEqual((area.x, self.p06.y), (25.0, 1.0))
+
+    def test_moving_a_row_onto_an_area_refuses_everything(self):
+        area = self._area(x=30.0, y=5.0)
+        with self.assertRaisesRegex(ValidationError, 'overlap'):
+            self._save(write=[{'id': self.p06.id, 'vals': {'x': 29.5}}],
+                       areas={'write': [{'id': area.id, 'vals': {'name': 'Renamed'}}]})
+        self.assertEqual((self.p06.x, area.name), (20.5, 'Receiving'))
+
+    def test_swapping_a_row_and_an_area_is_allowed(self):
+        # Only the end state is checked: the row moves into the area's spot as the area moves out.
+        area = self._area(x=40.0, y=1.0, width=1.1, depth=5.0)
+        self._save(write=[{'id': self.p06.id, 'vals': {'x': 40.0}}],
+                   areas={'write': [{'id': area.id, 'vals': {'x': 20.5}}]})
+        self.assertEqual((self.p06.x, area.x), (40.0, 20.5))
+
+    def test_floating_dock_refuses_everything(self):
+        with self.assertRaisesRegex(ValidationError, 'wall'):
+            self._save(write=[{'id': self.p05.id, 'vals': {'x': 11.0}}],
+                       areas={'create': [{'tmp_id': -1, 'vals': {
+                           'name': 'Door', 'kind': 'dock', 'x': 10.0, 'y': 10.0, 'width': 3.0, 'depth': 1.6}}]})
+        self.assertEqual(self.p05.x, 9.7)
+
+    def test_area_outside_building_refuses_everything(self):
+        with self.assertRaisesRegex(ValidationError, 'inside'):
+            self._save(areas={'create': [{'tmp_id': -1, 'vals': {
+                'name': 'Big', 'kind': 'area', 'x': 50.0, 'y': 25.0, 'width': 20.0, 'depth': 5.0}}]})
+
+    def test_only_area_fields_are_accepted(self):
+        area = self._area()
+        for field, value in (('warehouse_id', self.warehouse.id), ('create_uid', 1), ('company_id', 1)):
+            with self.subTest(field=field), self.assertRaisesRegex(UserError, field):
+                self._save(areas={'write': [{'id': area.id, 'vals': {field: value}}]})
+
+    def test_areas_of_another_warehouse_are_refused(self):
+        other = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        foreign = self._area(warehouse_id=other.id)
+        with self.assertRaises(UserError):
+            self._save(areas={'write': [{'id': foreign.id, 'vals': {'x': 1.0}}]})
+        with self.assertRaises(UserError):
+            self._save(areas={'delete': [foreign.id]})
+        self.assertTrue(foreign.exists())
+
+    def test_stock_user_cannot_save_areas(self):
+        area = self._area()
+        user = new_test_user(self.env, login='wh3d_area_user', groups='stock.group_stock_user')
+        with self.assertRaises(AccessError):
+            self.Row.with_user(user).wh3d_save_layout(self.warehouse.id, {
+                'create': [], 'write': [], 'delete': [], 'areas': {'delete': [area.id]}})

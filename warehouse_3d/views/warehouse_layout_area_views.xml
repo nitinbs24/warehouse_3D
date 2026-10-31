@@ -12,6 +12,7 @@
                 <field name="y"/>
                 <field name="width"/>
                 <field name="depth"/>
+                <field name="color" widget="color"/>
             </list>
         </field>
     </record>

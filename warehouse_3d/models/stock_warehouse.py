@@ -41,7 +41,7 @@ class StockWarehouse(models.Model):
             'warehouse_id': self.id,
             'name': self.name,
             'building': {'length': self.wh3d_length, 'width': self.wh3d_width, 'height': self.wh3d_height},
-            'areas': self.wh3d_area_ids.read(['name', 'kind', 'x', 'y', 'width', 'depth'], load=None),
+            'areas': self.wh3d_area_ids.read(['name', 'kind', 'x', 'y', 'width', 'depth', 'color'], load=None),
             'rows': rows.read(['code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                                'slots_per_level'], load=None),
         }
@@ -151,3 +151,19 @@ class StockWarehouse(models.Model):
                     "%(item)s (x %(x0)s–%(x1)s m, y %(y0)s–%(y1)s m) must lie inside the %(l)s × %(w)s m building of %(wh)s.",
                     item=item.display_name, x0=round(x0, 2), x1=round(x1, 2), y0=round(y0, 2), y1=round(y1, 2),
                     l=wh.wh3d_length, w=wh.wh3d_width, wh=wh.name))
+
+    @api.model
+    def _check_wh3d_areas_clear_of_rows(self, areas, rows):
+        """Refuse when a floor area (docks excluded) overlaps a rack row; touching edges are fine."""
+        eps = 1e-6
+        for area in areas.filtered(lambda a: a.kind == 'area'):
+            ax0, ay0, ax1, ay1 = area._wh3d_footprint()
+            for row in rows.filtered('active'):
+                x0, y0, x1, y1 = row._wh3d_footprint()
+                if ax0 < x1 - eps and x0 < ax1 - eps and ay0 < y1 - eps and y0 < ay1 - eps:
+                    raise ValidationError(self.env._(
+                        "Area %(area)s and rack row %(row)s overlap on the floor plan "
+                        "(%(area)s: x %(ax0)s–%(ax1)s m, y %(ay0)s–%(ay1)s m; %(row)s: x %(x0)s–%(x1)s m, y %(y0)s–%(y1)s m).",
+                        area=area.name, row=row.code,
+                        ax0=round(ax0, 2), ax1=round(ax1, 2), ay0=round(ay0, 2), ay1=round(ay1, 2),
+                        x0=round(x0, 2), x1=round(x1, 2), y0=round(y0, 2), y1=round(y1, 2)))

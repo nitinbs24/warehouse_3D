@@ -12,6 +12,7 @@ SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
 # What the layout editor may change (wh3d_save_layout); anything else is refused.
 EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                            'slots_per_level'})
+AREA_EDITOR_FIELDS = frozenset({'name', 'kind', 'x', 'y', 'width', 'depth', 'color'})
 
 
 def node_key(loc):
@@ -125,6 +126,9 @@ class WarehouseRackRow(models.Model):
                         x0=round(x0, 2), x1=round(x1, 2), y0=round(y0, 2), y1=round(y1, 2),
                         ox0=round(ox0, 2), ox1=round(ox1, 2), oy0=round(oy0, 2), oy1=round(oy1, 2)))
 
+        self.env['stock.warehouse']._check_wh3d_areas_clear_of_rows(
+            self.env['warehouse.layout.area'].search([('warehouse_id', 'in', self.warehouse_id.ids)]), self)
+
     @api.constrains('location_id')
     def _check_location_internal(self):
         # A Virtual (view) location restarts complete_name, which would cut every generated path short.
@@ -166,30 +170,36 @@ class WarehouseRackRow(models.Model):
     def wh3d_save_layout(self, warehouse_id, changes):
         """Apply the layout editor's edits in one go: all of them, or none.
 
-        ``changes`` = {'create': [{'tmp_id', 'vals'}], 'write': [{'id', 'vals'}], 'delete': [ids]}.
-        Only EDITOR_FIELDS may be set, and only rows of this warehouse touched. Overlaps and the
-        building bounds are checked on the final layout, so moves like swapping two rows work.
-        Returns {'created': {tmp_id: new id}, 'layout': the saved floor plan}.
+        ``changes`` = {'create': [{'tmp_id', 'vals'}], 'write': [{'id', 'vals'}], 'delete': [ids],
+        'areas': {same three keys, for floor areas and dock doors}}.
+        Only EDITOR_FIELDS (AREA_EDITOR_FIELDS for areas) may be set, and only records of this warehouse
+        touched. Overlaps, docks off the walls and the building bounds are checked on the final layout,
+        so moves like swapping two rows work.
+        Returns {'created': {tmp_id: new id}, 'created_areas': {tmp_id: new id}, 'layout': the saved floor plan}.
         """
         warehouse = self.env['stock.warehouse'].browse(warehouse_id).exists()
         if not warehouse:
             raise UserError(self.env._("This warehouse no longer exists."))
 
-        def clean(vals):
-            refused = set(vals) - EDITOR_FIELDS
+        Area = self.env['warehouse.layout.area']
+
+        def clean(vals, allowed=EDITOR_FIELDS):
+            refused = set(vals) - allowed
             if refused:
                 raise UserError(self.env._(
                     "The layout editor can't change these fields: %s", ", ".join(sorted(refused))))
             return dict(vals)
 
-        def own(ids):
-            rows = self.browse(ids).exists()
-            if len(rows) != len(set(ids)) or rows.filtered(lambda r: r.warehouse_id != warehouse):
-                raise UserError(self.env._("Some rack rows were deleted meanwhile or belong to another warehouse."))
-            return rows
+        def own(ids, model=self):
+            records = model.browse(ids).exists()
+            if len(records) != len(set(ids)) or records.filtered(lambda r: r.warehouse_id != warehouse):
+                raise UserError(self.env._(
+                    "Some rack rows or areas were deleted meanwhile or belong to another warehouse."))
+            return records
 
         deferred = {'wh3d_defer_layout_check': True}
-        created = {}
+        created, created_areas = {}, {}
+        area_changes = changes.get('areas', {})
         # A savepoint makes the whole save atomic even for Python callers that catch the error.
         with self.env.cr.savepoint():
             own(changes.get('delete', [])).unlink()
@@ -205,8 +215,20 @@ class WarehouseRackRow(models.Model):
                 row = self.with_context(**deferred).create(vals)
                 created[change['tmp_id']] = row.id
                 touched |= row
+            own(area_changes.get('delete', []), Area).unlink()
+            touched_areas = Area.browse()
+            for change in area_changes.get('write', []):
+                area = own([change['id']], Area)
+                area.with_context(**deferred).write(clean(change['vals'], AREA_EDITOR_FIELDS))
+                touched_areas |= area
+            for change in area_changes.get('create', []):
+                vals = clean(change['vals'], AREA_EDITOR_FIELDS)
+                area = Area.with_context(**deferred).create(dict(vals, warehouse_id=warehouse.id))
+                created_areas[change['tmp_id']] = area.id
+                touched_areas |= area
             self.browse(touched.ids)._check_layout()
-        return {'created': created, 'layout': warehouse.wh3d_get_layout()}
+            Area.browse(touched_areas.ids)._check_layout()
+        return {'created': created, 'created_areas': created_areas, 'layout': warehouse.wh3d_get_layout()}
 
     @api.model
     def _wh3d_default_zone(self, warehouse, kind):

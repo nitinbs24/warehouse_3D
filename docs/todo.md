@@ -339,3 +339,25 @@ Tours live in `static/tests/tours/` (Odoo convention, loaded via `web.assets_tes
 - [x] All success criteria in `docs/plan.md` met; `TEST` green, nothing skipped *(24 Oct: fresh demo DB opens Warehaven DC in 3D — T14; receipts/deliveries update it live — T9, T15; editing a row regenerates its locations — T3, T12; 134 tests + 75 Hoot green; every task explained in notes.md)*
 - [ ] Demo walkthrough rehearsed with Nitin + teammate
 - [ ] Ready for the next plan: custom putaway strategies + experiment
+
+## Phase 5 — Warehouse builder *(added 31 Oct: areas and dock doors editable in the Layout Editor)*
+
+Intent (agreed in an interview, 31 Oct): a manager drags area types from a palette onto the plan, moves and resizes them, and moves dock doors along any of the four walls; 3D shows a coloured floor with a floating label and door frames on all four walls. Areas stay drawing-only (no locations, no stock). Palette is a fixed list plus "Custom area". Out of scope: rotation, copy/paste, user-defined types, import/export, props in 3D. Plan: one phase per turn, tests with each phase.
+
+### T16: Server — area colour, wall and overlap rules, areas in the one Save call
+**Description:** Make areas and docks savable through `wh3d_save_layout` with the same all-or-nothing guarantee as rows, and add the rules the editor will mirror.
+
+**Acceptance criteria:**
+- [x] `warehouse.layout.area.color` (`#rrggbb`, default `#c3d0dc`), validated; shown in the Layout Areas list; returned by `wh3d_get_layout` (so the 3D scene has it too).
+- [x] A dock door must touch one of the four building walls.
+- [x] A floor area (not a dock) must not overlap an active rack row, and a row must not move onto an area. Touching is fine; areas may overlap each other.
+- [x] `wh3d_save_layout` accepts `changes['areas'] = {create, write, delete}` next to the row keys, only `AREA_EDITOR_FIELDS`, only this warehouse's areas; returns `created_areas` (tmp id → id). End-state checks, so swaps work; any error saves nothing.
+
+**Verification:** `tests/test_layout_area.py` (colour default and format, dock on each wall, floating dock refused, area vs row both ways, areas may overlap each other) and `tests/test_layout_save.py` (area create/write/delete in one save, rows + areas together, refuse-everything for overlap / floating dock / outside building, swap a row and an area, foreign warehouse, forbidden fields, stock user). Demo install still passes, so the demo areas don't overlap the demo rows. Done 31 Oct: full run `0 failed, 0 error(s) of 150 tests` (was 134), 75 Hoot; the demo install still passes.
+**Dependencies:** T10, T12
+**Files:** `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `models/warehouse_rack_row.py`, `views/warehouse_layout_area_views.xml`, `tests/test_layout_area.py`, `tests/test_layout_save.py`
+**Scope:** M
+
+### T17: Editor — areas: palette, drag-drop, move, resize, edit, delete, save *(not started)*
+### T18: Dock doors on all four walls + 3D colours, labels, side-wall frames *(not started)*
+### T19: Demo colours, wrap-up, README, intent doc *(not started)*

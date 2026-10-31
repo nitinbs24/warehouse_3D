@@ -3,10 +3,12 @@
  * mirror the server's (warehouse.rack.row._check_layout) so problems show up while dragging;
  * the server stays the authority when saving.
  */
-import { rowRect } from "@warehouse_3d/editor/geometry";
+import { areaRect, rowRect } from "@warehouse_3d/editor/geometry";
 
 const EPS = 1e-6;
 const EDITABLE = ["code", "kind", "x", "y", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level"];
+const AREA_EDITABLE = ["name", "kind", "x", "y", "width", "depth", "color"];
+const MIN_AREA_SIZE = 0.5; // metres, when resizing by dragging
 
 // The handoff's template rows (docs/CLAUDE.md), used for rows added in the editor.
 const TEMPLATE = {
@@ -19,16 +21,21 @@ export function snap(value, step = 0.1) {
     return Math.max(0, Math.round(Math.round(value / step) * step * 100) / 100);
 }
 
-/** Strict overlap: rows that only touch (back to back) don't count. */
-export function rowsOverlap(a, b) {
-    const r = rowRect(a);
-    const o = rowRect(b);
+/** Strict overlap of two {x, y, w, h} rectangles: ones that only touch (back to back) don't count. */
+function rectsOverlap(r, o) {
     return r.x < o.x + o.w - EPS && o.x < r.x + r.w - EPS && r.y < o.y + o.h - EPS && o.y < r.y + r.h - EPS;
 }
 
-function inside(row, building) {
-    const r = rowRect(row);
+export function rowsOverlap(a, b) {
+    return rectsOverlap(rowRect(a), rowRect(b));
+}
+
+function insideRect(r, building) {
     return r.x >= -EPS && r.y >= -EPS && r.x + r.w <= building.length + EPS && r.y + r.h <= building.width + EPS;
+}
+
+function inside(row, building) {
+    return insideRect(rowRect(row), building);
 }
 
 /** {row id: message} for every row that sticks out of the building or overlaps another. */
@@ -71,22 +78,102 @@ export function newRow(kind, rows, building, tmpId) {
     return null;
 }
 
-/** What Save must send: {create: [{tmp_id, vals}], write: [{id, vals}], delete: [ids]}. */
-export function diffLayout(original, current) {
+/** What Save must send for a list of records: {create: [{tmp_id, vals}], write: [{id, vals}], delete: [ids]}. */
+function diffRecords(original, current, fields) {
     const byId = new Map(original.map((r) => [r.id, r]));
     const keep = new Set(current.map((r) => r.id));
-    const pick = (row, fields) => Object.fromEntries(fields.map((f) => [f, row[f]]));
+    const pick = (row, names) => Object.fromEntries(names.map((f) => [f, row[f]]));
     const diff = { create: [], write: [], delete: original.filter((r) => !keep.has(r.id)).map((r) => r.id) };
     for (const row of current) {
         const before = byId.get(row.id);
         if (!before) {
-            diff.create.push({ tmp_id: row.id, vals: pick(row, EDITABLE) });
+            diff.create.push({ tmp_id: row.id, vals: pick(row, fields) });
             continue;
         }
-        const changed = EDITABLE.filter((f) => row[f] !== before[f]);
+        const changed = fields.filter((f) => row[f] !== before[f]);
         if (changed.length) {
             diff.write.push({ id: row.id, vals: pick(row, changed) });
         }
     }
     return diff;
+}
+
+export function diffLayout(original, current) {
+    return diffRecords(original, current, EDITABLE);
+}
+
+export function diffAreas(original, current) {
+    return diffRecords(original, current, AREA_EDITABLE);
+}
+
+// --- floor areas (receiving, packing, …): drawing only, no stock ---
+
+/** The palette: common warehouse areas with a default colour and size (metres). Custom is last. */
+export const AREA_TYPES = [
+    { key: "receiving", label: "Receiving", color: "#8fb8de", width: 20, depth: 12 },
+    { key: "putaway", label: "Put-away", color: "#9ecfc0", width: 12, depth: 10 },
+    { key: "packing", label: "Packing", color: "#e8a79c", width: 10, depth: 8 },
+    { key: "staging", label: "Dispatch staging", color: "#a8d5a2", width: 14, depth: 10 },
+    { key: "charging", label: "Charging", color: "#f2d27a", width: 8, depth: 5 },
+    { key: "office", label: "Office", color: "#c9c9c9", width: 8, depth: 6 },
+    { key: "returns", label: "Returns", color: "#d4b3e6", width: 8, depth: 6 },
+    { key: "quarantine", label: "Quarantine", color: "#f0b27a", width: 6, depth: 5 },
+    { key: "custom", label: "Custom area", color: "#c3d0dc", width: 6, depth: 6 },
+];
+
+const round2 = (value) => Math.round(value * 100) / 100;
+
+/** A new area of palette ``type`` centred on plan point ``[px, py]``, snapped and pulled inside the building. */
+export function newArea(type, [px, py], building, tmpId) {
+    const { width, depth } = type;
+    return {
+        id: tmpId, name: type.label, kind: "area", color: type.color, width, depth,
+        x: round2(Math.max(0, Math.min(snap(px - width / 2), building.length - width))),
+        y: round2(Math.max(0, Math.min(snap(py - depth / 2), building.width - depth))),
+    };
+}
+
+/** {area id: message} for every area with no size, outside the building, or on top of a rack row. */
+export function areaProblems(areas, rows, building) {
+    const problems = {};
+    for (const area of areas) {
+        const r = areaRect(area);
+        if (!(r.w > 0 && r.h > 0)) {
+            problems[area.id] = `${area.name} has no size.`;
+        } else if (!insideRect(r, building)) {
+            problems[area.id] = `${area.name} is outside the ${building.length} × ${building.width} m building.`;
+        } else {
+            const row = rows.find((o) => rectsOverlap(r, rowRect(o)));
+            if (row) {
+                problems[area.id] = `${area.name} overlaps rack row ${row.code}.`;
+            }
+        }
+    }
+    return problems;
+}
+
+/**
+ * The area's new {x, y, width, depth} when its ``edge`` ("n", "s", "e", "w" or a corner such as "se")
+ * is dragged to plan point ``[px, py]``. Snapped to 0.1 m; the opposite edge stays put and the
+ * area never gets thinner than MIN_AREA_SIZE.
+ */
+export function resizeArea(area, edge, [px, py]) {
+    let { x, y, width, depth } = area;
+    if (edge.includes("e")) {
+        width = Math.max(MIN_AREA_SIZE, snap(px) - x);
+    }
+    if (edge.includes("w")) {
+        const right = x + width;
+        x = Math.min(snap(px), right - MIN_AREA_SIZE);
+        width = right - x;
+    }
+    if (edge.includes("s")) {
+        depth = Math.max(MIN_AREA_SIZE, snap(py) - y);
+    }
+    if (edge.includes("n")) {
+        const bottom = y + depth;
+        y = Math.min(snap(py), bottom - MIN_AREA_SIZE);
+        depth = bottom - y;
+    }
+    return { x: round2(x), y: round2(y), width: round2(width), depth: round2(depth) };
 }
