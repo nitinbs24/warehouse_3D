@@ -7,6 +7,7 @@
     <record id="area_1" model="warehouse.layout.area">
         <field name="name">Receiving</field>
         <field name="kind">area</field>
+        <field name="color">#8fb8de</field>
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="x">0.5</field>
         <field name="y">25</field>
@@ -16,6 +17,7 @@
     <record id="area_2" model="warehouse.layout.area">
         <field name="name">Charging</field>
         <field name="kind">area</field>
+        <field name="color">#f2d27a</field>
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="x">21</field>
         <field name="y">25</field>
@@ -25,6 +27,7 @@
     <record id="area_3" model="warehouse.layout.area">
         <field name="name">Office</field>
         <field name="kind">area</field>
+        <field name="color">#c9c9c9</field>
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="x">21</field>
         <field name="y">31.5</field>
@@ -34,6 +37,7 @@
     <record id="area_4" model="warehouse.layout.area">
         <field name="name">Packing</field>
         <field name="kind">area</field>
+        <field name="color">#e8a79c</field>
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="x">30</field>
         <field name="y">25</field>
@@ -43,6 +47,7 @@
     <record id="area_5" model="warehouse.layout.area">
         <field name="name">Shipping</field>
         <field name="kind">area</field>
+        <field name="color">#a8d5a2</field>
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="x">40</field>
         <field name="y">25</field>

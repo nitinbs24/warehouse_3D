@@ -931,3 +931,25 @@ Managers use a handful of colours, so this stays a handful of draw calls. Door l
 (text above the frame, hidden behind racks); area labels were already floating pills.
 
 **Not changed:** the server (T16 already knew about docks and all four walls).
+
+## T19: Wrap-up of the warehouse builder
+
+Files: `demo/layout.xml`, `tests/test_template.py`, `tests/test_layout_save.py`, `README.md`,
+`docs/intent/warehouse-builder.md`.
+
+**The demo areas use the palette's colours.** An area's colour is plain data, so the demo XML just sets
+`color` on the five areas, with the same hex values as `AREA_TYPES` (Shipping takes Dispatch staging's
+green). Docks keep the default: in 3D a door pad is always the dock orange. Without this, the demo
+warehouse would have been five identical grey areas in the 3D view the moment colours were drawn.
+
+**"Built from nothing" is a test of the payload, not of the mouse.** The browser tours already drive the
+palette and the drag; what no test said was that one `wh3d_save_layout` call with a row, an area and a
+door on each of the four walls, into an empty building, produces the whole layout and the row's 70
+locations. `test_a_warehouse_can_be_built_from_nothing_in_one_save` sends exactly what the editor sends.
+(A first version of it merged two results: the editor's temporary ids are unique across areas and
+doors, and a test must do the same, or `created_areas` silently has fewer keys.)
+
+**What the README now warns about.** Updating the module re-applies the demo XML, which has no
+`noupdate`. Edits made in the editor to those demo records are overwritten; records a manager adds are
+not. Making the layout `noupdate` would stop that, but would also stop template fixes reaching existing
+demo databases, so it stays a documented limit.

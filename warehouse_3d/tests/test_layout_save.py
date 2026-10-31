@@ -182,3 +182,28 @@ class TestLayoutSave(TransactionCase):
         with self.assertRaises(AccessError):
             self.Row.with_user(user).wh3d_save_layout(self.warehouse.id, {
                 'create': [], 'write': [], 'delete': [], 'areas': {'delete': [area.id]}})
+
+    def test_a_warehouse_can_be_built_from_nothing_in_one_save(self):
+        # What the editor sends after a manager lays out an empty building: rows, areas and a door on each wall.
+        empty = self.env['stock.warehouse'].create({'name': 'Built', 'code': 'WHB', 'wh3d_length': 50.0, 'wh3d_width': 30.0})
+        self.assertFalse(empty.wh3d_area_ids)
+        door = lambda n, **pos: {'tmp_id': -n - 1, 'vals': dict(name=f'Dock door {n}', kind='dock', color='#e3a22b', **pos)}
+        result = self.Row.wh3d_save_layout(empty.id, {
+            'create': [{'tmp_id': -1, 'vals': {
+                'code': 'P01', 'kind': 'pallet', 'x': 10.0, 'y': 3.0, 'bays': 7, 'bay_width': 2.7, 'depth': 1.1,
+                'levels': 5, 'level_height': 1.8, 'slots_per_level': 2}}],
+            'write': [], 'delete': [],
+            'areas': {'create': [
+                {'tmp_id': -1, 'vals': {'name': 'Receiving', 'kind': 'area', 'color': '#8fb8de',
+                                        'x': 0.0, 'y': 22.0, 'width': 20.0, 'depth': 8.0}},
+                door(1, x=20.0, y=0.0, width=3.0, depth=1.6),     # front
+                door(2, x=20.0, y=28.4, width=3.0, depth=1.6),    # back
+                door(3, x=0.0, y=10.0, width=1.6, depth=3.0),     # left
+                door(4, x=48.4, y=10.0, width=1.6, depth=3.0)]},  # right
+        })
+        layout = result['layout']
+        self.assertEqual([r['code'] for r in layout['rows']], ['P01'])
+        self.assertEqual(sorted(a['name'] for a in layout['areas']),
+                         ['Dock door 1', 'Dock door 2', 'Dock door 3', 'Dock door 4', 'Receiving'])
+        self.assertEqual(len(result['created_areas']), 5)
+        self.assertEqual(self._slots(self.Row.browse(result['created'][-1])), 70)

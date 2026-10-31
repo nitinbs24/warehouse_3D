@@ -120,6 +120,11 @@ class TestTemplateLayout(TransactionCase):
         self.assertEqual(sorted(areas), ['Charging', 'Office', 'Packing', 'Receiving', 'Shipping'])
         self.assertEqual(len([a for a in self.scene['areas'] if a['kind'] == 'dock']), 6)
 
+    def test_areas_have_their_own_colours_in_the_editor_palette(self):
+        colours = {a['name']: a['color'] for a in self.scene['areas'] if a['kind'] == 'area'}
+        self.assertEqual(colours, {'Receiving': '#8fb8de', 'Charging': '#f2d27a', 'Office': '#c9c9c9',
+                                   'Packing': '#e8a79c', 'Shipping': '#a8d5a2'})
+
     def test_slots_use_the_template_storage_categories(self):
         pallet = self.env.ref('warehouse_3d.storcat_pallet_bulk')
         shelf = self.env.ref('warehouse_3d.storcat_shelf_small')

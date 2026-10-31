@@ -391,4 +391,23 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Dependencies:** T16, T17
 **Files:** `static/src/editor/layout_edit.js`, `editor_action.js`, `.xml`, `.scss`, `static/src/view3d/layout.js`, `scene.js`, `static/tests/layout_edit.test.js`, `layout.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
-### T19: Demo colours, wrap-up, README, intent doc *(not started)*
+### T19: Demo colours, wrap-up, README, intent doc
+**Description:** Close the warehouse-builder phase: the demo areas get palette colours, the README and notes describe the builder and its limits, the agreed intent is saved, and everything is run once more.
+
+**Acceptance criteria:**
+- [x] The five demo areas have the palette colours of their types (Receiving, Charging, Office, Packing, Shipping = Dispatch staging).
+- [x] A warehouse can be built from an empty building in one save: rows, an area and a door on each of the four walls (the editor's payload, tested).
+- [x] README: the Layout Editor row, known limits (areas and doors are drawings, fixed palette, no rotation, no import/export, module update overwrites edited demo records).
+- [x] `docs/intent/warehouse-builder.md` holds the agreed intent; `todo.md` and `notes.md` have T16–T18 (and T16b).
+- [x] Install time with demo data stays well under 3 minutes.
+
+**Verification:** done 31 Oct — `test_template.py` (demo colours), `test_layout_save.py::test_a_warehouse_can_be_built_from_nothing_in_one_save`. Full run `0 failed, 0 error(s) of 155 tests` (was 134 before Phase 5), 105 Hoot (was 75). Module install with demo data and all its tests: `warehouse_3d loaded in 33 s (incl. 17 s of tests)`. *Not done:* a person building a small warehouse by hand in the browser and looking at the 3D result (the tours drive the same steps but nobody has looked at the colours, labels and side-wall frames); a layout of the mentor's size (about 7,500 pallet positions) was not tried.
+**Dependencies:** T16–T18
+**Files:** `demo/layout.xml`, `tests/test_template.py`, `tests/test_layout_save.py`, `README.md`, `docs/intent/warehouse-builder.md`, `docs/todo.md`, `docs/notes.md`
+**Scope:** S
+
+### Checkpoint E — Warehouse builder
+- [x] `TEST` green, nothing skipped *(31 Oct: 155 tests + 105 Hoot)*
+- [ ] Manual: lay out a small warehouse from scratch in the editor, see it in 3D, check colours, labels and door frames on all four walls
+- [ ] **Review with Nitin + teammate**
+- [ ] Mentor confirms the row count for his floorplan (his 44 × 90 doesn't fit a 316 ft building; about 28 × 27 does)

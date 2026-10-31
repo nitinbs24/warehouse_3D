@@ -11,7 +11,7 @@ The working, planning and notes are available within docs.
 | Where (Inventory menu) | What |
 |---|---|
 | **Warehouse 3D ▸ 3D View** | Three.js view of the warehouse: racks, shelves, areas, docks, one box per stocked slot. 3D / Top cameras, **Walk** (first person at eye height, WASD + mouse drag), **Colour by occupancy** (green < 50 %, amber 50–90 %, red > 90 %), click or **Find** a slot to see its contents, **Open in Inventory**. Live: stock moved anywhere in Inventory appears without reloading. |
-| **Warehouse 3D ▸ Layout Editor** (managers) | Top-down plan. Drag rows (0.1 m snap), edit their sizes, add pallet/shelf rows, delete; overlaps and walls show red at once. **Save** applies everything or nothing. |
+| **Warehouse 3D ▸ Layout Editor** (managers) | The warehouse builder: a top-down plan. Drag rows (0.1 m snap), edit their sizes, add pallet/shelf rows, delete. Drag **areas** (Receiving, Put-away, Packing, Dispatch staging, Charging, Office, Returns, Quarantine, Custom) from the *Add area* palette, move and resize them, pick their colour. Add **dock doors**: they snap to the nearest of the four walls. Overlaps and walls show red at once. **Save** applies everything (rows, areas, doors) or nothing. |
 | **Configuration ▸ Warehouse 3D ▸ Rack Rows / Layout Areas** | The same data as ordinary Odoo lists and forms. |
 | **Configuration ▸ Warehouses ▸ (a warehouse)** | Building length / width / height ("3D Layout"). |
 | **Products ▸ (a product) ▸ Inventory tab** | Dimensions L × W × H (m) and ABC class. |
@@ -181,7 +181,13 @@ Layout Editor  editor_action.js ── wh3d_get_layout / wh3d_save_layout (all o
   (3D bin packing, ABC slotting) are the next plan; the ABC class field is there for them.
 - **Fill % is by volume** (product L×W×H × quantity ÷ slot volume), not weight. Products without
   dimensions show "fill unknown".
-- **Rack rows are axis-aligned** — no rotated rows.
+- **Rack rows and areas are axis-aligned** — no rotated rows or areas.
+- **Areas and dock doors are drawings.** They create no Inventory locations and hold no stock, and the
+  palette is a fixed list plus "Custom area" (no user-defined area types). Doors can't be placed
+  anywhere but on a wall. There is no import/export of a layout; copy it by creating the records again.
+- **XML demo data and the editor edit the same records.** The demo XML is not `noupdate`, so
+  updating the module (`-u warehouse_3d`) re-applies it and overwrites edits made to *those* demo
+  rows, areas and doors in the editor. Records you add yourself are untouched.
 - **Multi-company:** live-update messages go to every Inventory user; each browser drops other
   warehouses' slots (extra traffic, bare location ids visible across companies).
 - **Uninstalling** keeps the generated locations as ordinary locations and leaves Inventory's
