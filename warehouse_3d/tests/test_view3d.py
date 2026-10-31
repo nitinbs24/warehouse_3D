@@ -78,6 +78,12 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_editor_edit', login='admin')
 
 
+    def test_editor_areas_add_move_resize_refuse_delete(self):
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, warehouse, create_zone(self.env, warehouse))  # x 9.7–10.8, y 1–19.9
+        self.start_tour('/odoo', 'warehouse_3d_editor_areas', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""

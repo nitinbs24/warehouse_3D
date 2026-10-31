@@ -12,18 +12,33 @@ import {
     middleSlot,
     pan,
     rowRect,
+    toPlan,
     zoomAt,
 } from "@warehouse_3d/editor/geometry";
-import { diffLayout, layoutProblems, newRow, snap } from "@warehouse_3d/editor/layout_edit";
+import {
+    AREA_TYPES,
+    areaProblems,
+    diffAreas,
+    diffLayout,
+    layoutProblems,
+    newArea,
+    newRow,
+    resizeArea,
+    snap,
+} from "@warehouse_3d/editor/layout_edit";
 
 const ZOOM_STEP = 1.15;
 const INT_FIELDS = new Set(["bays", "levels", "slots_per_level"]);
+const AREA_DRAG_TYPE = "application/x-wh3d-area"; // so only palette items can be dropped on the plan
+const HANDLE_PX = 9; // resize handles keep this size on screen at any zoom
+const EDGES = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] };
 
 /**
  * Inventory ▸ Warehouse 3D ▸ Layout Editor: the floor plan seen from above, drawn in SVG.
  * Everything is drawn in metres inside one <g transform>, so zooming and panning only change
- * that transform. Rows can be dragged, edited, added and deleted; nothing reaches the server
- * until Save, which sends every change in one all-or-nothing call (wh3d_save_layout).
+ * that transform. Rows and floor areas can be dragged, edited, added and deleted (areas come from a
+ * palette and can also be resized); nothing reaches the server until Save, which sends every
+ * change in one all-or-nothing call (wh3d_save_layout). Dock doors are drawn but not editable yet.
  */
 export class LayoutEditor extends Component {
     static template = "warehouse_3d.LayoutEditor";
@@ -35,11 +50,13 @@ export class LayoutEditor extends Component {
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.planRef = useRef("plan");
-        this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, rows: [], saving: false });
+        this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false });
+        this.areaTypes = AREA_TYPES;
         this.drag = null; // panning the floor
-        this.rowDrag = null; // moving a row
+        this.itemDrag = null; // moving a row or an area
+        this.resizeDrag = null; // dragging an area's edge or corner
         this.userMoved = false; // once the user zooms or pans, resizing no longer refits
-        this.nextTmpId = -1; // unsaved rows get negative ids
+        this.nextTmpId = -1; // unsaved rows and areas get negative ids
         onWillStart(async () => {
             let warehouseId = this.props.action.context?.warehouse_id;
             if (!warehouseId) {
@@ -69,6 +86,10 @@ export class LayoutEditor extends Component {
         this.layout = layout;
         this.original = layout.rows.map((r) => ({ ...r }));
         this.state.rows = layout.rows.map((r) => ({ ...r }));
+        this.docks = layout.areas.filter((a) => a.kind === "dock");
+        const areas = layout.areas.filter((a) => a.kind === "area");
+        this.originalAreas = areas.map((a) => ({ ...a }));
+        this.state.areas = areas.map((a) => ({ ...a }));
         this.grid = gridLines(layout.building);
     }
 
@@ -83,21 +104,39 @@ export class LayoutEditor extends Component {
         return layoutProblems(this.state.rows, this.layout.building);
     }
 
+    get areaProblemMap() {
+        return areaProblems(this.state.areas, this.state.rows, this.layout.building);
+    }
+
     get problemList() {
-        return Object.values(this.problems);
+        return [...Object.values(this.problems), ...Object.values(this.areaProblemMap)];
     }
 
     get changes() {
-        return diffLayout(this.original, this.state.rows);
+        return { ...diffLayout(this.original, this.state.rows), areas: diffAreas(this.originalAreas, this.state.areas) };
     }
 
     get dirty() {
-        const c = this.changes;
-        return Boolean(c.create.length || c.write.length || c.delete.length);
+        const { areas, ...rows } = this.changes;
+        return [rows, areas].some((c) => c.create.length || c.write.length || c.delete.length);
     }
 
     get selectedRow() {
         return this.state.rows.find((r) => r.id === this.state.selectedId) || null;
+    }
+
+    get selectedArea() {
+        return this.state.areas.find((a) => a.id === this.state.selectedAreaId) || null;
+    }
+
+    /** Resize handles of the selected area: {edge, x, y} in metres, plus their size in metres. */
+    get handles() {
+        const r = areaRect(this.selectedArea);
+        return Object.entries(EDGES).map(([edge, [fx, fy]]) => ({ edge, x: r.x + fx * r.w, y: r.y + fy * r.h }));
+    }
+
+    get handleSize() {
+        return HANDLE_PX / this.state.view.scale;
     }
 
     rowRect(row) {
@@ -135,23 +174,49 @@ export class LayoutEditor extends Component {
     }
 
     onPointerDown(ev) {
-        if (ev.button !== 0 || ev.target.closest(".o_wh3d_row")) {
-            return; // rows start their own drag
+        if (ev.button !== 0 || ev.target.closest(".o_wh3d_row, .o_wh3d_area, .o_wh3d_handle")) {
+            return; // rows, areas and handles start their own drag
         }
         this.drag = { x: ev.clientX, y: ev.clientY, view: this.state.view, moved: false };
         this.planRef.el.setPointerCapture?.(ev.pointerId);
     }
 
     onRowPointerDown(ev, row) {
+        this.startItemDrag(ev, "rows", row);
+    }
+
+    onAreaPointerDown(ev, area) {
+        this.startItemDrag(ev, "areas", area);
+    }
+
+    startItemDrag(ev, list, item) {
         if (ev.button !== 0) {
             return;
         }
-        this.rowDrag = { id: row.id, x: ev.clientX, y: ev.clientY, from: { x: row.x, y: row.y }, moved: false };
+        this.itemDrag = { list, id: item.id, x: ev.clientX, y: ev.clientY, from: { x: item.x, y: item.y }, moved: false };
         this.planRef.el.setPointerCapture?.(ev.pointerId);
     }
 
+    onHandlePointerDown(ev, edge) {
+        if (ev.button === 0) {
+            this.resizeDrag = { edge, id: this.state.selectedAreaId };
+            this.planRef.el.setPointerCapture?.(ev.pointerId);
+        }
+    }
+
+    /** Plan coordinates (metres) of a mouse event. */
+    planPoint(ev) {
+        const rect = this.planRef.el.getBoundingClientRect();
+        return toPlan(this.state.view, ev.clientX - rect.left, ev.clientY - rect.top);
+    }
+
     onPointerMove(ev) {
-        const drag = this.rowDrag || this.drag;
+        if (this.resizeDrag) {
+            const area = this.state.areas.find((a) => a.id === this.resizeDrag.id);
+            Object.assign(area, resizeArea(area, this.resizeDrag.edge, this.planPoint(ev)));
+            return;
+        }
+        const drag = this.itemDrag || this.drag;
         if (!drag) {
             return;
         }
@@ -163,12 +228,13 @@ export class LayoutEditor extends Component {
         if (!drag.moved) {
             return;
         }
-        if (this.rowDrag) {
-            const row = this.state.rows.find((r) => r.id === this.rowDrag.id);
+        if (this.itemDrag) {
+            const { list, id, from } = this.itemDrag;
+            const item = this.state[list].find((i) => i.id === id);
             const scale = this.state.view.scale;
-            row.x = snap(this.rowDrag.from.x + dx / scale);
-            row.y = snap(this.rowDrag.from.y + dy / scale);
-            this.state.selectedId = row.id;
+            item.x = snap(from.x + dx / scale);
+            item.y = snap(from.y + dy / scale);
+            this.select(list, item);
         } else {
             this.userMoved = true;
             this.state.view = pan(this.drag.view, dx, dy);
@@ -177,25 +243,41 @@ export class LayoutEditor extends Component {
 
     onPointerUp() {
         if (this.drag && !this.drag.moved) {
-            this.state.selectedId = null; // a click on empty floor clears the selection
+            this.clearSelection(); // a click on empty floor clears the selection
         }
         this.drag = null;
-        this.rowDrag = null;
+        this.itemDrag = null;
+        this.resizeDrag = null;
     }
 
     // --- selection and keyboard ---
 
+    /** One thing is selected at a time: a row or an area. */
+    select(list, item) {
+        this.state.selectedId = list === "rows" ? item.id : null;
+        this.state.selectedAreaId = list === "areas" ? item.id : null;
+    }
+
     selectRow(row) {
-        this.state.selectedId = row.id;
+        this.select("rows", row);
+    }
+
+    selectArea(area) {
+        this.select("areas", area);
+    }
+
+    clearSelection() {
+        this.state.selectedId = null;
+        this.state.selectedAreaId = null;
     }
 
     onKeydown(ev) {
         if (ev.key === "Escape") {
-            this.state.selectedId = null;
+            this.clearSelection();
         }
     }
 
-    /** Arrow keys nudge the focused row by 0.1 m (1 m with Shift). */
+    /** Arrow keys nudge the focused row or area by 0.1 m (1 m with Shift). */
     onRowKeydown(ev, row) {
         const step = ev.shiftKey ? 1 : 0.1;
         const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
@@ -232,6 +314,69 @@ export class LayoutEditor extends Component {
         }
     }
 
+    /** A palette item was dragged onto the plan, or clicked (then it lands in the middle of the view). */
+    addArea(type, at) {
+        const { clientWidth, clientHeight } = this.planRef.el;
+        const centre = toPlan(this.state.view, clientWidth / 2, clientHeight / 2);
+        const area = newArea(type, at || centre, this.layout.building, this.nextTmpId--);
+        this.state.areas.push(area);
+        this.selectArea(area);
+    }
+
+    onPaletteDragStart(ev, type) {
+        ev.dataTransfer.setData(AREA_DRAG_TYPE, type.key);
+        ev.dataTransfer.effectAllowed = "copy";
+    }
+
+    onPlanDragOver(ev) {
+        if (ev.dataTransfer.types.includes(AREA_DRAG_TYPE)) {
+            ev.preventDefault(); // allow the drop
+        }
+    }
+
+    onPlanDrop(ev) {
+        const type = AREA_TYPES.find((t) => t.key === ev.dataTransfer.getData(AREA_DRAG_TYPE));
+        if (type) {
+            ev.preventDefault();
+            this.addArea(type, this.planPoint(ev));
+        }
+    }
+
+    /** Same rules as onFieldInput: committed on change, bad values are ignored. */
+    onAreaField(field, ev) {
+        const area = this.selectedArea;
+        const raw = ev.target.value;
+        if (field === "name") {
+            area.name = raw.trim() || area.name;
+        } else if (field === "color") {
+            area.color = /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : area.color;
+        } else {
+            const value = parseFloat(raw);
+            if (Number.isFinite(value) && value >= 0) {
+                area[field] = Math.round(value * 100) / 100;
+            }
+        }
+    }
+
+    onAreaKeydown(ev, area) {
+        this.onRowKeydown(ev, area); // same arrow-key nudging
+    }
+
+    deleteArea() {
+        const area = this.selectedArea;
+        this.dialog.add(ConfirmationDialog, {
+            title: _t("Delete area %s?", area.name),
+            body: _t("It is only a drawing: no stock or locations are affected. The deletion is saved with Save."),
+            confirmLabel: _t("Delete"),
+            confirmClass: "btn-danger",
+            confirm: () => {
+                this.state.areas = this.state.areas.filter((a) => a.id !== area.id);
+                this.clearSelection();
+            },
+            cancel: () => {},
+        });
+    }
+
     addRow(kind) {
         const row = newRow(kind, this.state.rows, this.layout.building, this.nextTmpId--);
         if (!row) {
@@ -251,7 +396,7 @@ export class LayoutEditor extends Component {
             confirmClass: "btn-danger",
             confirm: () => {
                 this.state.rows = this.state.rows.filter((r) => r.id !== row.id);
-                this.state.selectedId = null;
+                this.clearSelection();
             },
             cancel: () => {},
         });
@@ -259,8 +404,9 @@ export class LayoutEditor extends Component {
 
     discard() {
         this.state.rows = this.original.map((r) => ({ ...r }));
-        if (!this.selectedRow) {
-            this.state.selectedId = null;
+        this.state.areas = this.originalAreas.map((a) => ({ ...a }));
+        if (!this.selectedRow && !this.selectedArea) {
+            this.clearSelection();
         }
     }
 
@@ -269,10 +415,11 @@ export class LayoutEditor extends Component {
         try {
             const result = await this.orm.call("warehouse.rack.row", "wh3d_save_layout",
                 [this.layout.warehouse_id, this.changes]);
-            const selected = this.state.selectedId;
+            const { selectedId: selected, selectedAreaId: selectedArea } = this.state;
             this.load(result.layout);
-            // A new row keeps its selection under its real id.
+            // A new row or area keeps its selection under its real id.
             this.state.selectedId = selected < 0 ? result.created[selected] ?? null : selected;
+            this.state.selectedAreaId = selectedArea < 0 ? result.created_areas[selectedArea] ?? null : selectedArea;
             this.notification.add(_t("Layout saved."), { type: "success" });
         } catch (error) {
             // Nothing was saved (the server applies all changes or none); the edits stay on screen.

@@ -847,3 +847,39 @@ because a "staging" zone inside a big "receiving" zone is a normal drawing.
 
 **Not changed:** the demo XML isn't `noupdate`, so updating the module re-applies it and overwrites edits
 made in the builder; to be listed in the README's known limits in T19.
+
+## T17: Areas in the Layout Editor
+
+Files: `static/src/editor/layout_edit.js`, `editor_action.js`, `editor_action.xml`, `editor_action.scss`,
+`static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`.
+
+**Same pattern, second list.** The editor already kept rows in `state.rows` with an untouched `original`
+copy, and `diffLayout` compared them. Areas got `state.areas`, `originalAreas` and `diffAreas`; both
+diffs come from one private `diffRecords(original, current, fields)`. `diffLayout` still returns exactly
+`{create, write, delete}` (its test says so); the editor adds the areas under `changes.areas`.
+Docks are filtered out into `this.docks`: drawn, not editable (T18).
+
+**Selection stays two plain fields** (`selectedId` for a row, `selectedAreaId` for an area) instead of a
+`{type, id}` object. Row and area ids can be equal, so they can't share one field, but a second field
+keeps every existing row test and tour untouched. `select(list, item)` keeps them mutually exclusive.
+
+**One drag for rows and areas.** `rowDrag` became `itemDrag = {list, id, from}`: the same pointer
+capture, 4 px threshold and 0.1 m snap move either. Resizing is a different gesture (`resizeDrag`),
+and its handles are drawn *outside* the area's `<g>`: pointer events bubble, so handles inside the group
+would also start a move.
+
+**Handles keep their size at any zoom.** Everything is drawn in metres inside the scaled `<g>`, so a
+handle's size is `9 px / scale`, recomputed from `state.view`. `resizeArea` (pure) does the arithmetic:
+the edge under the mouse follows it, the opposite edge stays put, minimum 0.5 m.
+
+**Drag from the palette = HTML5 drag-and-drop.** The palette buttons are `draggable`; `dragstart` puts
+the type key under a custom MIME type (`application/x-wh3d-area`), so text dragged from elsewhere is
+ignored. The plan accepts the drop in `dragover` (`preventDefault`, only for that type) and on `drop`
+converts the mouse position to metres with `toPlan` before `newArea` centres the area there.
+Clicking a palette item does the same at the middle of the view, which is also the keyboard path.
+
+**The colour comes from the area, not the stylesheet.** The `fill` is an SVG attribute; the red "invalid"
+rule is CSS, which wins over an attribute, so a problem still shows on any colour.
+
+**Not changed:** server rules (T16). The client mirror only gives early feedback; Save is still refused
+by the server if the two ever disagreed.

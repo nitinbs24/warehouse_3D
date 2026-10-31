@@ -382,11 +382,11 @@ function clickSvgRow(code) {
     };
 }
 
-/** Drag a row on the plan by (mx, my) metres, using the plan's current scale. */
-function dragRow(code, mx, my) {
+/** Drag whatever ``selector`` matches on the plan by (mx, my) metres, using the plan's current scale. */
+function dragSvg(content, selector, mx, my) {
     return {
-        content: `Drag ${code} by ${mx} m, ${my} m`,
-        trigger: `.o_wh3d_editor svg .o_wh3d_row[data-code='${code}']`,
+        content,
+        trigger: selector,
         run() {
             const svg = this.anchor.closest("svg");
             const scale = Number(svg.querySelector("g").getAttribute("transform").match(/scale\(([\d.]+)\)/)[1]);
@@ -402,6 +402,11 @@ function dragRow(code, mx, my) {
             svg.dispatchEvent(new PointerEvent("pointerup", ev(start.x + mx * scale, start.y + my * scale, 0)));
         },
     };
+}
+
+/** Drag a row on the plan by (mx, my) metres. */
+function dragRow(code, mx, my) {
+    return dragSvg(`Drag ${code} by ${mx} m, ${my} m`, `.o_wh3d_editor svg .o_wh3d_row[data-code='${code}']`, mx, my);
 }
 
 /** Type a value into a panel field and commit it (as Enter or Tab would). */
@@ -482,6 +487,70 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_edit", {
         { trigger: ".o_wh3d_editor_panel input[name='x']:value(10.2)" },
         { trigger: ".o_wh3d_editor_panel input[name='bays']:value(7)" },
         { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P07']" },
+    ],
+});
+
+// Areas: add from the palette, move, resize, edit, save, refuse an overlap with a rack row, delete.
+registry.category("web_tour.tours").add("warehouse_3d_editor_areas", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        // 1. Click a palette item: a new, selected, unsaved area appears with the type's name.
+        { trigger: ".o_wh3d_palette button[name='add_area_packing']", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1'] svg .o_wh3d_area.o_new.o_selected[data-name='Packing']" },
+        { trigger: ".o_wh3d_editor_panel input[name='area_name']:value(Packing)" },
+        // 2. Place it, move it by dragging, resize it by its east handle.
+        setField("area_x", 40),
+        setField("area_y", 25),
+        dragSvg("Drag the area 2 m right", ".o_wh3d_editor svg .o_wh3d_area[data-name='Packing'] rect", 2, 0),
+        { trigger: ".o_wh3d_editor_panel input[name='area_x']:value(42)" },
+        dragSvg("Drag the east handle 2 m right", ".o_wh3d_editor svg .o_wh3d_handle[data-edge='e']", 2, 0),
+        { trigger: ".o_wh3d_editor_panel input[name='area_width']:value(12)" },
+        // 3. Rename and recolour, then save: nothing left unsaved, the area is no longer new.
+        setField("area_name", "Packing 2"),
+        setField("area_color", "#ff0000"),
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_area:not(.o_new)[data-name='Packing 2']" },
+        {
+            content: "The server has the area as edited",
+            trigger: ".o_wh3d_editor",
+            async run() {
+                const [area] = await callKw("warehouse.layout.area", "search_read",
+                    [[["name", "=", "Packing 2"]], ["x", "width", "color", "kind"]]);
+                if (!area || area.x !== 42 || area.width !== 12 || area.color !== "#ff0000" || area.kind !== "area") {
+                    throw new Error(`unexpected area ${JSON.stringify(area)}`);
+                }
+            },
+        },
+        // 4. Dropping it on a rack row is shown at once and can't be saved.
+        { trigger: ".o_wh3d_editor_panel input[name='area_x']:value(42)" },
+        setField("area_x", 10),
+        setField("area_y", 5),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_area.o_invalid[data-name='Packing 2']" },
+        { trigger: ".o_wh3d_problems:contains(Packing 2 overlaps rack row P05)" },
+        { trigger: ".o_wh3d_savebar button[name='save']:disabled" },
+        { trigger: ".o_wh3d_savebar button[name='discard']", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']:not(:has(.o_invalid))" },
+        // 5. Delete it (after confirming) and save.
+        { trigger: ".o_wh3d_editor svg .o_wh3d_area[data-name='Packing 2']", run() {
+            this.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        } },
+        { trigger: ".o_wh3d_editor_panel button[name='delete_area']", run: "click" },
+        { trigger: ".modal:contains(Delete area Packing 2?) .btn-danger", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1']:not(:has(.o_wh3d_area[data-name='Packing 2']))" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']:not(:has(.o_wh3d_area[data-name='Packing 2']))" },
+        {
+            content: "The server no longer has it",
+            trigger: ".o_wh3d_editor",
+            async run() {
+                const count = await callKw("warehouse.layout.area", "search_count", [[["name", "=", "Packing 2"]]]);
+                if (count) {
+                    throw new Error(`expected the area to be deleted, found ${count}`);
+                }
+            },
+        },
     ],
 });
 

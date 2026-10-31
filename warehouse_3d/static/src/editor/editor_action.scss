@@ -3,7 +3,6 @@ $wh3d-ed-bg: #e3e8ed;
 $wh3d-ed-floor: #f4f6f8;
 $wh3d-ed-grid: #dde2e7;
 $wh3d-ed-grid-major: #bcc4cd;
-$wh3d-ed-area: #c3d0dc;
 $wh3d-ed-dock: #e3a22b;
 $wh3d-ed-steel: #3e5c7a;
 $wh3d-ed-shelf: #96a3b0;
@@ -80,11 +79,37 @@ $wh3d-ed-invalid: #b3261e;
     }
 
     .o_wh3d_area {
+        cursor: pointer;
+        outline: none;
+
         rect {
-            fill: $wh3d-ed-area;
             fill-opacity: 0.7;
             stroke: $wh3d-ed-grid-major;
             stroke-width: 1;
+        }
+
+        &:hover rect {
+            stroke: $wh3d-ed-accent;
+            stroke-opacity: 0.5;
+        }
+
+        &.o_selected rect,
+        &:focus-visible rect {
+            stroke: $wh3d-ed-accent;
+            stroke-width: 2;
+            stroke-opacity: 1;
+        }
+
+        &.o_new rect {
+            stroke-dasharray: 4 3; // not saved yet
+        }
+
+        // After the selected rule, so a problem always shows. Beats the colour in the fill attribute.
+        &.o_invalid rect {
+            fill: $wh3d-ed-invalid;
+            fill-opacity: 0.6;
+            stroke: $wh3d-ed-invalid;
+            stroke-opacity: 1;
         }
 
         text {
@@ -145,6 +170,39 @@ $wh3d-ed-invalid: #b3261e;
             stroke: $wh3d-ed-invalid;
             stroke-opacity: 1;
         }
+    }
+}
+
+.o_wh3d_plan .o_wh3d_handle {
+    fill: #fff;
+    stroke: $wh3d-ed-accent;
+    stroke-width: 2;
+
+    &.o_h_n, &.o_h_s { cursor: ns-resize; }
+    &.o_h_e, &.o_h_w { cursor: ew-resize; }
+    &.o_h_nw, &.o_h_se { cursor: nwse-resize; }
+    &.o_h_ne, &.o_h_sw { cursor: nesw-resize; }
+}
+
+.o_wh3d_palette_items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+
+    .o_wh3d_palette_item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-align: left;
+        cursor: grab;
+    }
+
+    .o_wh3d_swatch {
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        border: 1px solid rgba(0, 0, 0, 0.25);
     }
 }
 

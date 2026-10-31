@@ -358,6 +358,19 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Files:** `models/warehouse_layout_area.py`, `models/stock_warehouse.py`, `models/warehouse_rack_row.py`, `views/warehouse_layout_area_views.xml`, `tests/test_layout_area.py`, `tests/test_layout_save.py`
 **Scope:** M
 
-### T17: Editor — areas: palette, drag-drop, move, resize, edit, delete, save *(not started)*
+### T17: Editor — areas: palette, drag-drop, move, resize, edit, delete, save
+**Description:** Floor areas become editable in the Layout Editor, saved in the same all-or-nothing call as rows. Dock doors stay drawn-only until T18.
+
+**Acceptance criteria:**
+- [x] "Add area" palette (Receiving, Put-away, Packing, Dispatch staging, Charging, Office, Returns, Quarantine, Custom area): drag onto the plan, or click to add in the middle of the view.
+- [x] Move (0.1 m snap, mouse or arrow keys), resize by 8 handles, rename, recolour, edit X / Y / width / depth in the side panel, delete with confirmation.
+- [x] An area outside the building, with no size, or overlapping a rack row turns red, is named in the problem list and blocks Save (mirrors the T16 server rules). Areas may overlap each other.
+- [x] Save sends areas in `changes.areas`; a new area keeps its selection under its real id; Discard, the unsaved-changes warning and the dirty flag cover areas.
+- [x] Rows behave exactly as before.
+
+**Verification:** done 31 Oct — Hoot `layout_edit.test.js` (palette, `newArea`, `areaProblems`, `resizeArea`, `diffAreas`) and tour `warehouse_3d_editor_areas` (add from the palette, drag, east-handle resize, rename/recolour, save and check the server row, overlap with P05 refused, delete and check). Full run `0 failed, 0 error(s) of 151 tests` (was 150), 90 Hoot (was 75). *Not covered by a test:* the HTML5 drop of a palette item (the tour uses the click path; the drop handler only converts the mouse position to plan metres with `toPlan`, which is tested), keyboard nudging of areas, the colour picker UI itself.
+**Dependencies:** T16, T12
+**Files:** `static/src/editor/layout_edit.js`, `static/src/editor/editor_action.js`, `.xml`, `.scss`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
+**Scope:** M
 ### T18: Dock doors on all four walls + 3D colours, labels, side-wall frames *(not started)*
 ### T19: Demo colours, wrap-up, README, intent doc *(not started)*
