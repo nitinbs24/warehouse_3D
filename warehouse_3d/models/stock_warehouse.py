@@ -33,6 +33,27 @@ class StockWarehouse(models.Model):
         with_rows = warehouses.filtered(lambda w: w in rows.warehouse_id)
         return (with_rows or warehouses)[:1].id
 
+    @api.model
+    def wh3d_list_warehouses(self):
+        """The warehouses the user may open in the 3D view and the editor: [{id, name, code, row_count}]."""
+        warehouses = self.search([])  # the usual warehouse order; company rules apply
+        counts = dict(self.env['warehouse.rack.row']._read_group(
+            [('warehouse_id', 'in', warehouses.ids)], ['warehouse_id'], ['__count']))
+        return [{'id': w.id, 'name': w.name, 'code': w.code, 'row_count': counts.get(w, 0)} for w in warehouses]
+
+    def action_wh3d_open_view3d(self):
+        return self._wh3d_open('warehouse_3d.action_wh3d_view3d')
+
+    def action_wh3d_open_editor(self):
+        return self._wh3d_open('warehouse_3d.action_wh3d_editor')
+
+    def _wh3d_open(self, xmlid):
+        """One of our client actions, told (through its context) which warehouse to show."""
+        self.ensure_one()
+        action = self.env['ir.actions.actions']._for_xml_id(xmlid)
+        action['context'] = {'warehouse_id': self.id}
+        return action
+
     def wh3d_get_layout(self):
         """The floor plan: building size, areas and rack rows (what the 2D editor needs)."""
         self.ensure_one()

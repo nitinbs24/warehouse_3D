@@ -968,3 +968,34 @@ give every area its own height: `areaLifts` ranks areas by size, biggest lowest,
 **Why a cap.** Dock pads are 6 cm tall. Four ranks would put a stack's top at 6.2 cm, above a pad, so the
 lift stops at 3 steps (top 5.2 cm); areas nested more than four deep share the top level. The limit is
 written next to the code in the `shortcut:` comment, as the project does for known limits.
+
+## T20: Listing warehouses, and buttons on the warehouse form
+
+Files: `models/stock_warehouse.py`, `views/warehouse_layout_area_views.xml`, `tests/test_warehouse_list.py`.
+
+**The layout was already per warehouse; only the way to *choose* one was missing.** Rows, areas, doors and
+the building size all carry `warehouse_id`, and `wh3d_get_layout` / `wh3d_get_scene` take any warehouse. So
+this task adds no data: just one list for the dropdown and two ways in from the warehouse form.
+
+**`wh3d_list_warehouses`: one search, one grouped count.** `search([])` returns the warehouses in Odoo's
+usual order (`sequence, id`) and applies the multi-company record rule, so a user never sees another
+company's warehouse and we write no access code. The row counts come from one `_read_group` on
+`warehouse.rack.row` (key = the warehouse record), so the number of queries stays fixed however many
+warehouses or rows exist (a test checks it, like the scene query-count test).
+
+**Buttons that open a client action with a warehouse.** A `type="object"` button calls a Python method that
+returns an action. `_for_xml_id('warehouse_3d.action_wh3d_view3d')` loads our existing client action as a
+dict and we set its `context` to `{'warehouse_id': id}`. Both screens already read
+`context.warehouse_id`, so nothing else had to change. `ensure_one()` makes a button on several selected
+records an error instead of silently opening the first.
+
+**Where the buttons live.** Odoo's warehouse form already has a `button_box` div, so an xpath puts two
+`oe_stat_button`s inside it. `invisible="not id"` hides them on an unsaved warehouse (there is nothing to
+open yet); `groups="stock.group_stock_manager"` on the editor button matches the menu, since only managers
+may edit a layout. The test reads the processed form arch per user, which shows Odoo dropping the
+manager-only button for a plain stock user.
+
+**Two mistakes in the tests worth remembering.** An empty recordset is falsy, so `warehouses or
+self.Warehouse` quietly replaced the test user's environment with the admin's and the "other company"
+test saw everything. And `new_test_user` gives a user all companies unless told otherwise; the test now
+sets `company_ids` explicitly.

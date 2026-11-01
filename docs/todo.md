@@ -410,3 +410,25 @@ Intent (agreed in an interview, 31 Oct): a manager drags area types from a palet
 **Dependencies:** T16–T18
 **Files:** `demo/layout.xml`, `tests/test_template.py`, `tests/test_layout_save.py`, `README.md`, `docs/intent/warehouse-builder.md`, `docs/todo.md`, `docs/notes.md`
 **Scope:** S
+
+## Phase 6 — Choosing the warehouse *(added 1 Nov: every warehouse reachable in the 3D view and the Layout Editor)*
+
+Intent (agreed in an interview, 1 Nov): both screens opened only one warehouse (the first with rack rows), so a second warehouse could never be given a layout. Each warehouse keeps its own layout; no new data model. A dropdown at the top of both screens (shown only with more than one warehouse, remembers the last choice, in the editor reuses the unsaved-changes warning), "3D View" and "Layout Editor" buttons on the warehouse form, and a friendly empty state. Out of scope: a landing page of cards, copying a layout between warehouses, editing the building size in the editor, per-warehouse permissions. Plan: one phase per turn, tests with each phase.
+
+### T20: Server — warehouse list and the warehouse-form buttons
+**Description:** The data the dropdown needs, and the second way in: buttons on Configuration ▸ Warehouses ▸ a warehouse.
+
+**Acceptance criteria:**
+- [x] `stock.warehouse.wh3d_list_warehouses()` returns `[{id, name, code, row_count}]` for the warehouses the user may see, in the usual warehouse order, with row counts from one grouped query; archived warehouses and other companies' warehouses (for users without access) are left out.
+- [x] `action_wh3d_open_view3d` / `action_wh3d_open_editor` return the 3D view / editor client action with `context.warehouse_id` set; one warehouse at a time.
+- [x] The warehouse form shows "3D View" and "Layout Editor" buttons (stat buttons); the editor one only for Inventory managers; both hidden on a new record.
+- [x] `wh3d_get_layout` is unchanged (its key set is asserted by `test_scene_data`).
+
+**Verification:** done 1 Nov — `tests/test_warehouse_list.py` (9 tests): counts and names, a warehouse with no rows, order, archived, other company (user with one company vs. both allowed), fixed query count as warehouses and rows grow, both button actions, `ensure_one`, and the form's arch for a manager (both buttons) and a stock user (3D only). Full run `0 failed, 0 error(s) of 164 tests` (was 155), 108 Hoot. *Not covered by a test:* clicking the buttons in the browser (T23's tour does that), `invisible="not id"` on a new record.
+**Dependencies:** T12
+**Files:** `models/stock_warehouse.py`, `views/warehouse_layout_area_views.xml`, `tests/test_warehouse_list.py`, `tests/__init__.py`
+**Scope:** S
+
+### T21: Shared picker, editor switching, editor empty state *(not started)*
+### T22: 3D view switching and empty state *(not started)*
+### T23: Smart-button tour, wrap-up, README, intent doc *(not started)*

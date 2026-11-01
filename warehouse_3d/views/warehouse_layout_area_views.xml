@@ -33,6 +33,12 @@
         <field name="inherit_id" ref="stock.view_warehouse"/>
         <field name="arch" type="xml">
             <!-- Before the notebook: its tabs are hidden unless multi-step routes or several warehouses are on. -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_wh3d_open_view3d" type="object" class="oe_stat_button" icon="fa-cube"
+                        string="3D View" invisible="not id"/>
+                <button name="action_wh3d_open_editor" type="object" class="oe_stat_button" icon="fa-th-large"
+                        string="Layout Editor" invisible="not id" groups="stock.group_stock_manager"/>
+            </xpath>
             <xpath expr="//notebook" position="before">
                 <group string="3D Layout" name="wh3d_layout">
                     <group>
