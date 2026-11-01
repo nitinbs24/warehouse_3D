@@ -429,6 +429,31 @@ Intent (agreed in an interview, 1 Nov): both screens opened only one warehouse (
 **Files:** `models/stock_warehouse.py`, `views/warehouse_layout_area_views.xml`, `tests/test_warehouse_list.py`, `tests/__init__.py`
 **Scope:** S
 
-### T21: Shared picker, editor switching, editor empty state *(not started)*
-### T22: 3D view switching and empty state *(not started)*
+### T21: Shared picker, editor switching, editor empty state
+**Description:** Pick the warehouse in the Layout Editor, remember the choice, and give a warehouse with no layout a friendly start.
+
+**Acceptance criteria:**
+- [x] `static/src/common/warehouse_picker.js`: `pickWarehouseId` (action context first, then the remembered id if it is still in the list, else the default), remembered in `localStorage` under `warehouse_3d.warehouse_id` (never throws if storage is blocked), and a `WarehousePicker` dropdown shown only when more than one warehouse exists.
+- [x] The editor opens the picked warehouse, shows the dropdown first in its toolbar, and switches with the unsaved-changes warning: Cancel keeps the edit, the warehouse, the selection and the dropdown value; a switch resets selection, temporary ids, zoom and drags.
+- [x] A warehouse with no rows and no areas shows "No layout yet…" in the Floor card and a "Set building size" button that opens the warehouse form.
+- [x] Existing editor screens and tours behave as before.
+
+**Verification:** done 1 Nov — Hoot `warehouse_picker.test.js` (7 tests): context wins, stored id used, stale id falls back, default when nothing is stored; the stored id round-trips as a number, garbage in storage is ignored, unavailable storage doesn't throw. Tour `warehouse_3d_editor_switch`: the default warehouse's row shows; switch to another warehouse shows its row and not the first's; an edit then a switch asks first, Cancel keeps both the edit and the warehouse and the dropdown snaps back; after Discard the switch works; an empty warehouse shows the hint and the button opens its form. Full run `0 failed, 0 error(s) of 165 tests` (was 164), 115 Hoot (was 108). *Not covered by a test:* that the choice is remembered between visits (only the helpers are tested; both screens will share it from T22), the dropdown with a single warehouse (hidden by `t-if`; existing tours run with several), keyboard use of the dropdown.
+**Dependencies:** T20
+**Files:** `static/src/common/warehouse_picker.js`, `.xml`, `static/src/editor/editor_action.js`, `.xml`, `.scss`, `__manifest__.py`, `static/tests/warehouse_picker.test.js`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
+**Scope:** M
+### T22: 3D view switching and empty state
+**Description:** The 3D view gets the same warehouse dropdown as the editor, a useful empty state, and no crash when there is no warehouse at all.
+
+**Acceptance criteria:**
+- [x] The 3D view picks its warehouse like the editor (action context, then the remembered choice, then the default) and shows the dropdown first in its toolbar when there is more than one warehouse.
+- [x] Switching loads the new scene first, then frees the old one (WebGL memory), stops walking, clears selection and Find, drops pending live-update ids, and keeps the user's Stock / Occupancy / Labels toggles. A switch never re-flies to a slot from an old "View in 3D" context.
+- [x] A warehouse with no rack rows says "No rack rows in <name> yet." with an "Open Layout Editor" button for Inventory managers (others are told to ask a manager); the editor opens that warehouse.
+- [x] No warehouse at all (all archived): a message instead of a crash.
+- [x] The choice is shared with the editor.
+
+**Verification:** done 1 Nov — tour `warehouse_3d_view3d_switch`: walk, then switch to a warehouse with two rows (2 rows shown, back to orbit, exactly one canvas with a WebGL context), switch to an empty warehouse (the new text; its button opens the editor on it), then open the 3D view again from the menu and see the empty warehouse (remembered). Existing 3D tours stay green. Full run `0 failed, 0 error(s) of 166 tests` (was 165), 115 Hoot. *Not covered by a test:* the stock-user wording (the tour runs as admin, who is a manager), the "no warehouse" message, live updates after a switch (only the old ids' removal is by design; the filter `fetchSlots` already ignores other warehouses' ids).
+**Dependencies:** T20, T21
+**Files:** `static/src/view3d/view3d_action.js`, `.xml`, `.scss`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
+**Scope:** M
 ### T23: Smart-button tour, wrap-up, README, intent doc *(not started)*

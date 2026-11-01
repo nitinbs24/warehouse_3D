@@ -999,3 +999,75 @@ manager-only button for a plain stock user.
 self.Warehouse` quietly replaced the test user's environment with the admin's and the "other company"
 test saw everything. And `new_test_user` gives a user all companies unless told otherwise; the test now
 sets `company_ids` explicitly.
+
+## T21: The warehouse dropdown and switching in the editor
+
+Files: `static/src/common/warehouse_picker.js`, `.xml`, `static/src/editor/editor_action.js`, `.xml`, `.scss`,
+`__manifest__.py`, `static/tests/warehouse_picker.test.js`, `static/tests/tours/view3d_tour.js`.
+
+**One shared folder for what both screens use.** The 3D view will need the same dropdown (T22), so the
+picker lives in `static/src/common/` and the manifest's backend assets gained that folder. A new folder
+under `static/src` is not picked up automatically: assets are listed by glob in `__manifest__.py`.
+
+**Which warehouse opens: context, then memory, then default.** `pickWarehouseId` is a plain function so
+it is unit-tested without a browser. The context id comes first because it is an explicit request (the
+button on the warehouse form). The remembered id is used only if it is still in the list the server
+returned, which is how an archived warehouse or one from another company falls back to the default
+instead of failing to load.
+
+**Remembering = `browser.localStorage`.** Odoo's `browser` object (`@web/core/browser/browser`) wraps
+`window` so tests can replace it. Reads and writes sit in `try/catch` because storage throws in some
+private windows; the choice just isn't remembered then. One key serves both screens.
+
+**A dropdown that can say no.** An OWL component can't stop a `<select>` from changing: by the time
+`change` fires, the browser has already shown the new value. The picker calls `onChange(id)` and expects
+(a promise of) `true` or `false`; on `false` it puts the old value back. The editor returns `false` when
+the user cancels the discard dialog, which reuses `confirmLeave()` (the same dialog as leaving the screen).
+After a successful switch the new value is already what the user chose, so nothing needs resetting.
+
+**A switch is `load()` plus the state `load()` doesn't own.** `load()` already replaces rows, areas and
+the grid. Selection, the temporary-id counter, the "user zoomed" flag, drag state and the fitted view
+belong to the screen, so `switchWarehouse` resets them too. Without the id counter reset, new rows in the
+second warehouse would continue the first one's negative ids; harmless, but surprising.
+
+**Empty state, not empty screen.** The editor already works with no rows (palette, "Add row"), so the
+only gap was telling a first-time user what to do. The Floor card says so and offers a button to the
+warehouse form, where the building size lives. Leaving for the form goes through the normal
+`beforeLeave` check, so unsaved edits still ask first.
+
+**A test lesson.** An `<option>` inside a closed `<select>` counts as *not visible* to the tour engine,
+so the step that only wanted to know "is Second in the list?" timed out. Checking the select with
+`:has(option:contains(Second))` passes.
+
+## T22: Switching warehouses in the 3D view
+
+Files: `static/src/view3d/view3d_action.js`, `.xml`, `.scss`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`.
+
+**Load first, then replace.** `switchWarehouse` fetches the new scene before touching the old one. If the
+fetch fails the user still has a working view; if it succeeds the old scene is freed with `dispose()`
+(browsers allow only about 16 live WebGL contexts and never garbage-collect them for you), the data
+maps are rebuilt by `setScene`, and a new `WarehouseScene` is created on the same canvas container.
+`setScene` is also what the first load uses, so there is one way to install a scene.
+
+**What belongs to the old warehouse and has to go.** The selected slot index, the Find text and its
+error, walk mode and the pending live-update ids all refer to the old scene. Selection and Find are
+reset in `state`; walking is stopped through `exitWalk()` before the dispose; the `UpdateQueue` is
+`stop()`ped (which clears its pending ids) and started again. The bus subscription itself stays: the
+channel is shared, and `fetchSlots` already ignores location ids that are not in the current warehouse.
+
+**What belongs to the user and has to stay.** The Stock, Occupancy and Labels toggles are state on the
+screen, but the *scene* starts with its own defaults. `start()` now applies the three toggles to every
+new scene, so switching doesn't silently turn Occupancy colouring off.
+
+**`start({focus})`.** "View in 3D" from the editor passes a slot to fly to, once, in the action context.
+Applying it again on a switch would fly to a row that isn't in the new warehouse (or, worse, to a
+different slot with the same bay numbers), so only the first start applies it.
+
+**`user` is not a service in Odoo 19.** `useService("user")` throws "Service user is not available" and,
+because it happens in `setup()`, it broke every screen that opens the 3D view (nine tours failed). The user
+is a plain export, `import { user } from "@web/core/user"`, and `user.hasGroup(...)` returns a promise.
+It is used to show "Open Layout Editor" only to Inventory managers; the editor menu is manager-only too.
+
+**No warehouse at all.** `wh3d_default_warehouse_id` returns `False` when every warehouse is archived,
+and `wh3d_get_scene([[0]])` would fail. `loadScene(0)` returns an empty building and sets an error
+message, which the existing `.o_wh3d_fallback` box displays.

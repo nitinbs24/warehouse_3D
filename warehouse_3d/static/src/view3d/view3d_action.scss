@@ -123,6 +123,15 @@ $wh3d-stripe: #d3d9df;
         outline-offset: 2px;
     }
 
+    .o_wh3d_picker {
+        width: auto;
+    }
+
+    .o_wh3d_empty button {
+        display: block;
+        margin: 10px auto 0;
+    }
+
     .o_wh3d_fallback,
     .o_wh3d_empty {
         position: absolute;

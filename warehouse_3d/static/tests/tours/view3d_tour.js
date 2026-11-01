@@ -554,6 +554,98 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_areas", {
     ],
 });
 
+/** Choose a warehouse by name in the dropdown, as a user would. */
+function pickWarehouse(name) {
+    return {
+        content: `Choose warehouse ${name}`,
+        trigger: ".o_wh3d_picker",
+        run() {
+            const option = [...this.anchor.options].find((o) => o.textContent.trim() === name);
+            this.anchor.value = option.value;
+            this.anchor.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+    };
+}
+
+// Switching warehouses in the editor: each keeps its own layout, an unsaved edit asks before it is lost
+// (and Cancel keeps both the edit and the warehouse), an empty warehouse shows the first-steps hint.
+registry.category("web_tour.tours").add("warehouse_3d_editor_switch", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        // 1. The default warehouse shows its row; the dropdown lists the others.
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05']" },
+        { trigger: ".o_wh3d_picker:has(option:contains(Second))" }, // the option itself counts as hidden in a closed select
+        // 2. Switch: the other warehouse's row, not this one's.
+        pickWarehouse("Second"),
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P09']" },
+        { trigger: ".o_wh3d_editor:not(:has(.o_wh3d_row[data-code='P05']))" },
+        // 3. Edit, then try to switch back: asked first; Cancel keeps the edit and the warehouse.
+        clickSvgRow("P09"),
+        setField("x", 12),
+        { trigger: ".o_wh3d_editor[data-dirty='1']" },
+        pickWarehouse("YourCompany"),
+        { trigger: ".modal:contains(Discard layout changes?) button:contains(Cancel)", run: "click" },
+        { trigger: ".o_wh3d_editor[data-dirty='1'] svg .o_wh3d_row[data-code='P09']" },
+        {
+            content: "The dropdown snapped back to the warehouse still shown",
+            trigger: ".o_wh3d_picker",
+            run() {
+                const shown = this.anchor.options[this.anchor.selectedIndex].textContent.trim();
+                if (shown !== "Second") {
+                    throw new Error(`dropdown shows ${shown}, expected Second`);
+                }
+            },
+        },
+        // 4. Discard, then switch freely.
+        { trigger: ".o_wh3d_savebar button[name='discard']", run: "click" },
+        pickWarehouse("YourCompany"),
+        { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_row[data-code='P05']" },
+        // 5. A warehouse with no layout: the hint, and a way to the form to set the building size.
+        pickWarehouse("Empty"),
+        { trigger: ".o_wh3d_editor .o_wh3d_empty_layout:contains(No layout yet)" },
+        { trigger: ".o_wh3d_editor:not(:has(.o_wh3d_row))" },
+        { trigger: ".o_wh3d_editor button[name='set_building_size']", run: "click" },
+        { trigger: ".o_form_view .o_field_widget[name='name'] input:value(Empty)" },
+    ],
+});
+
+// Switching warehouses in the 3D view: each shows its own racks, the old scene is freed (one canvas),
+// walking stops, an empty warehouse says so and links to the editor, and the choice is remembered.
+registry.category("web_tour.tours").add("warehouse_3d_view3d_switch", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openView3d(),
+        { trigger: ".o_wh3d_picker:has(option:contains(Second))" },
+        // 1. Walk, then switch: the other warehouse's two rows, a single fresh canvas, no walking.
+        { trigger: ".o_wh3d_toolbar button[name='walk']", run: "click" },
+        { trigger: ".o_wh3d_view[data-mode='walk']" },
+        pickWarehouse("Second"),
+        {
+            content: "The second warehouse's scene replaced the first, on one canvas",
+            trigger: ".o_wh3d_view[data-row-count='2'][data-mode='orbit'] .o_wh3d_canvas canvas",
+            run() {
+                const canvases = document.querySelectorAll(".o_wh3d_canvas canvas");
+                if (canvases.length !== 1) {
+                    throw new Error(`Expected one canvas after switching, found ${canvases.length}`);
+                }
+                if (!canvases[0].getContext("webgl2") && !canvases[0].getContext("webgl")) {
+                    throw new Error("canvas has no WebGL context after switching");
+                }
+            },
+        },
+        // 2. A warehouse with no layout: it says so and offers the editor.
+        pickWarehouse("Empty"),
+        { trigger: ".o_wh3d_view[data-row-count='0'] .o_wh3d_empty:contains(No rack rows in Empty)" },
+        { trigger: ".o_wh3d_empty button[name='open_editor']", run: "click" },
+        { trigger: ".o_wh3d_editor .o_wh3d_empty_layout:contains(No layout yet)" },
+        // 3. The choice is remembered: the 3D view opens the warehouse looked at last.
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".o_wh3d_view[data-row-count='0'] .o_wh3d_empty:contains(No rack rows in Empty)" },
+    ],
+});
+
 // Dock doors: add from the palette, drag across the floor to another wall, change the opening, save,
 // see it in 3D, delete.
 registry.category("web_tour.tours").add("warehouse_3d_editor_docks", {

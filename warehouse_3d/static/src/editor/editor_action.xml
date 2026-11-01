@@ -59,6 +59,7 @@
                     </g>
                 </svg>
                 <div class="o_wh3d_editor_toolbar">
+                    <WarehousePicker warehouses="warehouses" value="state.warehouseId" onChange.bind="switchWarehouse"/>
                     <button type="button" class="btn btn-light btn-sm" name="add_pallet" t-on-click="() => this.addRow('pallet')">
                         <i class="fa fa-plus" aria-hidden="true"/> Pallet row
                     </button>
@@ -178,6 +179,13 @@
                         Building <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m ·
                         <t t-esc="state.rows.length"/> rack rows · <t t-esc="areaCount"/> areas · <t t-esc="dockCount"/> docks
                     </p>
+                    <t t-if="isEmpty">
+                        <p class="o_wh3d_note o_wh3d_empty_layout">
+                            No layout yet. Add rows with the buttons above the plan, and areas and dock doors from the palette.
+                            If the building is not <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m, set its size first.
+                        </p>
+                        <button type="button" class="btn btn-secondary btn-sm" name="set_building_size" t-on-click="openWarehouseForm">Set building size</button>
+                    </t>
                 </section>
             </aside>
         </div>

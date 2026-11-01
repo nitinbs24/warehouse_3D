@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="warehouse_3d.WarehousePicker">
+        <select t-if="props.warehouses.length &gt; 1" name="warehouse" class="form-select form-select-sm o_wh3d_picker"
+                aria-label="Warehouse" t-on-change="onSelect">
+            <option t-foreach="props.warehouses" t-as="w" t-key="w.id" t-att-value="w.id"
+                    t-att-selected="w.id === props.value" t-esc="w.name"/>
+        </select>
+    </t>
+</templates>

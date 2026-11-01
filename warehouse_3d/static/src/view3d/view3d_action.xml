@@ -7,6 +7,7 @@
                 <!-- Three.js owns this element's children, so OWL renders nothing inside it. -->
                 <div class="o_wh3d_canvas" t-ref="canvas"/>
                 <div class="o_wh3d_toolbar">
+                    <WarehousePicker warehouses="warehouses" value="state.warehouseId" onChange.bind="switchWarehouse"/>
                     <div class="o_wh3d_seg" role="group" aria-label="Camera view">
                         <button type="button" name="view_3d" t-att-aria-pressed="state.view === '3d' ? 'true' : 'false'"
                                 t-on-click="() => this.setView('3d')">3D</button>
@@ -33,7 +34,9 @@
                 </div>
                 <div t-if="state.error" class="o_wh3d_fallback" role="alert" t-esc="state.error"/>
                 <div t-elif="!state.rowCount" class="o_wh3d_empty" role="status">
-                    No rack rows yet. Add some in Inventory ▸ Configuration ▸ Warehouse 3D ▸ Rack Rows.
+                    No rack rows in <t t-esc="warehouseName"/> yet.
+                    <button t-if="canEdit" type="button" class="btn btn-primary btn-sm" name="open_editor" t-on-click="openEditor">Open Layout Editor</button>
+                    <t t-else="">Ask an Inventory manager to lay it out in the Layout Editor.</t>
                 </div>
                 <p t-if="state.walking" class="o_wh3d_hint o_wh3d_hint_walk">W A S D or arrows to walk · Shift to hurry · drag to look around · Esc to stop walking</p>
                 <p t-else="" class="o_wh3d_hint">Drag to orbit · scroll to zoom · right-drag to pan · click a slot</p>

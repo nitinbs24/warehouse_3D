@@ -16,6 +16,12 @@ import {
     zoomAt,
 } from "@warehouse_3d/editor/geometry";
 import {
+    WarehousePicker,
+    pickWarehouseId,
+    readStoredWarehouseId,
+    storeWarehouseId,
+} from "@warehouse_3d/common/warehouse_picker";
+import {
     AREA_TYPES,
     areaProblems,
     diffAreas,
@@ -46,6 +52,7 @@ const EDGES = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s:
  */
 export class LayoutEditor extends Component {
     static template = "warehouse_3d.LayoutEditor";
+    static components = { WarehousePicker };
     static props = { ...standardActionServiceProps };
 
     setup() {
@@ -54,7 +61,7 @@ export class LayoutEditor extends Component {
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.planRef = useRef("plan");
-        this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false });
+        this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false, warehouseId: 0 });
         this.areaTypes = AREA_TYPES;
         this.drag = null; // panning the floor
         this.itemDrag = null; // moving a row or an area
@@ -62,12 +69,15 @@ export class LayoutEditor extends Component {
         this.userMoved = false; // once the user zooms or pans, resizing no longer refits
         this.nextTmpId = -1; // unsaved rows and areas get negative ids
         onWillStart(async () => {
-            let warehouseId = this.props.action.context?.warehouse_id;
-            if (!warehouseId) {
+            const [warehouses, defaultId] = await Promise.all([
+                this.orm.call("stock.warehouse", "wh3d_list_warehouses", []),
                 // The first warehouse with a rack layout (e.g. the template "Warehaven DC"), else the first one.
-                warehouseId = await this.orm.call("stock.warehouse", "wh3d_default_warehouse_id", []);
-            }
-            this.load(await this.orm.call("stock.warehouse", "wh3d_get_layout", [[warehouseId]]));
+                this.orm.call("stock.warehouse", "wh3d_default_warehouse_id", []),
+            ]);
+            this.warehouses = warehouses;
+            await this.openWarehouse(pickWarehouseId({
+                contextId: this.props.action.context?.warehouse_id, storedId: readStoredWarehouseId(), warehouses, defaultId,
+            }));
         });
         onMounted(() => {
             this.resizeObserver = new ResizeObserver(() => !this.userMoved && this.fit());
@@ -84,6 +94,30 @@ export class LayoutEditor extends Component {
                 }
             },
         });
+    }
+
+    /** Load a warehouse's floor plan and remember the choice for the next visit. */
+    async openWarehouse(id) {
+        this.load(await this.orm.call("stock.warehouse", "wh3d_get_layout", [[id]]));
+        this.state.warehouseId = id;
+        storeWarehouseId(id);
+    }
+
+    /** The dropdown's choice. True when switched; false when the user kept their unsaved edits instead. */
+    async switchWarehouse(id) {
+        if (id === this.state.warehouseId) {
+            return true;
+        }
+        if (!(await this.confirmLeave())) {
+            return false;
+        }
+        await this.openWarehouse(id);
+        this.clearSelection();
+        this.nextTmpId = -1;
+        this.drag = this.itemDrag = this.resizeDrag = null;
+        this.userMoved = false;
+        this.fit();
+        return true;
     }
 
     load(layout) {
@@ -505,6 +539,20 @@ export class LayoutEditor extends Component {
                 focus_position: slot.position,
             },
         });
+    }
+
+    /** The warehouse form, where the building size is set. Leaving asks first if there are unsaved edits. */
+    openWarehouseForm() {
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: "stock.warehouse",
+            res_id: this.layout.warehouse_id,
+            views: [[false, "form"]],
+        });
+    }
+
+    get isEmpty() {
+        return !this.state.rows.length && !this.state.areas.length;
     }
 
     openRowForm() {

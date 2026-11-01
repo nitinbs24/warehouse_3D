@@ -21,6 +21,7 @@
     ],
     'assets': {
         'web.assets_backend': [
+            'warehouse_3d/static/src/common/**/*',
             'warehouse_3d/static/src/view3d/**/*',
             'warehouse_3d/static/src/editor/**/*',
         ],

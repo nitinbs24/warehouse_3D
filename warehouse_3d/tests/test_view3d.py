@@ -90,6 +90,26 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_editor_docks', login='admin')
 
 
+    def test_editor_switch_warehouse_discard_and_empty_state(self):
+        first = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, first, create_zone(self.env, first))                      # P05
+        second = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        create_p05(self.env, second, code='P09', x=5.0)
+        self.env['stock.warehouse'].create({'name': 'Empty', 'code': 'WH3'})           # no layout at all
+        self.start_tour('/odoo', 'warehouse_3d_editor_switch', login='admin')
+
+
+    def test_view3d_switch_warehouse_empty_state_and_memory(self):
+        first = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, first, create_zone(self.env, first))                      # 1 row
+        second = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        zone = create_zone(self.env, second)
+        create_p05(self.env, second, zone, code='P09', x=5.0)                          # 2 rows
+        create_p05(self.env, second, zone, code='P10', x=15.0)
+        self.env['stock.warehouse'].create({'name': 'Empty', 'code': 'WH3'})           # no layout at all
+        self.start_tour('/odoo', 'warehouse_3d_view3d_switch', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""

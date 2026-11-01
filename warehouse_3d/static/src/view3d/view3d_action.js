@@ -2,8 +2,15 @@ import { Component, onMounted, onWillDestroy, onWillStart, onWillUnmount, useRef
 import { loadJS } from "@web/core/assets";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
+import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
 import { standardActionServiceProps } from "@web/webclient/actions/action_service";
+import {
+    WarehousePicker,
+    pickWarehouseId,
+    readStoredWarehouseId,
+    storeWarehouseId,
+} from "@warehouse_3d/common/warehouse_picker";
 import { slotBox } from "@warehouse_3d/view3d/layout";
 import { UpdateQueue } from "@warehouse_3d/view3d/live";
 import {
@@ -25,6 +32,7 @@ const LIB = "/warehouse_3d/static/lib/three/";
  */
 export class View3D extends Component {
     static template = "warehouse_3d.View3D";
+    static components = { WarehousePicker };
     static props = { ...standardActionServiceProps };
 
     setup() {
@@ -37,6 +45,7 @@ export class View3D extends Component {
         this.state = useState({
             error: "", rowCount: 0, view: "3d", labels: true, stock: true, occupancy: false,
             selected: -1, find: "", findError: "", summary: null, legend: null, updates: 0, walking: false,
+            warehouseId: 0,
         });
         // Listen *before* loading the scene: a stock change committed while Three.js and the scene
         // load is queued and applied once the scene is ready, instead of being missed.
@@ -50,13 +59,19 @@ export class View3D extends Component {
         this.busService.subscribe("warehouse_3d/stock", this.onStockChanged);
         this.busService.start();
         onWillStart(async () => {
-            const [scene] = await Promise.all([this.loadScene(), this.loadThree()]);
-            this.data = scene;
-            this.slotByCode = new Map(scene.slots.map((s, i) => [s.code, i]));
-            this.slotByLocation = new Map(scene.slots.map((s, i) => [s.location_id, i]));
-            this.rowsById = Object.fromEntries(scene.rows.map((r) => [r.id, r]));
-            this.state.rowCount = scene.rows.length;
-            this.refreshStats();
+            const [warehouses, defaultId, canEdit] = await Promise.all([
+                this.orm.call("stock.warehouse", "wh3d_list_warehouses", []),
+                // The first warehouse with a rack layout (e.g. the template "Warehaven DC"), else the first one.
+                this.orm.call("stock.warehouse", "wh3d_default_warehouse_id", []),
+                user.hasGroup("stock.group_stock_manager"),
+            ]);
+            this.warehouses = warehouses;
+            this.canEdit = canEdit; // only managers may open the layout editor
+            const id = pickWarehouseId({
+                contextId: this.props.action.context?.warehouse_id, storedId: readStoredWarehouseId(), warehouses, defaultId,
+            });
+            const [scene] = await Promise.all([this.loadScene(id), this.loadThree()]);
+            this.setScene(id, scene);
         });
         onMounted(() => {
             this.start();
@@ -78,22 +93,73 @@ export class View3D extends Component {
         await loadJS(LIB + "OrbitControls.js"); // extends window.THREE, so it must come second
     }
 
-    async loadScene() {
-        let warehouseId = this.props.action.context?.warehouse_id;
-        if (!warehouseId) {
-            // The first warehouse with a rack layout (e.g. the template "Warehaven DC"), else the first one.
-            warehouseId = await this.orm.call("stock.warehouse", "wh3d_default_warehouse_id", []);
+    async loadScene(id) {
+        if (!id) {
+            // No warehouse at all (all archived): an empty building, and a message instead of a crash.
+            this.state.error = _t("There is no warehouse yet. Create one in Inventory ▸ Configuration ▸ Warehouses.");
+            return { warehouse_id: 0, name: "", building: { length: 60, width: 40, height: 10 }, areas: [], rows: [], slots: [] };
         }
-        return this.orm.call("stock.warehouse", "wh3d_get_scene", [[warehouseId]]);
+        return this.orm.call("stock.warehouse", "wh3d_get_scene", [[id]]);
     }
 
-    start() {
+    /** Make ``scene`` (a wh3d_get_scene reply for warehouse ``id``) the data the view works on. */
+    setScene(id, scene) {
+        this.data = scene;
+        this.slotByCode = new Map(scene.slots.map((s, i) => [s.code, i]));
+        this.slotByLocation = new Map(scene.slots.map((s, i) => [s.location_id, i]));
+        this.rowsById = Object.fromEntries(scene.rows.map((r) => [r.id, r]));
+        this.state.rowCount = scene.rows.length;
+        this.state.warehouseId = id;
+        if (id) {
+            storeWarehouseId(id);
+        }
+        this.refreshStats();
+    }
+
+    /**
+     * The dropdown's choice. Loads first, so a failed load leaves the old scene on screen; then frees the old
+     * scene (WebGL memory), forgets what was selected, searched or walked, and drops live-update ids that belong
+     * to the old warehouse. True when switched.
+     */
+    async switchWarehouse(id) {
+        if (id === this.state.warehouseId) {
+            return true;
+        }
+        const scene = await this.loadScene(id);
+        this.scene?.exitWalk();
+        this.scene?.dispose();
+        this.scene = null;
+        Object.assign(this.state, { selected: -1, find: "", findError: "", walking: false, view: "3d", error: "" });
+        this.setScene(id, scene);
+        this.updates.stop();
+        this.updates.start();
+        this.start({ focus: false });
+        return true;
+    }
+
+    get warehouseName() {
+        return this.data.name;
+    }
+
+    openEditor() {
+        this.action.doAction("warehouse_3d.action_wh3d_editor", {
+            additionalContext: { warehouse_id: this.state.warehouseId },
+        });
+    }
+
+    start({ focus = true } = {}) {
         try {
             this.scene = new WarehouseScene(this.canvasRef.el, this.data, {
                 onSelect: (index) => (this.state.selected = index),
                 onWalk: (pose) => this.onWalk(pose),
             });
-            this.focusFromContext();
+            // A new scene starts with the defaults; carry over what the user switched on or off.
+            this.scene.setLabelsVisible(this.state.labels);
+            this.scene.setStockVisible(this.state.stock);
+            this.scene.setColourByOccupancy(this.state.occupancy);
+            if (focus) {
+                this.focusFromContext();
+            }
         } catch {
             this.state.error = _t("The 3D view needs WebGL, which this browser has turned off.");
         }
