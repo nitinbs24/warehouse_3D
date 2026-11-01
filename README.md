@@ -13,12 +13,20 @@ The working, planning and notes are available within docs.
 | **Warehouse 3D ▸ 3D View** | Three.js view of the warehouse: racks, shelves, areas, docks, one box per stocked slot. 3D / Top cameras, **Walk** (first person at eye height, WASD + mouse drag), **Colour by occupancy** (green < 50 %, amber 50–90 %, red > 90 %), click or **Find** a slot to see its contents, **Open in Inventory**. Live: stock moved anywhere in Inventory appears without reloading. |
 | **Warehouse 3D ▸ Layout Editor** (managers) | The warehouse builder: a top-down plan. Drag rows (0.1 m snap), edit their sizes, add pallet/shelf rows, delete. Drag **areas** (Receiving, Put-away, Packing, Dispatch staging, Charging, Office, Returns, Quarantine, Custom) from the *Add area* palette, move and resize them, pick their colour. Add **dock doors**: they snap to the nearest of the four walls. Overlaps and walls show red at once. **Save** applies everything (rows, areas, doors) or nothing. |
 | **Configuration ▸ Warehouse 3D ▸ Rack Rows / Layout Areas** | The same data as ordinary Odoo lists and forms. |
-| **Configuration ▸ Warehouses ▸ (a warehouse)** | Building length / width / height ("3D Layout"). |
+| **Configuration ▸ Warehouses ▸ (a warehouse)** | Building length / width / height ("3D Layout"), and **3D View** / **Layout Editor** buttons (the editor one for managers) that open that warehouse. |
 | **Products ▸ (a product) ▸ Inventory tab** | Dimensions L × W × H (m) and ABC class. |
 
 One **rack row** record (code, position, bays, levels, …) generates the 3D geometry *and* its
 Inventory locations, e.g. `WHV/Stock/PR/P05/P05-03/P05-03-2/P05-03-2-A`. Changing the row renames,
 adds or archives its locations — and refuses any change that would remove a location holding stock.
+
+**Several warehouses.** Every rack row, area and door belongs to one warehouse, and each warehouse has its own
+building size and layout. With more than one warehouse, the 3D view and the Layout Editor show a **warehouse
+dropdown** in their toolbar (hidden with a single warehouse). Each screen opens, in this order: the warehouse
+you came from (the buttons on the warehouse form), else the one you looked at last in this browser, else the
+first warehouse that has rack rows. A warehouse with no layout yet opens with a "No layout yet" hint in the
+editor (and a button to its form to set the building size) and "No rack rows in … yet" in the 3D view.
+In the editor, switching with unsaved changes asks before discarding them.
 
 **Template warehouse (demo data):** databases created *with demo data* get *Warehaven DC* (code WHV):
 60 × 40 m, 14 pallet rows + 17 shelving rows (980 pallet positions, 1,360 shelf bins), 5 areas,
@@ -181,6 +189,10 @@ Layout Editor  editor_action.js ── wh3d_get_layout / wh3d_save_layout (all o
   (3D bin packing, ABC slotting) are the next plan; the ABC class field is there for them.
 - **Fill % is by volume** (product L×W×H × quantity ÷ slot volume), not weight. Products without
   dimensions show "fill unknown".
+- **One warehouse is shown at a time.** There is no overview of all warehouses and no copying a layout
+  from one to another. The building size is set on the warehouse form, not in the editor. The remembered
+  warehouse is kept in the browser (not per user across devices); a blocked browser storage just means the
+  default is opened.
 - **Rack rows and areas are axis-aligned** — no rotated rows or areas.
 - **Areas and dock doors are drawings.** They create no Inventory locations and hold no stock, and the
   palette is a fixed list plus "Custom area" (no user-defined area types). Doors can't be placed

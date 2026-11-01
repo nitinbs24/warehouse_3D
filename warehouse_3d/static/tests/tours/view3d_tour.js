@@ -646,6 +646,27 @@ registry.category("web_tour.tours").add("warehouse_3d_view3d_switch", {
     ],
 });
 
+// The buttons on the warehouse form (Configuration > Warehouses > a warehouse): each opens its screen on
+// *that* warehouse, even though another one (the first with rows) would be the default.
+registry.category("web_tour.tours").add("warehouse_3d_form_button_editor", {
+    steps: () => [
+        { trigger: ".o_form_view .oe_stat_button[name='action_wh3d_open_view3d']" },
+        { trigger: ".o_form_view .oe_stat_button[name='action_wh3d_open_editor']", run: "click" },
+        { trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P09']" },
+        { trigger: ".o_wh3d_editor:not(:has(.o_wh3d_row[data-code='P05']))" },
+    ],
+});
+
+registry.category("web_tour.tours").add("warehouse_3d_form_button_view3d", {
+    steps: () => [
+        { trigger: ".o_form_view .oe_stat_button[name='action_wh3d_open_view3d']", run: "click" },
+        {
+            content: "The 3D view opened the warehouse of the form (two rows), not the default one (one row)",
+            trigger: ".o_wh3d_view[data-row-count='2'] .o_wh3d_canvas canvas",
+        },
+    ],
+});
+
 // Dock doors: add from the palette, drag across the floor to another wall, change the opening, save,
 // see it in 3D, delete.
 registry.category("web_tour.tours").add("warehouse_3d_editor_docks", {

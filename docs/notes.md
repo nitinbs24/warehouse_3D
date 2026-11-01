@@ -1071,3 +1071,23 @@ It is used to show "Open Layout Editor" only to Inventory managers; the editor m
 **No warehouse at all.** `wh3d_default_warehouse_id` returns `False` when every warehouse is archived,
 and `wh3d_get_scene([[0]])` would fail. `loadScene(0)` returns an empty building and sets an error
 message, which the existing `.o_wh3d_fallback` box displays.
+
+## T23: Wrap-up of choosing the warehouse
+
+Files: `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`, `README.md`, `docs/intent/warehouse-selection.md`.
+
+**Start a tour on a record's form.** `start_tour` takes any URL, so a tour can begin on a warehouse's form
+with `/odoo/action-<module>.<action xmlid>/<record id>`; no menu steps are needed and the tour begins
+exactly where a user would click the button. There are two tours, one per button, because going *back*
+from a client action to the form isn't something these screens offer (no breadcrumb), and two short
+independent tours are easier to read than one that navigates around.
+
+**What the tours really prove.** The first warehouse has one row, so it is what `wh3d_default_warehouse_id`
+would pick; the warehouse on the form has two. Seeing the *second* warehouse's rows proves that the id in
+the action's context beat both the default and the remembered choice. That order (context, remembered,
+default) is the heart of `pickWarehouseId`, and this is the end-to-end check of its first rule.
+
+**Why the README says "per browser".** The remembered warehouse lives in `localStorage`, so it is not
+saved with the user: another browser or device starts from the default. That is the right size for a
+convenience; a per-user setting would need a field on `res.users.settings` and a round trip on every
+switch.

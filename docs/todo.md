@@ -456,4 +456,16 @@ Intent (agreed in an interview, 1 Nov): both screens opened only one warehouse (
 **Dependencies:** T20, T21
 **Files:** `static/src/view3d/view3d_action.js`, `.xml`, `.scss`, `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`
 **Scope:** M
-### T23: Smart-button tour, wrap-up, README, intent doc *(not started)*
+### T23: Smart-button tours, wrap-up, README, intent doc
+**Description:** Close the warehouse-choice phase: prove the buttons on the warehouse form open the right warehouse, describe the feature and its limits, and run everything once more.
+
+**Acceptance criteria:**
+- [x] From a warehouse's form, "Layout Editor" opens the editor and "3D View" opens the 3D view on *that* warehouse, even when another warehouse (the first with rows) would be the default.
+- [x] README: the warehouse-form row, a "Several warehouses" paragraph (order of choice, empty warehouse, discard warning), known limits (one warehouse at a time, no copying a layout, building size on the form, the choice is remembered per browser).
+- [x] `docs/intent/warehouse-selection.md` holds the agreed intent; `todo.md` and `notes.md` have T20–T23.
+- [x] Install time with demo data stays well under 3 minutes.
+
+**Verification:** done 1 Nov — tours `warehouse_3d_form_button_editor` and `warehouse_3d_form_button_view3d`, each started on a warehouse's form (`/odoo/action-stock.action_warehouse_form/<id>`): the editor shows the second warehouse's row and not the first's; the 3D view shows two rows (the default warehouse has one). Full run `0 failed, 0 error(s) of 168 tests` (was 155 before Phase 6), 115 Hoot (was 108). `warehouse_3d loaded in 34 s (incl. 18 s of tests)`. *Not done:* a person trying the dropdowns and buttons by hand in the browser (the tours drive the same steps); the editor button's absence for a non-manager is tested on the form's arch (T20), not clicked.
+**Dependencies:** T20–T22
+**Files:** `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`, `README.md`, `docs/intent/warehouse-selection.md`, `docs/todo.md`, `docs/notes.md`
+**Scope:** S

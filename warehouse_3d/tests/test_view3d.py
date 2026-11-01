@@ -110,6 +110,27 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_view3d_switch', login='admin')
 
 
+    def _warehouse_form_setup(self):
+        """The first warehouse has one row (so it is the default); 'Second' has two. Returns 'Second'."""
+        first = self.env['stock.warehouse'].search([], limit=1)
+        create_p05(self.env, first, create_zone(self.env, first))                       # P05
+        second = self.env['stock.warehouse'].create({'name': 'Second', 'code': 'WH2'})
+        zone = create_zone(self.env, second)
+        create_p05(self.env, second, zone, code='P09', x=5.0)
+        create_p05(self.env, second, zone, code='P10', x=15.0)
+        return second
+
+    def test_warehouse_form_button_opens_the_editor_on_that_warehouse(self):
+        second = self._warehouse_form_setup()
+        self.start_tour(f'/odoo/action-stock.action_warehouse_form/{second.id}',
+                        'warehouse_3d_form_button_editor', login='admin')
+
+    def test_warehouse_form_button_opens_the_3d_view_on_that_warehouse(self):
+        second = self._warehouse_form_setup()
+        self.start_tour(f'/odoo/action-stock.action_warehouse_form/{second.id}',
+                        'warehouse_3d_form_button_view3d', login='admin')
+
+
 @tagged('wh3d_screenshot', '-standard')
 class TestView3dScreenshot(HttpCase):
     """Opt-in: ./run_tests.sh wh3d_screenshot — renders the handoff layout and saves a PNG for review."""
