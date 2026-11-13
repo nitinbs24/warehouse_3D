@@ -1,8 +1,5 @@
 # Implementation Plan: Warehaven `warehouse_3d` (Odoo 19 addon)
 
-Status: **DRAFT — awaiting approval. No code is written until Nitin approves.**
-Source: `docs/CLAUDE.md` (handoff) + `docs/warehaven-3d-prototype.html`. Task checklist: `docs/todo.md`.
-
 ## Overview
 
 An Odoo 19 Community addon, `warehouse_3d`, that depends on `stock` and plugs into Inventory:
@@ -80,7 +77,7 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 - [x] T3: Regenerate on edit / delete without losing stock
 - [x] T3b: Lock generated locations
 - [x] T3c: Code-review fixes
-- [ ] **Checkpoint A** — rows create correct locations; Inventory can receive into them
+- [x] **Checkpoint A** — rows create correct locations; Inventory can receive into them
 
 ### Phase 2 — 3D viewer
 - [x] T4: Spike — vendored Three.js rendering inside an OWL client action
@@ -91,55 +88,17 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 - [x] T9: Live updates over the bus
 - [x] T9b: Live-update review fixes
 - [x] T9c: Walk mode — first-person walk through the aisles *(added 23 Oct)*
-- [ ] **Checkpoint B** — 3D view matches the prototype with real data, updates live
+- [x] **Checkpoint B** — 3D view matches the prototype with real data, updates live
 
 ### Phase 3 — 2D editor
 - [x] T10: Server-side layout constraints (bounds, overlap)
 - [x] T11: Editor client action — draw and select
 - [x] T12: Editor — move, edit, add, delete, save
 - [x] T12b: CodeRabbit review fixes
-- [ ] **Checkpoint C** — design a layout in the editor, see it in 3D, locations follow
+- [x] **Checkpoint C** — design a layout in the editor, see it in 3D, locations follow
 
 ### Phase 4 — Template warehouse + end-to-end
 - [x] T13: Template catalogue: package types, storage categories, products, putaway rules
 - [x] T14: Template layout + generated locations + opening stock (own warehouse "Warehaven DC")
 - [x] T15: End-to-end Inventory tour, README for the team (Fedora + Windows), cross-platform test runner
-- [ ] **Checkpoint D (complete)** — success criteria above all met
-
-## Commands (set up in T0)
-
-```bash
-cd /mnt/CODE/Workspace/odoo
-# run server
-venv19/bin/python odoo19/odoo-bin -c odoo19.conf -d warehaven
-# full module test run (Python + Hoot + tours) on a throwaway DB
-venv19/bin/python odoo19/odoo-bin -c odoo19.conf -d wh3d_test --with-demo \
-  -i warehouse_3d --test-tags /warehouse_3d --stop-after-init
-# focused test
-... --test-tags /warehouse_3d:TestLocationGenerator
-```
-
-## Risks and mitigations
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Three.js global script misbehaves in Odoo's asset pipeline / OWL lifecycle (leaks on navigate-away, double init) | High | T4 spike first; lazy `loadJS` (not bundled); dispose renderer/geometry/controls in `onWillUnmount`; tour navigates away and back. |
-| Creating 2,340 locations is slow (`parent_store` + recursive `child_internal_location_ids` recompute per record) | Med | Batch `create` per row (one call per level of the tree); measure in T2 with a timed test on 14 pallet rows; fall back to `with_context(tracking_disable=True)` / deferred recompute if > ~30 s. |
-| `websocket-client` is **not installed** in `venv19` (verified). Without it Odoo **silently skips** every browser test (`odoo/tests/common.py:1274`), so Hoot and tours would look green while not running | High | T0 installs it into `venv19` (test-only tool of Odoo's own harness, not a module dependency) — needs your OK. T0 acceptance requires a tour to visibly *run*, and every later run is checked for "skipped" in the log. |
-| Quant hook fires many times per picking (one write per move line) | Med | Accumulate location ids per transaction, send once post-commit; test asserts one bus message for a multi-line receipt. |
-| Removing a slot that holds stock | High (data loss) | Refuse with a clear error (T3); archive, never delete, empty slots. |
-| Large scenes slow in browser | Low | InstancedMesh per part type, as the prototype already does at this size. |
-| Live-update messages go to all Inventory users in every company (each browser filters by warehouse) | Low (single company here) | Accepted: multi-company is out of scope; fix would be per-company bus channels. |
-| Uninstall leaves generated locations (records created by code persist; module fields drop) | Low | Documented in README; Inventory keeps working; locations can be archived manually. |
-
-## Resolved questions (23 Oct 2026)
-
-1. **Deadline:** none. Phases are ordered so each checkpoint is a demoable state.
-2. **Pick/delivery history:** not generated — the mentor will supply real data. Products carry an ABC class and opening stock is skewed by it, nothing more.
-3. **Theme:** light only (the prototype's light palette).
-4. **Git:** local repo in `warehouse_3D/`, no shared remote.
-5. **Box colour and size:** see decision 6b.
-
-## Open questions
-
-None.
+- [x] **Checkpoint D (complete)** — success criteria above all met

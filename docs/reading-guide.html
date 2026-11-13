@@ -1,0 +1,154 @@
+<title>Warehaven Reading Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one narrow column of numbered stops (a real reading order), each stop lists files with size and what to look for. */
+:root {
+  --bg: #f5f6f7; --surface: #ffffff; --fg: #1d242b; --muted: #5d6874; --line: #d9dde1;
+  --accent: #c2410c; --accent-soft: #fdeadf; --code-bg: #eceff2;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14181c; --surface: #1c2227; --fg: #e4e8ec; --muted: #9aa5b0; --line: #2e363d;
+  --accent: #f08a54; --accent-soft: #34231a; --code-bg: #262d33; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #14181c; --surface: #1c2227; --fg: #e4e8ec; --muted: #9aa5b0; --line: #2e363d;
+  --accent: #f08a54; --accent-soft: #34231a; --code-bg: #262d33; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--f-body);
+  padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 760px; margin: 0 auto; }
+h1 { font: 700 44px/1 var(--f-display); letter-spacing: .01em; text-transform: uppercase; margin: 0 0 8px; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 62ch; margin: 0 0 28px; }
+code { font: 13px var(--f-mono); background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+h2 { font: 600 13px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 36px 0 12px; }
+.map { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; overflow-x: auto; }
+.map pre { margin: 0; font: 13px/1.5 var(--f-mono); }
+.stop { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 14px; }
+.stop > header { display: flex; gap: 14px; align-items: baseline; padding: 14px 16px 6px; }
+.n { font: 700 34px/1 var(--f-display); color: var(--accent); min-width: 2ch; }
+.stop h3 { font: 600 18px/1.3 var(--f-body); margin: 0; }
+.stop p.why { margin: 0; padding: 0 16px 10px 16px; color: var(--muted); }
+ul.files { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+ul.files li { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+ul.files li:last-child { border-bottom: 0; }
+ul.files input { margin-top: 5px; accent-color: var(--accent); }
+.f { min-width: 0; }
+.f .path { font: 500 13px var(--f-mono); overflow-wrap: anywhere; }
+.f .loc { color: var(--muted); font: 12px var(--f-mono); margin-left: 6px; white-space: nowrap; }
+.f .look { display: block; color: var(--fg); margin-top: 2px; }
+.f.done .path, .f.done .look { color: var(--muted); text-decoration: line-through; }
+.tip { background: var(--accent-soft); border-radius: 6px; padding: 12px 16px; margin: 0 0 14px; }
+.prog { position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); padding: 8px 0; font: 13px var(--f-mono); color: var(--muted); z-index: 5; }
+.bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 6px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 480px) { h1 { font-size: 36px; } .f .loc { display: block; margin-left: 0; } }
+</style>
+
+<main>
+<h1>Warehaven reading guide</h1>
+<p class="lede">Read <code>warehouse_3d</code> in the order the data flows: layout record, generated locations, scene RPC, 3D view, then the editor that writes the layout. Paths are relative to <code>warehouse_3D/</code>; line counts are current. Tick files off as you go (kept in this browser only).</p>
+
+<div class="prog" aria-live="polite"><span id="count">0 of 0 read</span><div class="bar"><i id="fill"></i></div></div>
+
+<h2>The one-minute picture</h2>
+<div class="map"><pre>Layout Editor (editor/)  ──wh3d_save_layout──►  warehouse.rack.row  ──_sync_locations──►  stock.location tree
+                                                      │                                            │
+                                         wh3d_get_scene (stock.warehouse)  ◄────── stock.quant ────┘
+                                                      │                              │ create/write/unlink
+                                                      ▼                              ▼
+                                      3D View (view3d/): layout.js → scene.js    bus "warehouse_3d/stock"
+                                                      ▲                              │
+                                                      └────── live.js UpdateQueue ◄──┘</pre></div>
+<p>One <code>warehouse.rack.row</code> record is the single source of truth. It produces the 3D geometry <em>and</em> the Inventory locations, so Python makes every code and the browser only reads indices.</p>
+
+<h2>Reading order</h2>
+<div id="stops"></div>
+
+<h2>Reference while you read</h2>
+<p class="tip"><code>docs/notes.md</code> (1,093 lines) is not meant to be read top to bottom. Each task appended a section explaining the Odoo or OWL pattern it introduced (<code>_inherit</code>, <code>@api.constrains</code>, <code>onWillStart</code>, asset bundles, record rules). When a pattern is new to you, search it there. <code>docs/todo.md</code> lists each task T0 to T23 with its acceptance criteria, which tells you why a file exists.</p>
+</main>
+
+<script>
+const STOPS = [
+ {t:"Orient before any code", why:"Know what the product is, what was decided, and which Odoo 19 facts constrain the design.", f:[
+  ["README.md","209","What the module does, menus, template warehouse, known limits."],
+  ["docs/plan.md","145","Architecture decisions 1 to 12 and the verified Odoo source facts. Skim the table, read the decisions."],
+  ["docs/CLAUDE.md","74","Original handoff: project background and the record fields."],
+  ["docs/warehaven-3d-prototype.html","475","The standalone prototype the 3D code was ported from. Open it in a browser first."]]},
+ {t:"Wiring: what Odoo loads", why:"See every piece the module registers before reading what each piece does.", f:[
+  ["warehouse_3d/__manifest__.py","38","Depends on stock and bus. Data, demo and the three asset bundles (backend, unit tests, tours)."],
+  ["warehouse_3d/models/__init__.py","6","Import order of the models."],
+  ["warehouse_3d/security/ir.model.access.csv","5","Who can read and write rack rows and areas. Pair with data/res_groups.xml."],
+  ["warehouse_3d/views/view3d_actions.xml","12","The two client actions, tags warehouse_3d.view3d and warehouse_3d.editor."],
+  ["warehouse_3d/views/menus.xml","13","Where they sit under Inventory."]]},
+ {t:"The core model: rack row", why:"Everything else hangs off this. Read it slowly.", f:[
+  ["warehouse_3d/models/warehouse_rack_row.py","376","Fields and constraints (top), then _location_tree and _sync_locations (generation), _check_removal (stock guard), wh3d_save_layout (all-or-nothing save from the editor)."],
+  ["warehouse_3d/models/stock_location.py","30","Extra fields on stock.location and the write lock on generated slots."],
+  ["warehouse_3d/models/warehouse_layout_area.py","60","Areas (Receiving, Packing and so on) and their overlap checks."],
+  ["warehouse_3d/views/warehouse_rack_row_views.xml","94","How a model becomes a list and a form. Shows the XML view pattern."]]},
+ {t:"Warehouse model and the scene RPC", why:"This is the contract between server and 3D view.", f:[
+  ["warehouse_3d/models/stock_warehouse.py","190","wh3d_get_scene and wh3d_get_slots (what the browser receives), wh3d_list_warehouses (picker), the form buttons, and the template stock filler at the bottom."],
+  ["warehouse_3d/models/stock_quant.py","47","Hooks create, write and unlink and sends one bus message per commit. This is the whole live-update source."],
+  ["warehouse_3d/models/product_template.py","15","Product dimensions and ABC class."]]},
+ {t:"Python tests, read beside the models", why:"Tests state each rule in a sentence. Quicker than reading the guards in the model.", f:[
+  ["warehouse_3d/tests/common.py","39","Shared test setup."],
+  ["warehouse_3d/tests/test_rack_row.py","188","Constraints: codes, overlap, bounds."],
+  ["warehouse_3d/tests/test_location_generator.py","121","What tree a row produces."],
+  ["warehouse_3d/tests/test_location_sync.py","199","Rename, grow, shrink, and the stock guard."],
+  ["warehouse_3d/tests/test_layout_save.py","209","The editor's save contract."],
+  ["warehouse_3d/tests/test_scene_data.py","140","Shape of the scene payload."],
+  ["warehouse_3d/tests/test_bus.py","104","One message per transaction."]]},
+ {t:"3D view: pure maths first", why:"Three small files with no Three.js and no DOM. They explain the coordinate system before you see it rendered.", f:[
+  ["warehouse_3d/static/src/view3d/layout.js","199","Plan metres to world units, rack and slot boxes. Read the header comment twice."],
+  ["warehouse_3d/static/src/view3d/occupancy.js","94","Fill bands (under 50, to 90, over 90 percent), the load box, capacity totals."],
+  ["warehouse_3d/static/src/view3d/live.js","69","UpdateQueue: throttled, one fetch at a time, retry on failure."],
+  ["warehouse_3d/static/src/view3d/walk.js","142","First-person movement and collision."]]},
+ {t:"3D view: rendering and the OWL screen", why:"Now the parts that touch Three.js and the Odoo web client.", f:[
+  ["warehouse_3d/static/src/view3d/scene.js","562","WarehouseScene class: floor, areas, instanced racks, stock boxes, picking, labels, walk camera. Look at buildRacks and addInstanced."],
+  ["warehouse_3d/static/src/view3d/view3d_action.js","336","OWL component View3D: setup, loadThree (lazy), loadScene, bus subscription, switchWarehouse, find, walk toggle."],
+  ["warehouse_3d/static/src/view3d/view3d_action.xml","124","The template for toolbar, sidebar and panels."],
+  ["warehouse_3d/static/src/common/warehouse_picker.js","50","Shared dropdown and remembered choice, used by both screens."]]},
+ {t:"Layout editor", why:"The write path. Same split as the 3D view: maths first, component last.", f:[
+  ["warehouse_3d/static/src/editor/geometry.js","66","Plan to screen transforms, zoom, pan."],
+  ["warehouse_3d/static/src/editor/layout_edit.js","242","Snapping, overlap rules mirroring the server, diffLayout (what Save sends), areas and docks."],
+  ["warehouse_3d/static/src/editor/editor_action.js","568","OWL component LayoutEditor: pointer handling, selection, drag, save call, unsaved-change prompt."],
+  ["warehouse_3d/static/src/editor/editor_action.xml","193","The SVG plan and side panel."]]},
+ {t:"Demo data: the template warehouse", why:"Shows the whole system working on realistic data.", f:[
+  ["warehouse_3d/demo/catalogue.xml","102","Package types, storage categories, putaway rules."],
+  ["warehouse_3d/demo/layout.xml","585","Warehaven DC rows, areas and docks. The call at the end triggers location generation."],
+  ["warehouse_3d/tests/test_template.py","187","Asserts the template is what the README says."]]},
+ {t:"Running and verifying", why:"Run the suite once so you trust what you read.", f:[
+  ["run_tests.py","93","Cross-platform runner (run_tests.sh is a wrapper)."],
+  ["warehouse_3d/static/tests/layout_edit.test.js","263","Hoot unit tests; same pattern for the other *.test.js files."],
+  ["warehouse_3d/static/tests/tours/view3d_tour.js","808","Click-through tours of both screens. Long; read one tour, skim the rest."]]}
+];
+const KEY="wh3d-reading-guide";
+let done={}; try{done=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){}
+const root=document.getElementById("stops"); let id=0;
+STOPS.forEach((s,i)=>{
+  const el=document.createElement("section"); el.className="stop";
+  el.innerHTML=`<header><span class="n">${i+1}</span><h3></h3></header><p class="why"></p><ul class="files"></ul>`;
+  el.querySelector("h3").textContent=s.t; el.querySelector(".why").textContent=s.why;
+  const ul=el.querySelector("ul");
+  s.f.forEach(([p,l,look])=>{
+    const k="f"+(id++), li=document.createElement("li");
+    li.innerHTML=`<input type="checkbox" id="${k}" aria-label="Mark read"><div class="f"><label for="${k}"><span class="path"></span><span class="loc"></span></label><span class="look"></span></div>`;
+    li.querySelector(".path").textContent=p; li.querySelector(".loc").textContent=l+" lines";
+    li.querySelector(".look").textContent=look;
+    const cb=li.querySelector("input"), box=li.querySelector(".f");
+    cb.checked=!!done[p]; box.classList.toggle("done",cb.checked);
+    cb.addEventListener("change",()=>{done[p]=cb.checked; box.classList.toggle("done",cb.checked);
+      try{localStorage.setItem(KEY,JSON.stringify(done))}catch(e){} update();});
+    ul.appendChild(li);
+  });
+  root.appendChild(el);
+});
+function update(){const all=document.querySelectorAll(".files input"), n=[...all].filter(c=>c.checked).length;
+  document.getElementById("count").textContent=`${n} of ${all.length} read`;
+  document.getElementById("fill").style.width=(100*n/all.length)+"%";}
+update();
+</script>
