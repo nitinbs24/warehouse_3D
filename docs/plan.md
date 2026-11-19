@@ -102,3 +102,88 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 - [x] T14: Template layout + generated locations + opening stock (own warehouse "Warehaven DC")
 - [x] T15: End-to-end Inventory tour, README for the team (Fedora + Windows), cross-platform test runner
 - [x] **Checkpoint D (complete)** — success criteria above all met
+
+---
+
+# Plan 2: Smart putaway, evaluation, floor-plan import (18 Nov 2026)
+
+Status: **awaiting approval**. Tasks T24–T41 in `docs/todo.md` (Phases 7–10).
+
+## Confirmed intent (interview, 13–18 Nov 2026)
+- **Outcome:** (1) a smart putaway engine that replaces Odoo's slot choice: hard rules filter slots, AHP-weighted TOPSIS ranks the rest, the top 3 are shown with reasons, and manual moves that break a hard rule are blocked; (2) its evaluation against standard Odoo; (3) 2D floor-plan import (DXF, then images via classical CV and a locally trained detector) into a reviewable draft in the Layout Editor; (4) the mentor's feature list afterwards.
+- **Why:** final-year project; the mentor asked for real-warehouse concerns (cold storage, hazardous, fragile, quarantine) and floor-plan → 3D.
+- **Success:** zero hard-rule violations; better pick travel, space use and ergonomics than standard Odoo on the template warehouse at 30/60/85 % fill; floor-plan detector measured with precision/recall/mAP and correction count.
+- **Out of scope:** ML/RL putaway, re-slotting stock already stored, worker/forklift tracking, DWG, editable AHP weights (later), TRGS 510 neighbour-compatibility matrix (later).
+- Research basis: `docs/survey.md`, `docs/review/review.md`, `docs/review/ahp-questionnaire.md`. Project summary: `docs/intent/project-details.md`.
+
+## Verified in the Odoo 19 source
+| Fact | Where | Consequence |
+|---|---|---|
+| Rules are evaluated one by one through `stock.putaway.rule._get_putaway_location(product, quantity, package, packaging, qty_by_location)`; the first non-empty result wins | `stock/models/product_strategy.py:133` | Add `sublocation` value `wh3d_smart` (`selection_add`), override `_get_putaway_location`: smart rules run our engine, others call `super()` |
+| `qty_by_location` (this product's on-hand + incoming per location) is only computed when the candidate locations have a storage category | `stock/models/stock_location.py:337` | Every generated slot keeps a storage category (already true for template rows) |
+| No rule returns a location → the move's own destination (e.g. `WH/Stock`) is kept | `stock_location.py:373` | "No allowed slot" lands at `WH/Stock`, not in a slot; the engine logs it and the experiment counts it as a failed placement |
+| Putaway is called without the lot | `stock_location.py:297` signature | "Don't mix expiry lots" is not enforceable at putaway; deferred (enforce at move-line validation later) |
+| Package putaway passes products in `context['products']` with an empty product | `stock_move_line.py:272` | Engine handles a product set |
+| `_check_can_be_used` already checks weight, capacity and mixing | `stock_location.py:418` | Reused as one hard rule |
+| `_compute_storage_category` clears the rule's category unless `closest_location` | `product_strategy.py:75` | Smart rules don't need one |
+
+## Architecture decisions (Plan 2)
+| Decision | Why |
+|---|---|
+| Engine = pure Python functions (`putaway/rules.py`, `putaway/score.py`, `putaway/aisles.py`) + thin Odoo glue on the putaway rule | Unit-testable without the ORM; the same code runs in the experiment |
+| Zone attributes live on **rack rows** (temperature range, approved hazard classes, purpose, inspection status); slots inherit them | Areas have no Inventory locations; one setting per row |
+| Temperature as a °C range with presets, not labels | Food and pharma bands differ (survey A8.1) |
+| AHP weights are constants computed by `docs/review/ahp.py`; TOPSIS and weighted sum both implemented | Fixed for now; the experiment compares them |
+| Distances on an **aisle graph** built from the layout (Dijkstra), cached per warehouse and rebuilt when the layout is saved | Racks are obstacles; fast at receipt time |
+| Experiment and ML pipeline live **outside** the add-on: `warehouse_3D/experiments/`, `warehouse_3D/ml/` | The add-on stays light; only the ONNX model file ships |
+| Floor-plan import produces an **unsaved draft in the Layout Editor** | Every importer has one output format; the user reviews before Save (human-in-the-loop) |
+| New Python deps only in Phase 9 (`ezdxf`, `opencv-python-headless`, `onnxruntime`, `pytesseract` + Tesseract), declared in `external_dependencies` | Phase 7–8 need nothing new |
+
+### Dependency graph (Plan 2)
+```
+T24 zone/product fields ─┬─ T25 hard rules ─┐
+                         └─ T26 aisle graph ─┴─ T27 scoring + smart rule ─┬─ T28 block manual moves
+                                                                          ├─ T29 "why this slot" top 3
+                                                                          └─ T30 template special zones ── Checkpoint E
+T27+T30 ── T31 experiment harness ── T32 metrics ── T33 runs + results ── Checkpoint F
+T34 background + scale ── T35 draft import ─┬─ T36 DXF
+                                            ├─ T37 classical CV ── T38 synthetic generator ── T39 train (Colab) ── T40 ONNX + OCR in Odoo
+                                            └────────────────────────────────────────────────── T41 wrap-up ── Checkpoint G
+Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
+```
+
+## Task list (details in `docs/todo.md`)
+### Phase 7: Smart putaway
+- [ ] T24: Special-goods fields on products and rack rows (form, editor side panel, 3D tooltip)
+- [ ] T25: Hard-rule filter
+- [ ] T26: Aisle graph and dock distances
+- [ ] T27: Criteria, AHP–TOPSIS and weighted-sum ranking; "Smart" putaway option
+- [ ] T28: Block manual moves that break a hard rule
+- [ ] T29: "Why this slot?": top 3 with reasons, pick another
+- [ ] T30: Template warehouse: cold room, hazardous area, quarantine, special products; README
+- [ ] **Checkpoint E**
+### Phase 8: Evaluation
+- [ ] T31: Experiment harness: seeded receipts and pick lists on a throwaway database
+- [ ] T32: Metrics: travel (single-command, S-shape, largest gap), space, ergonomics, violations, failures, decision time
+- [ ] T33: Runs (5 variants × 3 fill levels × seeds, ±50 % weight sensitivity) and `docs/results.md`
+- [ ] **Checkpoint F**
+### Phase 9: Floor-plan import
+- [ ] T34: Background plan image and two-click scale in the editor
+- [ ] T35: Draft import into the editor (common output of all importers)
+- [ ] T36: DXF importer
+- [ ] T37: Classical-CV importer (OpenCV)
+- [ ] T38: Synthetic warehouse floor-plan generator (COCO labels)
+- [ ] T39: Train and evaluate YOLOX-S on Colab; export ONNX
+- [ ] T40: ONNX detector + OCR in Odoo, CV fallback
+- [ ] T41: Wrap-up: README, notes, `docs/results-floorplan.md`
+- [ ] **Checkpoint G**
+### Phase 10: Mentor's feature list (planned after Checkpoint G)
+
+## Risks
+| Risk | Mitigation |
+|---|---|
+| Engine too slow on 2,340 slots per move line | Batch-read quants once per call; cache the aisle graph; T27 asserts < 1 s per line on the template |
+| Hard-rule data missing on old rows/products | Empty = no requirement / not approved; hazardous or temperature-controlled products never go to a row without matching settings |
+| YOLOX licence or tooling problems | RT-DETR (Apache-2.0) as the fallback |
+| Synthetic plans don't transfer to real ones | Real plans test only; classical CV and manual tracing stay available |
+| Mentor data (AHP answers, pick data, real plans) late | Provisional weights, synthetic picks, synthetic test plans; swap in later |

@@ -469,3 +469,164 @@ Intent (agreed in an interview, 1 Nov): both screens opened only one warehouse (
 **Dependencies:** T20–T22
 **Files:** `static/tests/tours/view3d_tour.js`, `tests/test_view3d.py`, `README.md`, `docs/intent/warehouse-selection.md`, `docs/todo.md`, `docs/notes.md`
 **Scope:** S
+
+## Phase 7 — Smart putaway *(added 18 Nov: Plan 2, see `docs/plan.md`)*
+
+Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained, class-based, multi-criteria putaway. Hard rules filter slots (standards in `docs/survey.md` A8); AHP-weighted TOPSIS ranks the rest (A4, A7). Status: **awaiting approval**. One task per turn, test-first.
+
+### T24: Special-goods fields on products and rack rows
+**Description:** The data every hard rule reads. Products say what they need; rack rows say what their slots offer.
+
+**Acceptance criteria:**
+- [ ] Product (Inventory tab): temperature range `wh3d_temp_min` / `wh3d_temp_max` (°C, empty = no requirement) with presets (frozen food ≤ −18, pharma freezer −25…−10, pharma fridge 2…8, chilled food 0…5, cool 8…15, controlled room 15…25); `wh3d_hazard_class` (none, compressed gas, flammable liquid, flammable solid, oxidiser, toxic, corrosive); `wh3d_fragile`.
+- [ ] Rack row: `temp_min` / `temp_max` (empty = ambient, uncontrolled), approved hazard classes, `purpose` (normal, quarantine, returns, rejected), `inspection_status` (green, amber, red; default green) with `last_inspection` date.
+- [ ] Shown on the rack-row form, the Layout Editor's side panel (saved through the existing one-call Save), and the 3D slot panel.
+- [ ] Validation: `temp_min ≤ temp_max` on products and rows. No other cross-field rules.
+- [ ] `wh3d_get_layout` keys extended, `test_scene_data` key-set assertion updated.
+
+**Verification:** `tests/test_special_goods_fields.py` (defaults, presets, min > max refused, editor save round-trip, scene data keys); Hoot test for the side-panel fields; full `TEST`.
+**Dependencies:** none (builds on T1, T12)
+**Files:** `models/product_template.py`, `models/warehouse_rack_row.py`, `models/stock_warehouse.py`, views, `static/src/editor/*`, `static/src/view3d/view3d_action.xml`, tests
+**Scope:** M
+
+### T25: Hard-rule filter
+**Description:** A pure function that removes every slot the goods may not go to, with the reason for each removal.
+
+**Acceptance criteria:**
+- [ ] `putaway/rules.py`: `allowed(product_info, slot_info, contents)` → `(ok, reason)` for: temperature (zone range inside product range; uncontrolled zones only for products without a range), hazard (class approved on the row; one hazard class per slot), purpose (normal goods only in normal rows; quarantine/returns/rejected rows only when the putaway destination is inside that row's zone), inspection (amber/red excluded), physical fit (L×W×H fits the slot, any rotation in the horizontal plane), fragile (a fragile product never goes directly below a slot holding a heavy product, and a heavy product never goes directly above a fragile one; heavy = > 25 kg per unit, a constant), and Odoo's `_check_can_be_used` (weight, capacity, mixing).
+- [ ] Odoo glue reads slot and quant data for all candidates in a fixed number of queries.
+
+**Verification:** `tests/test_putaway_rules.py`: one test per rule, both outcomes, plus "every rule passes for an ordinary ambient product in a normal row"; a query-count test.
+**Dependencies:** T24
+**Files:** `putaway/__init__.py`, `putaway/rules.py`, `models/stock_putaway_rule.py`, tests
+**Scope:** M
+
+### T26: Aisle graph and dock distances
+**Description:** Walkable distances that treat racks as obstacles, for scoring (T27) and evaluation (T32).
+
+**Acceptance criteria:**
+- [ ] `putaway/aisles.py`: build a graph from rack rows, building size and dock doors (nodes on aisle centre lines, cross aisles, slot access points, docks); Dijkstra distance from every slot's access point to the nearest dispatch dock and to the nearest receiving dock.
+- [ ] Dock role: a dock door gets `role` (inbound, outbound, both; default both).
+- [ ] Cached per warehouse; rebuilt on layout save; template build < 2 s.
+
+**Verification:** `tests/test_aisles.py` (hand-checked distances on a 2-row toy layout; a path never crosses a rack; template distances all finite; cache invalidated on save).
+**Dependencies:** T24 (dock role)
+**Files:** `putaway/aisles.py`, `models/warehouse_layout_area.py`, tests
+**Scope:** M
+
+### T27: Criteria, ranking, and the "Smart" putaway option
+**Description:** Score allowed slots and plug the engine into Odoo's putaway.
+
+**Acceptance criteria:**
+- [ ] `putaway/score.py`: criteria c1 travel (distance to dispatch × class factor A 1.0 / B 0.6 / C 0.3, lower better), c2 height fit (heavy > 25 kg/unit → level 1–2 best; A and fragile → waist-height levels best), c3 consolidation (same product already there), c4 wasted volume (lower better).
+- [ ] `topsis(matrix, weights, benefit)` and `weighted_sum(...)`; AHP weights from `docs/review/ahp.py` as constants (travel 0.53, height 0.20, consolidation 0.18, space 0.09).
+- [ ] Putaway rule `sublocation` gains **Smart (Warehaven)**; `_get_putaway_location` runs the engine for smart rules and `super()` for others; returns the best slot, or nothing (→ Odoo keeps `WH/Stock`) with a log line.
+- [ ] Handles the product set from `context['products']` (package putaway).
+- [ ] < 1 s per move line on the template warehouse.
+
+**Verification:** `tests/test_putaway_score.py` (TOPSIS on a textbook example; weighted sum; each criterion's direction) and `tests/test_smart_putaway.py` (receipt of an A product lands nearer dispatch than a C product; frozen product only in the cold row; no allowed slot → `WH/Stock` + log; package putaway; timing).
+**Dependencies:** T25, T26
+**Files:** `putaway/score.py`, `models/stock_putaway_rule.py`, views (rule form), tests
+**Scope:** L → split if it runs long (ranking first, Odoo glue second)
+
+### T28: Block manual moves that break a hard rule
+**Acceptance criteria:**
+- [ ] Validating a move line whose destination slot breaks a hard rule raises a clear error naming the rule ("P05-03-2-A is ambient; Frozen peas needs −25…−18 °C").
+- [ ] Applies to receipts, internal transfers and inventory adjustments into generated slots; locations outside rack rows are untouched.
+- [ ] A manager-only context key allows an override for emergencies (logged in the chatter).
+
+**Verification:** `tests/test_move_block.py` (each rule blocks, an allowed move passes, override works and is logged, non-slot locations unaffected).
+**Dependencies:** T25
+**Scope:** S
+
+### T29: "Why this slot?"
+**Acceptance criteria:**
+- [ ] On a receipt's detailed operations, a button per line opens a dialog with the top 3 slots: score, distance to dispatch, level, and one-line reasons; the chosen slot can be swapped for another of the three.
+- [ ] Shows how many slots each hard rule removed ("212 ambient slots excluded: product needs 2–8 °C").
+
+**Verification:** `tests/test_putaway_explain.py` + a tour (open a receipt, open the dialog, pick the 2nd slot, validate, stock is there in 3D).
+**Dependencies:** T27
+**Scope:** M
+
+### T30: Template warehouse: special zones and products; README
+**Acceptance criteria:**
+- [ ] Warehaven DC gains: a cold room (chilled and frozen pallet rows), a hazardous-goods row set (approved classes), a quarantine/returns row, a floor area drawn around each, one amber-inspected row.
+- [ ] ~20 new products: chilled, frozen, pharma 2–8 °C, flammable, corrosive, fragile, heavy.
+- [ ] One Smart rule on `WH/Stock`; the old Closest-location rules stay (inactive) for the experiment.
+- [ ] Demo install < 3 min; all earlier tests green (fixed-seed opening stock respects the hard rules).
+- [ ] README: smart putaway section, how to switch rules, known limits (lot mixing deferred, no neighbour compatibility matrix).
+
+**Verification:** `tests/test_template.py` extended (zones exist, every opening-stock quant passes the hard rules); the T15 inventory tour still passes.
+**Dependencies:** T27
+**Scope:** M
+
+### Checkpoint E — Smart putaway
+- [ ] A frozen, a hazardous, a fragile and an ordinary A product received on the template warehouse each land in a correct slot; a wrong manual move is refused; "Why this slot?" explains each.
+- [ ] `TEST` green, nothing skipped; notes.md covers T24–T30. **Nitin reviews before Phase 8.**
+
+## Phase 8 — Evaluation
+
+### T31: Experiment harness
+**Acceptance criteria:**
+- [ ] `experiments/run.py` creates a throwaway database from the template, fills it to a target level (30/60/85 %), runs a seeded stream of receipts through a chosen variant, then a seeded pick list (ABC 80/15/5 by default; order lines from a fixed distribution), and writes one JSON result per run.
+- [ ] Variants: `odoo_closest` (baseline), `hard_only` (rules + first allowed slot by name), `weighted_sum`, `topsis` (AHP–TOPSIS), `two_stage` (level first, then TOPSIS within the level, after Micale et al. 2019).
+- [ ] Same seed → identical results; refuses to touch a database not named `wh3d_exp*`.
+
+**Verification:** `experiments/tests/` (determinism, DB-name guard, a 20-receipt smoke run per variant).
+**Dependencies:** T27, T30 · **Scope:** M
+
+### T32: Metrics
+**Acceptance criteria:**
+- [ ] Pick travel: pallets as single-command cycles (2 × dock↔slot), shelving as S-shape tours per order, largest gap as a second figure (Roodbergen & de Koster 2001), on the T26 aisle graph.
+- [ ] Putaway travel, space utilisation (goods volume ÷ volume of used slots; slots used), ergonomics (share of A picks at waist height; share of heavy units on levels 1–2), hard-rule violations (independent re-check), failed placements, decision time per line.
+
+**Verification:** `experiments/tests/test_metrics.py` with hand-computed toy cases for each metric, including an S-shape tour checked by hand.
+**Dependencies:** T26, T31 · **Scope:** M
+
+### T33: Runs and results
+**Acceptance criteria:**
+- [ ] 5 variants × 3 fill levels × 5 seeds; weight sensitivity (each AHP weight ±50 %, renormalised) for `topsis`.
+- [ ] `docs/results.md`: tables as % change vs `odoo_closest` with mean ± spread over seeds, the sensitivity table, a short discussion, and the exact command to reproduce. CSV next to it.
+**Dependencies:** T32 · **Scope:** S (compute) + writing
+
+### Checkpoint F — Results
+- [ ] Violations 0 for every rule-based variant; results reproducible from one command. **Nitin reviews before Phase 9.**
+
+## Phase 9 — Floor-plan import
+
+### T34: Background plan and scale
+- [ ] Upload a PNG/JPG/PDF (first page) as the warehouse's plan image; shown under the editor's grid with an opacity slider; scale by clicking two points and typing the real distance; stored per warehouse. Users can trace rows over it with the existing tools.
+- **Verification:** tests for storage, scale maths (Hoot), and a tour (upload, set scale, draw a row on top, save). **Scope:** M
+
+### T35: Draft import
+- [ ] One server method takes a list of `{type: row|area|dock, x, y, width, depth, name?, confidence?}` in metres and loads it into the editor as **unsaved** objects, marked "imported" (low-confidence ones highlighted); Save/Discard as usual. Rows get default bays/levels from a per-import form (bay width, levels, level height).
+- **Verification:** tests for conversion to rows (bays from length), overlap/wall checks reused, a tour (import a fixture, fix one, save). **Depends:** T34 · **Scope:** M
+
+### T36: DXF importer
+- [ ] `ezdxf` reads closed polylines/rectangles and text; a layer-name mapping (defaults: RACK*, AREA*, DOCK*) turns them into T35 objects; units from `$INSUNITS`; no layers → message suggesting the image path.
+- **Verification:** generated DXF fixtures (with and without layers, mm and m units). **Depends:** T35 · **Scope:** M
+
+### T37: Classical-CV importer
+- [ ] OpenCV: binarise, clean, contours, rectangles classified by size/aspect/fill into rows, areas, docks (wall gaps); returns T35 objects with confidences.
+- **Verification:** precision/recall on 20 synthetic test images (from T38's generator once it exists; first a few hand-drawn fixtures) recorded as the baseline. **Depends:** T35 · **Scope:** M
+
+### T38: Synthetic floor-plan generator (`warehouse_3D/ml/`)
+- [ ] Random plausible layouts (reusing the layout constraints), rendered with domain randomisation (line width, fonts, hatching, dimension lines, title block, noise, blur, JPEG, small rotation), COCO-format labels (row, area, dock); a seeded split train/val/test.
+- **Verification:** labels match drawn pixels on rendered samples (automatic check); 10 samples eyeballed and saved under `ml/samples/`. **Scope:** M
+
+### T39: Train and evaluate YOLOX-S
+- [ ] Colab notebook (T4): unzip dataset from Drive, train with FP16 and per-epoch checkpoints to Drive (resumable), evaluate precision/recall/mAP@0.5 and @0.5:0.95 on the synthetic test set and on real plans when available; export ONNX; RT-DETR as fallback if YOLOX fails.
+- **Verification:** the notebook's metric cells; `docs/results-floorplan.md` table vs the T37 baseline. **Depends:** T38 · **Scope:** L (mostly waiting)
+
+### T40: Detector + OCR inside Odoo
+- [ ] `onnxruntime` (CPU) runs the model on the uploaded image; Tesseract reads names inside areas and dock numbers; output via T35; falls back to T37 when the model file is missing; < 5 s per plan on a laptop CPU.
+- **Verification:** tests with a tiny bundled test model or the real one on fixture images; fallback test. **Depends:** T35, T39 · **Scope:** M
+
+### T41: Wrap-up
+- [ ] README (install of the new deps on Fedora/Windows, how to import a plan, limits: no rotation, heights from defaults, DWG via DXF export), notes.md, `docs/results-floorplan.md`, survey cross-references.
+
+### Checkpoint G — Floor plan → 3D
+- [ ] A DXF and a PNG of the template warehouse each import into a draft that, after review and Save, renders in 3D; detector metrics reported. **Nitin reviews.**
+
+## Phase 10 — Mentor's feature list *(planned in detail after Checkpoint G)*
+Candidate order (cheap and demo-visible first; uses existing data): multi-entity search (item, SKU, bin, order) with fly-to · colour modes for overstock / low stock and fast movers · dead-stock and most-picked heat maps · rack health view (uses T24 inspection status and weight limits) · zone hover analytics (utilisation, value, dwell time, pick frequency, replenishment) · fly / forklift cameras and day/night lighting · capacity what-if (free-slot count, add racks in 3D preview). Worker/forklift/congestion items need data Odoo doesn't record: out of scope unless simulated.
