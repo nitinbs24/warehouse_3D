@@ -12,3 +12,4 @@ from . import test_layout_save
 from . import test_template
 from . import test_inventory_flow
 from . import test_warehouse_list
+from . import test_special_goods_fields

@@ -17,6 +17,15 @@
                     <field name="wh3d_height" class="oe_inline" style="max-width: 5rem;" placeholder="H"/>
                 </div>
                 <field name="wh3d_abc_class"/>
+                <field name="wh3d_temp_band"/>
+                <label for="wh3d_temp_min" string="Range (°C)" invisible="wh3d_temp_band == 'none'"/>
+                <div class="o_row" name="wh3d_temp_range" invisible="wh3d_temp_band == 'none'">
+                    <field name="wh3d_temp_min" class="oe_inline" style="max-width: 5rem;" readonly="wh3d_temp_band != 'custom'"/>
+                    <span>to</span>
+                    <field name="wh3d_temp_max" class="oe_inline" style="max-width: 5rem;" readonly="wh3d_temp_band != 'custom'"/>
+                </div>
+                <field name="wh3d_hazard_class"/>
+                <field name="wh3d_fragile"/>
             </xpath>
         </field>
     </record>

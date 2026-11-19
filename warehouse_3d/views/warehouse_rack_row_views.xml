@@ -15,6 +15,10 @@
                 <field name="levels"/>
                 <field name="slots_per_level"/>
                 <field name="storage_category_id" optional="hide"/>
+                <field name="temp_band" optional="hide"/>
+                <field name="purpose" optional="hide"/>
+                <field name="inspection_status" optional="hide" decoration-warning="inspection_status == 'amber'"
+                       decoration-danger="inspection_status == 'red'"/>
             </list>
         </field>
     </record>
@@ -56,6 +60,28 @@
                             <field name="levels"/>
                             <field name="level_height"/>
                             <field name="slots_per_level" readonly="kind == 'shelf'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Special goods" name="special_goods">
+                            <field name="temp_band"/>
+                            <label for="temp_min" string="Range (°C)" invisible="temp_band == 'ambient'"/>
+                            <div class="o_row" invisible="temp_band == 'ambient'">
+                                <field name="temp_min" readonly="temp_band != 'custom'"/>
+                                <span>to</span>
+                                <field name="temp_max" readonly="temp_band != 'custom'"/>
+                            </div>
+                            <field name="purpose"/>
+                            <field name="hazard_gas"/>
+                            <field name="hazard_flammable_liquid"/>
+                            <field name="hazard_flammable_solid"/>
+                            <field name="hazard_oxidiser"/>
+                            <field name="hazard_toxic"/>
+                            <field name="hazard_corrosive"/>
+                        </group>
+                        <group string="Rack inspection" name="inspection">
+                            <field name="inspection_status"/>
+                            <field name="last_inspection"/>
                         </group>
                     </group>
                 </sheet>

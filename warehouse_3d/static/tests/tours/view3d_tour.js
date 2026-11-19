@@ -490,6 +490,64 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_edit", {
     ],
 });
 
+// Special goods (T24): a custom sub-zero range, a hazard approval and an amber inspection go
+// through the side panel and Save, come back on reopen, and show in the 3D slot panel.
+registry.category("web_tour.tours").add("warehouse_3d_editor_goods", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        clickSvgRow("P05"),
+        { trigger: ".o_wh3d_editor_panel select[name='temp_band']:value(ambient)" },
+        { trigger: ".o_wh3d_editor_panel:not(:has(input[name='temp_min']))" },
+        setField("temp_band", "custom"),
+        setField("temp_min", -20),
+        setField("temp_max", -15),
+        {
+            content: "Approve toxic goods",
+            trigger: ".o_wh3d_editor_panel input[name='hazard_toxic']",
+            run() {
+                this.anchor.checked = true;
+                this.anchor.dispatchEvent(new Event("change", { bubbles: true }));
+            },
+        },
+        setField("inspection_status", "amber"),
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']" },
+        // Reopen through the 3D view: what shows was read back from the server.
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".o_wh3d_view .o_wh3d_canvas canvas" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-01-1-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected dd[name='temperature']:text(-20 to -15 °C)" },
+        { trigger: ".o_wh3d_selected dd[name='hazards']:text(Toxic)" },
+        { trigger: ".o_wh3d_selected dd[name='inspection'].text-warning:contains(Amber)" },
+        ...openEditor(),
+        clickSvgRow("P05"),
+        { trigger: ".o_wh3d_editor_panel input[name='temp_min']:value(-20)" },
+        { trigger: ".o_wh3d_editor_panel input[name='hazard_toxic']:checked" },
+        // Back to a preset: the range input goes away and the server fills the range.
+        setField("temp_band", "pharma_fridge"),
+        { trigger: ".o_wh3d_editor_panel:not(:has(input[name='temp_min']))" },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        {
+            content: "P05 now holds 2 to 8 °C",
+            trigger: ".o_wh3d_editor[data-dirty='0']",
+            async run() {
+                const [row] = await rpc("/web/dataset/call_kw/warehouse.rack.row/search_read", {
+                    model: "warehouse.rack.row", method: "search_read",
+                    args: [[["code", "=", "P05"]], ["temp_min", "temp_max"]], kwargs: {},
+                });
+                if (row.temp_min !== 2 || row.temp_max !== 8) {
+                    throw new Error(`expected 2 to 8 °C, got ${row.temp_min} to ${row.temp_max}`);
+                }
+            },
+        },
+    ],
+});
+
 // Areas: add from the palette, move, resize, edit, save, refuse an overlap with a rack row, delete.
 registry.category("web_tour.tours").add("warehouse_3d_editor_areas", {
     steps: () => [
