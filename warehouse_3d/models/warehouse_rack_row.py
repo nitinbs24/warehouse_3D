@@ -3,6 +3,8 @@ import re
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from ..putaway.goods import BAND_SELECTION, HAZARD_CLASSES, TEMP_BANDS
+
 CODE_RE = re.compile(r'^[A-Z]\d{2}$')
 # Fields that decide which locations exist and what they're called.
 EPS = 1e-6  # metres; floating-point slack for "touching" comparisons
@@ -10,8 +12,11 @@ SHAPE_FIELDS = frozenset({'code', 'kind', 'bays', 'levels', 'slots_per_level'})
 # Fields whose change needs the location tree updated.
 SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
 # What the layout editor may change (wh3d_save_layout); anything else is refused.
+# What the rows offer special goods (T24); slots inherit it. None of it touches the location tree.
+GOODS_FIELDS = ('temp_band', 'temp_min', 'temp_max', *(f'hazard_{key}' for key, _l in HAZARD_CLASSES),
+                'purpose', 'inspection_status', 'last_inspection')
 EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
-                           'slots_per_level'})
+                           'slots_per_level', *GOODS_FIELDS})
 AREA_EDITOR_FIELDS = frozenset({'name', 'kind', 'x', 'y', 'width', 'depth', 'color'})
 
 
@@ -50,6 +55,27 @@ class WarehouseRackRow(models.Model):
     levels = fields.Integer(required=True, default=5)
     level_height = fields.Float(string='Level Height (m)', digits=(6, 2), required=True, default=1.8)
     slots_per_level = fields.Integer(required=True, default=2, help="Slots side by side in one bay level.")
+    # Special goods (T24): what this row's slots may hold.
+    temp_band = fields.Selection([('ambient', 'Ambient (uncontrolled)')] + BAND_SELECTION, string='Temperature',
+                                 required=True, default='ambient')
+    temp_min = fields.Float(string='Min Temperature (°C)', digits=(4, 1),
+                            compute='_compute_temp_range', store=True, readonly=False)
+    temp_max = fields.Float(string='Max Temperature (°C)', digits=(4, 1),
+                            compute='_compute_temp_range', store=True, readonly=False)
+    purpose = fields.Selection([('normal', 'Normal'), ('quarantine', 'Quarantine'), ('returns', 'Returns'),
+                                ('rejected', 'Rejected')], required=True, default='normal')
+    inspection_status = fields.Selection(
+        [('green', 'Green - OK'), ('amber', 'Amber - repair, do not refill'), ('red', 'Red - offload now')],
+        required=True, default='green', help="Rack inspection result (EN 15635). Amber and red rows get no putaway.")
+    last_inspection = fields.Date()
+    # Hazard classes this row is approved for (putaway.goods.HAZARD_CLASSES), one boolean each so the
+    # editor's scalar diff/save handles them as-is.
+    hazard_gas = fields.Boolean(string='Approved: Compressed gas')
+    hazard_flammable_liquid = fields.Boolean(string='Approved: Flammable liquid')
+    hazard_flammable_solid = fields.Boolean(string='Approved: Flammable solid')
+    hazard_oxidiser = fields.Boolean(string='Approved: Oxidiser')
+    hazard_toxic = fields.Boolean(string='Approved: Toxic')
+    hazard_corrosive = fields.Boolean(string='Approved: Corrosive')
     slot_location_ids = fields.One2many('stock.location', 'wh3d_rack_row_id', domain=[('wh3d_node', '=', 'slot')])
     slot_count = fields.Integer(compute='_compute_slot_count')
 
@@ -69,6 +95,22 @@ class WarehouseRackRow(models.Model):
         'CHECK(x >= 0 AND y >= 0)',
         'X and Y must not be negative.',
     )
+
+    @api.depends('temp_band')
+    def _compute_temp_range(self):
+        for row in self:
+            if row.temp_band in TEMP_BANDS:
+                _label, row.temp_min, row.temp_max = TEMP_BANDS[row.temp_band]
+            elif row.temp_band != 'custom':
+                row.temp_min = row.temp_max = 0.0
+            # custom: keep what the user typed
+
+    @api.constrains('temp_band', 'temp_min', 'temp_max')
+    def _check_temp_range(self):
+        for row in self:
+            if row.temp_band != 'ambient' and row.temp_min > row.temp_max:
+                raise ValidationError(self.env._(
+                    "Rack row %(code)s: the minimum temperature must not be above the maximum.", code=row.code))
 
     @api.depends('slot_location_ids')
     def _compute_slot_count(self):
@@ -374,3 +416,4 @@ class WarehouseRackRow(models.Model):
             wanted = {key for key, _p, _n in tree}
             obsolete = Location.browse([loc.id for key, loc in by_key.items() if key not in wanted and loc.active])
             obsolete.write({'active': False})
+

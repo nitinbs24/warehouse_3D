@@ -4,6 +4,8 @@ import random
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .warehouse_rack_row import GOODS_FIELDS
+
 
 class StockWarehouse(models.Model):
     _inherit = 'stock.warehouse'
@@ -64,7 +66,7 @@ class StockWarehouse(models.Model):
             'building': {'length': self.wh3d_length, 'width': self.wh3d_width, 'height': self.wh3d_height},
             'areas': self.wh3d_area_ids.read(['name', 'kind', 'x', 'y', 'width', 'depth', 'color'], load=None),
             'rows': rows.read(['code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
-                               'slots_per_level'], load=None),
+                               'slots_per_level', *GOODS_FIELDS], load=None),
         }
 
     def wh3d_get_scene(self):
