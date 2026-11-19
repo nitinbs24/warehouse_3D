@@ -24,6 +24,9 @@ class WarehouseLayoutArea(models.Model):
     y = fields.Float(string='Y (m)', digits=(6, 2), required=True)
     width = fields.Float(string='Width (m)', digits=(6, 2), required=True, help="Size along X.")
     depth = fields.Float(string='Depth (m)', digits=(6, 2), required=True, help="Size along Y.")
+    # Dock doors only: what the door is used for. Smart putaway measures travel to the nearest dispatch dock.
+    role = fields.Selection([('inbound', 'Inbound (receiving)'), ('outbound', 'Outbound (dispatch)'),
+                             ('both', 'Both')], required=True, default='both')
     color = fields.Char(default='#c3d0dc', required=True, help="Floor colour in the 3D view, as #rrggbb.")
 
     _positive_size = models.Constraint(

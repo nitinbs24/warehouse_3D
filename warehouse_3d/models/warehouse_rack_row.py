@@ -17,7 +17,7 @@ GOODS_FIELDS = ('temp_band', 'temp_min', 'temp_max', *(f'hazard_{key}' for key, 
                 'purpose', 'inspection_status', 'last_inspection')
 EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                            'slots_per_level', *GOODS_FIELDS})
-AREA_EDITOR_FIELDS = frozenset({'name', 'kind', 'x', 'y', 'width', 'depth', 'color'})
+AREA_EDITOR_FIELDS = frozenset({'name', 'kind', 'x', 'y', 'width', 'depth', 'color', 'role'})
 
 
 def node_key(loc):
