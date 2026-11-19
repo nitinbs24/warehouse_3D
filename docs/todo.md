@@ -478,13 +478,13 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 **Description:** The data every hard rule reads. Products say what they need; rack rows say what their slots offer.
 
 **Acceptance criteria:**
-- [ ] Product (Inventory tab): temperature range `wh3d_temp_min` / `wh3d_temp_max` (°C, empty = no requirement) with presets (frozen food ≤ −18, pharma freezer −25…−10, pharma fridge 2…8, chilled food 0…5, cool 8…15, controlled room 15…25); `wh3d_hazard_class` (none, compressed gas, flammable liquid, flammable solid, oxidiser, toxic, corrosive); `wh3d_fragile`.
-- [ ] Rack row: `temp_min` / `temp_max` (empty = ambient, uncontrolled), approved hazard classes, `purpose` (normal, quarantine, returns, rejected), `inspection_status` (green, amber, red; default green) with `last_inspection` date.
-- [ ] Shown on the rack-row form, the Layout Editor's side panel (saved through the existing one-call Save), and the 3D slot panel.
-- [ ] Validation: `temp_min ≤ temp_max` on products and rows. No other cross-field rules.
-- [ ] `wh3d_get_layout` keys extended, `test_scene_data` key-set assertion updated.
+- [x] Product (Inventory tab): temperature range `wh3d_temp_min` / `wh3d_temp_max` (°C, empty = no requirement) with presets (frozen food ≤ −18, pharma freezer −25…−10, pharma fridge 2…8, chilled food 0…5, cool 8…15, controlled room 15…25); `wh3d_hazard_class` (none, compressed gas, flammable liquid, flammable solid, oxidiser, toxic, corrosive); `wh3d_fragile`.
+- [x] Rack row: `temp_min` / `temp_max` (empty = ambient, uncontrolled), approved hazard classes, `purpose` (normal, quarantine, returns, rejected), `inspection_status` (green, amber, red; default green) with `last_inspection` date.
+- [x] Shown on the rack-row form, the Layout Editor's side panel (saved through the existing one-call Save), and the 3D slot panel.
+- [x] Validation: `temp_min ≤ temp_max` on products and rows. No other cross-field rules.
+- [x] `wh3d_get_layout` row keys extended (checked in `test_special_goods_fields.py`; `test_scene_data`'s top-level key set is unchanged).
 
-**Verification:** `tests/test_special_goods_fields.py` (defaults, presets, min > max refused, editor save round-trip, scene data keys); Hoot test for the side-panel fields; full `TEST`.
+**Verification:** done 19 Nov: full `TEST` 0 failed of 182 (13 Python, 5 Hoot and the `warehouse_3d_editor_goods` tour new). `tests/test_special_goods_fields.py` (defaults, presets, min > max refused, editor save round-trip, scene data keys); Hoot test for the side-panel fields; full `TEST`.
 **Dependencies:** none (builds on T1, T12)
 **Files:** `models/product_template.py`, `models/warehouse_rack_row.py`, `models/stock_warehouse.py`, views, `static/src/editor/*`, `static/src/view3d/view3d_action.xml`, tests
 **Scope:** M

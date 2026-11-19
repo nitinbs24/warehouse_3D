@@ -1091,3 +1091,36 @@ default) is the heart of `pickWarehouseId`, and this is the end-to-end check of 
 saved with the user: another browser or device starts from the default. That is the right size for a
 convenience; a per-user setting would need a field on `res.users.settings` and a round trip on every
 switch.
+
+## T24: Special-goods fields on products and rack rows
+
+Files: `putaway/__init__.py`, `putaway/goods.py`, `models/product_template.py`, `models/warehouse_rack_row.py`,
+`models/stock_warehouse.py`, `views/product_template_views.xml`, `views/warehouse_rack_row_views.xml`,
+`static/src/editor/layout_edit.js`, `static/src/editor/editor_action.{js,xml}`, `static/src/view3d/view3d_action.{js,xml}`,
+`tests/test_special_goods_fields.py`, `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`
+(`warehouse_3d_editor_goods`), `tests/test_view3d.py`.
+
+**Why a "band" field and not just min/max.** Odoo reads an empty Float back as `0.0`, so "no requirement" and
+"0 °C" would look the same, and chilled food really starts at 0 °C. The band (a Selection) is the source of
+truth: `none` / `ambient` means no requirement, the six presets from survey A8.1, or `custom`. `temp_min` and
+`temp_max` are **stored computed fields with `readonly=False`**: the compute fills them from the preset, and when
+the band is `custom` it leaves them alone so the user can type. T25 checks the band first, the numbers second.
+
+**One vocabulary, one place.** `putaway/goods.py` holds the temperature presets and hazard classes; products,
+rack rows and (from T25) the rules import it. It is plain Python with no ORM, which is how the whole putaway
+engine will be built. The JS copy in `layout_edit.js` mirrors it for the editor and the 3D panel.
+Frozen food is "≤ −18 °C" with no lower bound in the sources; −30 °C stands in (a `shortcut:` comment marks it).
+
+**Hazard classes as six booleans on the row.** A Many2many to a small model is the textbook Odoo shape, but the
+editor's Save compares values with `!==` and sends scalars. Six `hazard_<class>` booleans go through the
+existing diff and `wh3d_save_layout` without a single change to either.
+
+**Editor: send the band, not stale numbers.** When a row's band is a preset, `diffLayout` drops `temp_min` /
+`temp_max` from what it sends: written values beat the compute, so sending the old numbers along would undo
+the preset. Temperatures may be negative, so they get their own branch in `onFieldInput` (the old one drops
+anything below 0). A cleared date input gives `""`; it is stored as `false` like the server sends, so it
+doesn't show up as a change.
+
+**3D panel.** `goodsInfo(row)` turns the row's fields into the four lines shown under the selected slot
+(temperature, purpose, hazards allowed, inspection; amber/red coloured). The scene's rows already carry the
+fields, since `wh3d_get_layout` reads `GOODS_FIELDS`, so the slot data didn't change.
