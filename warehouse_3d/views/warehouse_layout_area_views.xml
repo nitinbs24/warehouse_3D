@@ -7,6 +7,7 @@
             <list string="Layout Areas" editable="bottom">
                 <field name="name"/>
                 <field name="kind"/>
+                <field name="role" invisible="kind != 'dock'"/>
                 <field name="warehouse_id" groups="stock.group_stock_multi_warehouses"/>
                 <field name="x"/>
                 <field name="y"/>

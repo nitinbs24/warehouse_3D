@@ -505,11 +505,11 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 **Description:** Walkable distances that treat racks as obstacles, for scoring (T27) and evaluation (T32).
 
 **Acceptance criteria:**
-- [ ] `putaway/aisles.py`: build a graph from rack rows, building size and dock doors (nodes on aisle centre lines, cross aisles, slot access points, docks); Dijkstra distance from every slot's access point to the nearest dispatch dock and to the nearest receiving dock.
-- [ ] Dock role: a dock door gets `role` (inbound, outbound, both; default both).
-- [ ] Cached per warehouse; rebuilt on layout save; template build < 2 s.
+- [x] `putaway/aisles.py`: walkable distance from every slot's access point to the nearest dispatch dock and to the nearest receiving dock. *Changed 20 Nov:* a 0.5 m floor grid (cells overlapping a rack are blocked, rectilinear moves, breadth-first search) instead of a graph on aisle centre lines; it needs no aisle detection, so it handles any layout the editor allows (not compared against an aisle graph). `None` = no dock of that role, or no way to the slot.
+- [x] Dock role: a dock door gets `role` (inbound, outbound, both; default both).
+- [x] Cached on the layout's geometry (so never stale, whatever changed it); template build 11 ms (< 2 s).
 
-**Verification:** `tests/test_aisles.py` (hand-checked distances on a 2-row toy layout; a path never crosses a rack; template distances all finite; cache invalidated on save).
+**Verification:** done 20 Nov: full `TEST` 0 failed of 226 (14 new Python, 1 new Hoot, dock-role steps in the `warehouse_3d_editor_docks` tour). `tests/test_aisles.py` (hand-checked distances on a 2-row toy layout; a path never crosses a rack; template distances all finite; cache invalidated on save).
 **Dependencies:** T24 (dock role)
 **Files:** `putaway/aisles.py`, `models/warehouse_layout_area.py`, tests
 **Scope:** M
@@ -578,6 +578,7 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 ### T32: Metrics
 **Acceptance criteria:**
 - [ ] Pick travel: pallets as single-command cycles (2 × dock↔slot), shelving as S-shape tours per order, largest gap as a second figure (Roodbergen & de Koster 2001), on the T26 aisle graph.
+- [ ] *(added 20 Nov)* S-shape and largest gap need the aisles themselves (which rows face which aisle, aisle ends, cross aisles). T26's grid gives distances only, so derive the aisles from the rows here (the rows already say it: faces with a walkable cell next to them).
 - [ ] Putaway travel, space utilisation (goods volume ÷ volume of used slots; slots used), ergonomics (share of A picks at waist height; share of heavy units on levels 1–2), hard-rule violations (independent re-check), failed placements, decision time per line.
 
 **Verification:** `experiments/tests/test_metrics.py` with hand-computed toy cases for each metric, including an S-shape tour checked by hand.

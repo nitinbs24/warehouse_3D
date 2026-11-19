@@ -134,7 +134,7 @@ Status: **awaiting approval**. Tasks T24–T41 in `docs/todo.md` (Phases 7–10)
 | Zone attributes live on **rack rows** (temperature range, approved hazard classes, purpose, inspection status); slots inherit them | Areas have no Inventory locations; one setting per row |
 | Temperature as a °C range with presets, not labels | Food and pharma bands differ (survey A8.1) |
 | AHP weights are constants computed by `docs/review/ahp.py`; TOPSIS and weighted sum both implemented | Fixed for now; the experiment compares them |
-| Distances on an **aisle graph** built from the layout (Dijkstra), cached per warehouse and rebuilt when the layout is saved | Racks are obstacles; fast at receipt time |
+| Distances on a **walkable-floor grid** (0.5 m cells, a cell overlapping a rack is blocked, rectilinear moves, breadth-first search = Dijkstra with equal steps), cached on the layout's geometry *(changed 20 Nov from aisle centre lines, T26; awaiting Nitin's approval)* | Racks are obstacles; works for any layout the editor allows; 11 ms on the template |
 | Experiment and ML pipeline live **outside** the add-on: `warehouse_3D/experiments/`, `warehouse_3D/ml/` | The add-on stays light; only the ONNX model file ships |
 | Floor-plan import produces an **unsaved draft in the Layout Editor** | Every importer has one output format; the user reviews before Save (human-in-the-loop) |
 | New Python deps only in Phase 9 (`ezdxf`, `opencv-python-headless`, `onnxruntime`, `pytesseract` + Tesseract), declared in `external_dependencies` | Phase 7–8 need nothing new |
@@ -156,7 +156,7 @@ Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 ### Phase 7: Smart putaway
 - [x] T24: Special-goods fields on products and rack rows (form, editor side panel, 3D tooltip)
 - [x] T25: Hard-rule filter
-- [ ] T26: Aisle graph and dock distances
+- [x] T26: Aisle graph and dock distances
 - [ ] T27: Criteria, AHP–TOPSIS and weighted-sum ranking; "Smart" putaway option
 - [ ] T28: Block manual moves that break a hard rule
 - [ ] T29: "Why this slot?": top 3 with reasons, pick another

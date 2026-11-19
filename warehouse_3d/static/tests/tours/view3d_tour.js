@@ -742,6 +742,9 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_docks", {
         setField("area_opening", 5),
         { trigger: ".o_wh3d_editor svg .o_wh3d_dock[data-name='Dock door 1'] rect[width='1.6'][height='5']" },
         { trigger: ".o_wh3d_editor:not(:has(.o_invalid))" },
+        // ... and it becomes the dispatch door (T26).
+        { trigger: ".o_wh3d_editor_panel select[name='area_role']:value(both)" },
+        setField("area_role", "outbound"),
         { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
         { trigger: ".o_notification:contains(Layout saved)" },
         { trigger: ".o_wh3d_editor[data-dirty='0'] svg .o_wh3d_dock:not(.o_new)[data-name='Dock door 1']" },
@@ -750,8 +753,9 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_docks", {
             trigger: ".o_wh3d_editor",
             async run() {
                 const [dock] = await callKw("warehouse.layout.area", "search_read",
-                    [[["name", "=", "Dock door 1"]], ["x", "y", "width", "depth", "kind"]]);
-                if (!dock || dock.kind !== "dock" || dock.x !== 0 || dock.width !== 1.6 || dock.depth !== 5) {
+                    [[["name", "=", "Dock door 1"]], ["x", "y", "width", "depth", "kind", "role"]]);
+                if (!dock || dock.kind !== "dock" || dock.x !== 0 || dock.width !== 1.6 || dock.depth !== 5
+                    || dock.role !== "outbound") {
                     throw new Error(`unexpected door ${JSON.stringify(dock)}`);
                 }
             },

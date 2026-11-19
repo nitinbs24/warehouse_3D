@@ -1171,3 +1171,44 @@ sum of its open move lines (`result_package_id`), because a package being receiv
 receipt is done. A test compares this with `_check_can_be_used(package=...)` under and over a weight limit.
 Quantity 0 (Odoo's call for a new line without quantity) is checked as one unit of volume, so a full slot isn't
 suggested.
+
+## T26: Walkable distances to the docks
+
+Files: `putaway/aisles.py`, `models/stock_warehouse.py` (`_wh3d_slot_distances`), `models/warehouse_layout_area.py`
+(`role`), `models/warehouse_rack_row.py` (`AREA_EDITOR_FIELDS`), `views/warehouse_layout_area_views.xml`,
+`demo/layout.xml`, `static/src/editor/{layout_edit.js,editor_action.js,editor_action.xml}`, `tests/test_aisles.py`,
+`static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`.
+
+**A grid instead of aisle centre lines.** The plan said "nodes on aisle centre lines". Finding aisles in an
+arbitrary layout (rows anywhere, any spacing) is the hard part of that, and only T32's routing needs the aisles
+themselves. For a distance it's enough to know where one can walk: the floor is cut into 0.5 m squares, a square
+overlapping a rack is blocked, and a breadth-first search from all docks of a role at once gives every square's
+distance to the nearest such dock. With equal step costs, BFS *is* Dijkstra. Moves are rectilinear (up/down/
+left/right), as trucks and pickers move in aisles. The whole template takes 11 ms.
+
+**Where a slot is reached.** The free square just outside each rack face, at the slot's middle along the row.
+Position A is the lower-y half of a bay, the same as `slotBox` in the 3D view, so T29's "why this slot" will
+point at the slot the distance was measured for. Both faces are tried and the nearer wins; a back-to-back face
+has no free square, so it never wins. All levels of a bay position share the point (lifting is ignored, A9.1).
+
+**Alignment.** Rows don't sit on the grid, so the code that finds "the cells a rack overlaps" and "the cell next
+to a face" is where off-by-one bugs live. The toy tests put one row on a cell boundary (x 4.0) and one off it
+(x 6.3), with distances worked out by hand and asserted exactly (no tolerance, which would hide a one-cell error).
+Shifting the face cell by one on purpose made four tests fail. Limit: an aisle under 1.0 m may or may not get a free
+square depending on how it lines up (a `shortcut:` comment says so); template aisles are 1.2 and 3 m.
+
+**Floor areas are floor.** Office, charging, packing and the other drawn areas don't block cells; only racks do.
+A building whose size isn't a multiple of 0.5 m loses its last partial cell, so a strip under 0.5 m behind a
+row next to the wall stays closed (a test pins this).
+
+**No answer = `None`.** When no dock has the role, or a slot is boxed in. T27 must exclude or penalise those, not
+crash on them.
+
+**Caching on the geometry.** `lru_cache` on the pure function, keyed by the building size, row geometry and dock
+geometry plus roles. Any edit, from the editor, the rack-row form or an import, makes a new key, so there is
+nothing to invalidate and nothing can go stale. The result is a `MappingProxyType` (read-only), because the cached
+object is shared by every caller: one caller adding a key would corrupt it for all.
+
+**Dock role.** `role` on `warehouse.layout.area` (inbound, outbound, both; default both). The editor's dock card
+gets a "Used for" select. `onAreaField` parsed everything that isn't name or colour as a number, so the role needed
+its own branch (the same trap as T24's temperatures). Demo docks 1–3 are inbound, 4–6 outbound.
