@@ -3,3 +3,7 @@ __pycache__/
 .vscode/
 .idea/
 graphify-out/
+# Phase 2 research material (kept local)
+docs/review/
+docs/survey.md
+docs/intent/project-details.md
