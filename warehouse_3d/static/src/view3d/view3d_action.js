@@ -4,6 +4,7 @@ import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
+import { goodsInfo } from "@warehouse_3d/editor/layout_edit";
 import { standardActionServiceProps } from "@web/webclient/actions/action_service";
 import {
     WarehousePicker,
@@ -248,6 +249,7 @@ export class View3D extends Component {
             capacity: `${width.toFixed(2)} × ${row.depth.toFixed(2)} × ${row.level_height.toFixed(2)} m · ${slot.capacity_m3.toFixed(2)} m³`,
             fill: stock && stock.fill !== null ? `${Math.round(stock.fill * 100)} %` : "",
             band: stock ? fillBand(stock.fill) : "",
+            ...goodsInfo(row),
         };
     }
 

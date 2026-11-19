@@ -53,6 +53,10 @@
                             <div><dt>Zone</dt><dd t-esc="info.zone"/></div>
                             <div><dt>Level</dt><dd t-esc="info.level"/></div>
                             <div><dt>Space</dt><dd t-esc="info.capacity"/></div>
+                            <div><dt>Temperature</dt><dd name="temperature" t-esc="info.temperature"/></div>
+                            <div><dt>Purpose</dt><dd name="purpose" t-esc="info.purpose"/></div>
+                            <div><dt>Hazards allowed</dt><dd name="hazards" t-esc="info.hazards"/></div>
+                            <div><dt>Inspection</dt><dd name="inspection" t-att-class="{ 'text-warning': info.inspectionStatus === 'amber', 'text-danger': info.inspectionStatus === 'red' }" t-esc="info.inspection"/></div>
                         </dl>
                         <div t-if="info.slot.stock" class="o_wh3d_contents">
                             <span t-attf-class="o_wh3d_sw o_wh3d_band_{{ info.band }}" aria-hidden="true"/>

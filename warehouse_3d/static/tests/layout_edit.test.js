@@ -4,6 +4,8 @@ import {
     areaProblems,
     diffAreas,
     diffLayout,
+    GOODS_DEFAULTS,
+    goodsInfo,
     layoutProblems,
     newArea,
     newDock,
@@ -96,6 +98,42 @@ describe("diffLayout", () => {
 
     test("no edits, nothing to save", () => {
         expect(diffLayout([P05], [{ ...P05 }])).toEqual({ create: [], write: [], delete: [] });
+    });
+});
+
+describe("special-goods fields (T24)", () => {
+    const P05G = { ...P05, ...GOODS_DEFAULTS };
+
+    test("a new row starts ambient, normal, green, no hazards", () => {
+        const row = newRow("pallet", [], BUILDING, -1);
+        expect([row.temp_band, row.purpose, row.inspection_status, row.hazard_toxic, row.last_inspection])
+            .toEqual(["ambient", "normal", "green", false, false]);
+    });
+
+    test("a preset sends only the band: the server fills the range", () => {
+        const changed = { ...P05G, temp_band: "frozen", hazard_gas: true };
+        expect(diffLayout([P05G], [changed]).write).toEqual([{ id: 5, vals: { temp_band: "frozen", hazard_gas: true } }]);
+        const created = diffLayout([], [{ ...changed, id: -1 }]).create[0].vals;
+        expect("temp_min" in created || "temp_max" in created).toBe(false);
+    });
+
+    test("a custom range keeps negative temperatures", () => {
+        const changed = { ...P05G, temp_band: "custom", temp_min: -30, temp_max: -20 };
+        expect(diffLayout([P05G], [changed]).write[0].vals).toEqual({ temp_band: "custom", temp_min: -30, temp_max: -20 });
+    });
+
+    test("the 3D panel describes what a row offers", () => {
+        expect(goodsInfo(P05G)).toEqual({ temperature: "Ambient (uncontrolled)", purpose: "Normal", hazards: "None",
+            inspection: "Green - OK", inspectionStatus: "green" });
+        const cold = goodsInfo({ ...P05G, temp_band: "custom", temp_min: -30, temp_max: -20, hazard_toxic: true,
+            hazard_gas: true, inspection_status: "red", last_inspection: "2026-11-01" });
+        expect([cold.temperature, cold.hazards, cold.inspection])
+            .toEqual(["-30 to -20 °C", "Compressed gas, Toxic", "Red - offload now (2026-11-01)"]);
+    });
+
+    test("an inspection date and status are sent as they are", () => {
+        const changed = { ...P05G, inspection_status: "amber", last_inspection: "2026-11-01" };
+        expect(diffLayout([P05G], [changed]).write[0].vals).toEqual({ inspection_status: "amber", last_inspection: "2026-11-01" });
     });
 });
 
