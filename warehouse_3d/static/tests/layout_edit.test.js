@@ -137,7 +137,7 @@ describe("special-goods fields (T24)", () => {
     });
 });
 
-const RECEIVING = { id: 1, name: "Receiving", kind: "area", x: 25, y: 25, width: 5, depth: 5, color: "#c3d0dc" };
+const RECEIVING = { id: 1, name: "Receiving", kind: "area", x: 25, y: 25, width: 5, depth: 5, color: "#c3d0dc", role: "both" };
 
 describe("area palette", () => {
     test("every type has a name, a #rrggbb colour and a positive default size; Custom is last", () => {
@@ -231,7 +231,7 @@ describe("diffAreas", () => {
         expect(diff.create.length).toBe(1);
         expect(diff.create[0].tmp_id).toBe(-1);
         expect(diff.create[0].vals).toEqual({ name: "Packing", kind: "area", x: 25, y: 25, width: 5, depth: 5,
-            color: "#c3d0dc" });
+            color: "#c3d0dc", role: "both" });
     });
 
     test("no edits, nothing to save", () => {
@@ -239,7 +239,7 @@ describe("diffAreas", () => {
     });
 });
 
-const DOCK = { id: 7, name: "Dock door 1", kind: "dock", x: 18.5, y: 0, width: 3, depth: 1.6, color: "#e3a22b" };
+const DOCK = { id: 7, name: "Dock door 1", kind: "dock", x: 18.5, y: 0, width: 3, depth: 1.6, color: "#e3a22b", role: "both" };
 
 describe("snapDockToWall", () => {
     test("a point near each wall puts the door flush on that wall (opening 3 m, thickness 1.6 m)", () => {
@@ -292,6 +292,12 @@ describe("docks", () => {
         expect(Object.keys(areaProblems([{ ...DOCK, x: 9.7, y: 0, width: 3, depth: 1.6 }], [P05], BUILDING)).length).toBe(0);
         expect(areaProblems([{ ...DOCK, x: 58.5 }], [], BUILDING)[7]).toMatch(/outside/);
         expect(Object.keys(areaProblems([DOCK], [], BUILDING)).length).toBe(0);
+    });
+
+    test("a new door is used both ways until told otherwise; a role change is sent (T26)", () => {
+        const dock = newDock([30, 0.5], BUILDING, -1, []);
+        expect(dock.role).toBe("both");
+        expect(diffAreas([DOCK], [{ ...DOCK, role: "outbound" }]).write).toEqual([{ id: 7, vals: { role: "outbound" } }]);
     });
 
     test("diffAreas sends a moved door's position and size", () => {
