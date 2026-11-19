@@ -70,7 +70,8 @@ def _fit(goods, slot, contents):
             return f"{l:g} × {w:g} × {h:g} m doesn't fit a {width:g} × {depth:g} × {height:g} m slot"
     incoming = goods.get('volume')
     if incoming is None and not goods.get('package') and len(goods['products']) == 1:
-        incoming = _volume(goods['products'][0]) * goods['qty'] or None
+        # Odoo asks with quantity 0 for a new line: check one unit, so a full slot isn't suggested.
+        incoming = _volume(goods['products'][0]) * max(goods['qty'], 1) or None
     if incoming is None or not all(_volume(c) for c in contents):
         return None  # some volume unknown: only the per-unit check above applies
     used = sum(_volume(c) * c['qty'] for c in contents)

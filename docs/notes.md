@@ -1159,9 +1159,15 @@ and tests don't depend on the wording. The first failing rule wins (cheapest fir
 quants would let a toxic and a corrosive line pick the same empty slot. So contents = quants + move lines not done
 (`exclude_sml_ids` respected, as in Odoo). Only Odoo's own "empty" check uses quants alone, to stay identical to Odoo.
 
-**A fixed number of queries (13).** Slots of the candidates' whole rows (the neighbour above may not be a
+**A fixed number of queries (16).** Slots of the candidates' whole rows (the neighbour above may not be a
 candidate), quants and incoming lines grouped by location and product, `_get_weight` (already batched in Odoo),
 one search for the quarantine-type row containing the destination. The test measures one row and three rows and
-asserts equal counts. It first failed (82 vs 13): the slots came from a one2many, whose records fetched their
+asserts equal counts, with storage categories on the rows. It first failed (82 vs 13): the slots came from a one2many, whose records fetched their
 fields one by one; `Location.browse(slots.ids)` gives them a fresh prefetch set. Measure after a warm-up call and
 `invalidate_all()`, or one-time lookups and the cache hide the real count.
+
+**Packages, as Odoo does it.** The package path applies only to a package with a package type; its weight is the
+sum of its open move lines (`result_package_id`), because a package being received has no quants until the
+receipt is done. A test compares this with `_check_can_be_used(package=...)` under and over a weight limit.
+Quantity 0 (Odoo's call for a new line without quantity) is checked as one unit of volume, so a full slot isn't
+suggested.

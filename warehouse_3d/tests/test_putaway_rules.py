@@ -114,6 +114,10 @@ class TestPutawayRules(TransactionCase):
         self.assertRefused(allowed(goods(qty=3), slot(), []), 'fit')
         self.assertRefused(allowed(goods(qty=2), slot(), [content()]), 'fit')
 
+    def test_fit_quantity_zero_checks_one_unit(self):
+        # Odoo asks with quantity 0 for a new line; a full slot must not be suggested.
+        self.assertRefused(allowed(goods(qty=0), slot(), [content(qty=2)]), 'fit')
+
     def test_fit_unknown_dimensions_are_not_checked(self):
         self.assertAllowed(allowed(goods(product(dims=(0.0, 0.0, 0.0)), qty=50), slot(), []))
         self.assertAllowed(allowed(goods(qty=2), slot(), [content(dims=(0.0, 0.0, 0.0), id=2)]))
@@ -260,6 +264,25 @@ class TestPutawayRulesGlue(TransactionCase):
                 self.assertIn(reason and reason.code, (None, 'odoo_capacity'))
                 self.assertEqual(ok, expected, f'{name}, qty {qty}: {reason and reason.text}')
 
+    def test_package_weight_matches_check_can_be_used(self):
+        # A received package has no quants yet: Odoo weighs it by its open move lines.
+        pallet = self.env['stock.package.type'].create({'name': 'Pallet'})
+        category = self.env['stock.storage.category'].create({
+            'name': 'Light', 'allow_new_product': 'mixed', 'max_weight': 250.0,
+            'package_capacity_ids': [(0, 0, {'package_type_id': pallet.id, 'quantity': 4})]})
+        self.p05.storage_category_id = category
+        self.rice.wh3d_length = 0.0  # only Odoo's rule can refuse
+        target = self.slot('P05-04-1-A')
+        for qty, expected in ((2, True), (3, False)):  # 200 kg fits under 250 kg, 300 kg doesn't
+            package = self.env['stock.package'].create({'package_type_id': pallet.id})
+            picking = self.incoming(self.rice, self.stock, qty)
+            picking.move_ids.move_line_ids.result_package_id = package
+            self.assertEqual(target._check_can_be_used(self.env['product.product'], package=package), expected)
+            ok, reason = self.Rule.with_context(products=self.rice)._wh3d_check_slots(
+                self.env['product.product'], 0, target, self.stock, package=package)[target.id]
+            self.assertEqual(ok, expected, reason and reason.text)
+            picking.action_cancel()
+
     def test_fixed_number_of_queries(self):
         def queries(slots):
             self.env.invalidate_all()
@@ -267,13 +290,19 @@ class TestPutawayRulesGlue(TransactionCase):
             self.check(self.rice, 1, slots)
             return self.env.cr.sql_log_count - start
 
+        Category = self.env['stock.storage.category']
+        bulk = Category.create({'name': 'Bulk', 'allow_new_product': 'empty', 'max_weight': 1000.0})
+        capped = Category.create({'name': 'Capped', 'allow_new_product': 'same', 'max_weight': 500.0,
+                                  'product_capacity_ids': [(0, 0, {'product_id': self.rice.id, 'quantity': 2})]})
+        self.p05.storage_category_id = capped
         Quant = self.env['stock.quant']
         Quant._update_available_quantity(self.glass, self.slot('P05-01-2-A'), 1)
         queries(self.p05.slot_location_ids)  # warm-up: one-time lookups (access rules, metadata)
         one_row = queries(self.p05.slot_location_ids)
         p06 = create_p05(self.env, self.warehouse, self.zone, code='P06', x=20.5)
-        p07 = create_p05(self.env, self.warehouse, self.zone, code='P07', x=30.0)
+        p07 = create_p05(self.env, self.warehouse, self.zone, code='P07', x=30.0, storage_category_id=bulk.id)
+        p06.storage_category_id = capped
         Quant._update_available_quantity(self.glass, p07.slot_location_ids[5], 1)
         three_rows = queries(self.p05.slot_location_ids | p06.slot_location_ids | p07.slot_location_ids)
         self.assertEqual(one_row, three_rows)
-        self.assertLessEqual(three_rows, 15)  # 13 when written (19 Nov): a jump means a per-slot query crept in
+        self.assertLessEqual(three_rows, 18)  # 16 when written (19 Nov): a jump means a per-slot query crept in

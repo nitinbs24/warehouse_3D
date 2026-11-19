@@ -59,11 +59,19 @@ class StockPutawayRule(models.Model):
             [('purpose', '!=', 'normal'), ('location_id', 'parent_of', dest.id)], limit=1)
         goods = {'products': [info[p] for p in products], 'qty': quantity, 'dest_path': dest.parent_path,
                  'purpose': special.purpose or 'normal'}
-        if package:
-            goods |= {'package': True, 'weight': sum(
-                package.quant_ids.mapped(lambda q: q.quantity * q.product_id.weight))}
+        # As Odoo: the package path only for a typed package, weighed by its open move lines (a received
+        # package has no quants until the receipt is done).
+        typed_package = package if package and package.package_type_id else None
+        if typed_package:
+            goods |= {'package': True, 'weight': sum(qty * prod.weight for prod, qty in self.env['stock.move.line']._read_group(
+                [('result_package_id', '=', typed_package.id), ('state', 'not in', ('done', 'cancel'))],
+                ['product_id'], ['quantity_product_uom:sum']))}
 
         weights = slots._get_weight(set(exclude))
+        categories = slots.storage_category_id
+        product_cap = {c.storage_category_id: c.quantity for c in categories.product_capacity_ids if c.product_id == product}
+        package_cap = {c.storage_category_id: c.quantity for c in categories.package_capacity_ids
+                       if typed_package and c.package_type_id == typed_package.package_type_id}
         result = {}
         for loc in slots:
             row = loc.wh3d_rack_row_id
@@ -71,7 +79,7 @@ class StockPutawayRule(models.Model):
             if qty_by_location is not None:
                 location_qty = qty_by_location.get(loc.id, 0.0)
             else:  # what Odoo would pass: this product on hand plus incoming
-                location_qty = 0.0 if package else held.get(loc, {}).get(product, [0.0, 0.0])[1]
+                location_qty = 0.0 if typed_package else held.get(loc, {}).get(product, [0.0, 0.0])[1]
             slot = {
                 'id': loc.id,
                 'row': {
@@ -84,10 +92,7 @@ class StockPutawayRule(models.Model):
                 'capacity_m3': row.bay_width / row.slots_per_level * row.depth * row.level_height,
                 'category': category and {
                     'max_weight': category.max_weight, 'allow_new_product': category.allow_new_product,
-                    'product_capacity': sum(category.product_capacity_ids.filtered(
-                        lambda c: c.product_id == product).mapped('quantity')) or None,
-                    'package_capacity': sum(category.package_capacity_ids.filtered(
-                        lambda c: package and c.package_type_id == package.package_type_id).mapped('quantity')) or None,
+                    'product_capacity': product_cap.get(category), 'package_capacity': package_cap.get(category),
                 } or None,
                 'forecast_weight': weights[loc]['forecast_weight'],
                 'location_qty': location_qty,
