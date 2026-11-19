@@ -155,7 +155,7 @@ Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 ## Task list (details in `docs/todo.md`)
 ### Phase 7: Smart putaway
 - [x] T24: Special-goods fields on products and rack rows (form, editor side panel, 3D tooltip)
-- [ ] T25: Hard-rule filter
+- [x] T25: Hard-rule filter
 - [ ] T26: Aisle graph and dock distances
 - [ ] T27: Criteria, AHP–TOPSIS and weighted-sum ranking; "Smart" putaway option
 - [ ] T28: Block manual moves that break a hard rule

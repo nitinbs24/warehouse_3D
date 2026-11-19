@@ -1124,3 +1124,44 @@ doesn't show up as a change.
 **3D panel.** `goodsInfo(row)` turns the row's fields into the four lines shown under the selected slot
 (temperature, purpose, hazards allowed, inspection; amber/red coloured). The scene's rows already carry the
 fields, since `wh3d_get_layout` reads `GOODS_FIELDS`, so the slot data didn't change.
+
+## T25: Hard-rule filter
+
+Files: `putaway/rules.py`, `models/stock_putaway_rule.py`, `models/__init__.py`, `tests/test_putaway_rules.py`.
+
+**Two layers.** `putaway/rules.py` is plain Python: `allowed(goods, slot, contents)` takes dicts and returns
+`(True, None)` or `(False, Reason(code, text))`. `stock.putaway.rule._wh3d_check_slots(product, qty, slots, dest)`
+is the Odoo side: it reads everything the rules need for all candidate slots at once and calls `allowed` per
+slot. The experiment (Phase 8) can call the pure function on generated data without a database.
+
+**Reason codes.** `inspection`, `purpose`, `temperature`, `hazard`, `fit`, `fragile`, `odoo_capacity`. Stable
+keys, so T28's error message, T29's "why not this slot" and T32's per-rule violation counts can group by them,
+and tests don't depend on the wording. The first failing rule wins (cheapest first).
+
+**What each rule means exactly.**
+- *Temperature:* the row's range must lie inside the product's. A product with no requirement may go anywhere,
+  cold rows included (read literally from survey A8.1; keeping cold space for cold goods is a scoring matter).
+  Because frozen is stored as −30…−18 °C (T24 shortcut), a −40…−20 °C row refuses frozen food; a test pins this.
+- *Hazard:* the class must be approved on the row, and a slot never ends up with two classes.
+- *Purpose:* goods are "quarantine" (etc.) when their destination lies inside a quarantine row's zone. Normal goods
+  only in normal rows; special rows only for goods sent into their zone. Compared with `parent_path` prefixes
+  (`1/7/40/`), not names, so a zone "Q" doesn't match "QUAR".
+- *Inspection:* amber and red rows get nothing.
+- *Fit:* one unit must fit the slot (turning it in the horizontal plane is allowed), **and** the slot's free volume
+  must take the whole quantity. The second part goes beyond the task text: the template's storage categories set
+  no per-product capacity, so without it 50 pallets could "fit" one slot and T27's consolidation score would
+  prefer that. Unknown dimensions (0) skip the check, as the 3D view's fill % does.
+- *Fragile:* fragile never directly below a heavy (> 25 kg/unit) product; heavy never directly above fragile.
+- *Odoo capacity:* `stock.location._check_can_be_used` ported onto the prepared data (empty-only, same-product,
+  max weight, product/package capacity). A parity test runs both on the same slots and compares the answers.
+
+**Contents include stock on its way.** In a receipt, every line gets its putaway before any is done. Counting only
+quants would let a toxic and a corrosive line pick the same empty slot. So contents = quants + move lines not done
+(`exclude_sml_ids` respected, as in Odoo). Only Odoo's own "empty" check uses quants alone, to stay identical to Odoo.
+
+**A fixed number of queries (13).** Slots of the candidates' whole rows (the neighbour above may not be a
+candidate), quants and incoming lines grouped by location and product, `_get_weight` (already batched in Odoo),
+one search for the quarantine-type row containing the destination. The test measures one row and three rows and
+asserts equal counts. It first failed (82 vs 13): the slots came from a one2many, whose records fetched their
+fields one by one; `Location.browse(slots.ids)` gives them a fresh prefetch set. Measure after a warm-up call and
+`invalidate_all()`, or one-time lookups and the cache hide the real count.
