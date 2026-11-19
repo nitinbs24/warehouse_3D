@@ -23,6 +23,10 @@ import {
 } from "@warehouse_3d/common/warehouse_picker";
 import {
     AREA_TYPES,
+    HAZARD_CLASSES,
+    INSPECTION,
+    PURPOSES,
+    TEMP_BANDS,
     areaProblems,
     diffAreas,
     diffLayout,
@@ -63,6 +67,7 @@ export class LayoutEditor extends Component {
         this.planRef = useRef("plan");
         this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false, warehouseId: 0 });
         this.areaTypes = AREA_TYPES;
+        Object.assign(this, { tempBands: TEMP_BANDS, purposes: PURPOSES, inspection: INSPECTION, hazardClasses: HAZARD_CLASSES });
         this.drag = null; // panning the floor
         this.itemDrag = null; // moving a row or an area
         this.resizeDrag = null; // dragging an area's edge or corner
@@ -359,6 +364,25 @@ export class LayoutEditor extends Component {
         const raw = ev.target.value;
         if (field === "code") {
             row.code = raw.trim().toUpperCase();
+            return;
+        }
+        if (field.startsWith("hazard_")) {
+            row[field] = ev.target.checked;
+            return;
+        }
+        if (["temp_band", "purpose", "inspection_status"].includes(field)) {
+            row[field] = raw;
+            return;
+        }
+        if (field === "last_inspection") {
+            row.last_inspection = raw || false; // the server sends false for "no date"
+            return;
+        }
+        if (field === "temp_min" || field === "temp_max") {
+            const value = parseFloat(raw); // below zero is fine here
+            if (Number.isFinite(value)) {
+                row[field] = Math.round(value * 10) / 10;
+            }
             return;
         }
         if (field === "kind") {

@@ -6,7 +6,41 @@
 import { areaRect, rowRect } from "@warehouse_3d/editor/geometry";
 
 const EPS = 1e-6;
-const EDITABLE = ["code", "kind", "x", "y", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level"];
+// Special goods (T24); mirrors GOODS_FIELDS in models/warehouse_rack_row.py and putaway/goods.py.
+export const HAZARD_CLASSES = [
+    ["gas", "Compressed gas"], ["flammable_liquid", "Flammable liquid"], ["flammable_solid", "Flammable solid"],
+    ["oxidiser", "Oxidiser"], ["toxic", "Toxic"], ["corrosive", "Corrosive"],
+];
+export const TEMP_BANDS = [
+    ["ambient", "Ambient (uncontrolled)"], ["frozen", "Frozen food (≤ −18 °C)"],
+    ["pharma_freezer", "Pharma freezer (−25…−10 °C)"], ["pharma_fridge", "Pharma fridge (2…8 °C)"],
+    ["chilled", "Chilled food (0…5 °C)"], ["cool", "Cool (8…15 °C)"], ["controlled_room", "Controlled room (15…25 °C)"],
+    ["custom", "Custom range"],
+];
+export const PURPOSES = [["normal", "Normal"], ["quarantine", "Quarantine"], ["returns", "Returns"], ["rejected", "Rejected"]];
+export const INSPECTION = [["green", "Green - OK"], ["amber", "Amber - repair, do not refill"], ["red", "Red - offload now"]];
+export const GOODS_DEFAULTS = {
+    temp_band: "ambient", temp_min: 0, temp_max: 0, purpose: "normal", inspection_status: "green", last_inspection: false,
+    ...Object.fromEntries(HAZARD_CLASSES.map(([key]) => [`hazard_${key}`, false])),
+};
+const label = (pairs, key) => pairs.find(([k]) => k === key)?.[1] ?? key;
+
+/** What a row offers special goods, as text for the 3D slot panel: {temperature, purpose, hazards, inspection}. */
+export function goodsInfo(row) {
+    const temperature = row.temp_band === "custom" ? `${row.temp_min} to ${row.temp_max} °C` : label(TEMP_BANDS, row.temp_band);
+    const hazards = HAZARD_CLASSES.filter(([key]) => row[`hazard_${key}`]).map(([, name]) => name);
+    const inspected = row.last_inspection ? ` (${row.last_inspection})` : "";
+    return {
+        temperature,
+        purpose: label(PURPOSES, row.purpose),
+        hazards: hazards.length ? hazards.join(", ") : "None",
+        inspection: label(INSPECTION, row.inspection_status) + inspected,
+        inspectionStatus: row.inspection_status,
+    };
+}
+
+const EDITABLE = ["code", "kind", "x", "y", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level",
+    ...Object.keys(GOODS_DEFAULTS)];
 const AREA_EDITABLE = ["name", "kind", "x", "y", "width", "depth", "color"];
 const MIN_AREA_SIZE = 0.5; // metres, when resizing by dragging
 
@@ -66,7 +100,7 @@ export function nextCode(kind, rows) {
  * (scanning every 0.5 m), or null if it fits nowhere. ``tmpId`` (negative) marks it as unsaved.
  */
 export function newRow(kind, rows, building, tmpId) {
-    const row = { id: tmpId, code: nextCode(kind, rows), kind, x: 0, y: 0, ...TEMPLATE[kind] };
+    const row = { id: tmpId, code: nextCode(kind, rows), kind, x: 0, y: 0, ...TEMPLATE[kind], ...GOODS_DEFAULTS };
     for (let y = 0; y <= building.width; y += 0.5) {
         for (let x = 0; x <= building.length; x += 0.5) {
             Object.assign(row, { x: snap(x), y: snap(y) });
@@ -99,7 +133,18 @@ function diffRecords(original, current, fields) {
 }
 
 export function diffLayout(original, current) {
-    return diffRecords(original, current, EDITABLE);
+    const diff = diffRecords(original, current, EDITABLE);
+    // Only a custom range is typed in; for a preset the server fills min/max from the band, and
+    // stale values sent along would overwrite that.
+    const bands = new Map(current.map((r) => [r.id, r.temp_band]));
+    for (const { id, tmp_id, vals } of [...diff.create, ...diff.write]) {
+        if (bands.get(id ?? tmp_id) !== "custom") {
+            delete vals.temp_min;
+            delete vals.temp_max;
+        }
+    }
+    diff.write = diff.write.filter((w) => Object.keys(w.vals).length);
+    return diff;
 }
 
 export function diffAreas(original, current) {

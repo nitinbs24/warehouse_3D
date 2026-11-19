@@ -162,6 +162,47 @@
                                        t-on-change="(ev) => this.onFieldInput(f[0], ev)"/>
                             </t>
                         </div>
+                        <p class="o_wh3d_label mt-2">Special goods</p>
+                        <div class="o_wh3d_fields" name="goods_fields">
+                            <label for="o_wh3d_f_temp_band">Temperature</label>
+                            <select id="o_wh3d_f_temp_band" name="temp_band" class="form-select form-select-sm"
+                                    t-on-change="(ev) => this.onFieldInput('temp_band', ev)">
+                                <option t-foreach="tempBands" t-as="o" t-key="o[0]" t-att-value="o[0]"
+                                        t-att-selected="row.temp_band === o[0]" t-esc="o[1]"/>
+                            </select>
+                            <t t-if="row.temp_band === 'custom'">
+                                <t t-foreach="[['temp_min', 'Min (°C)'], ['temp_max', 'Max (°C)']]" t-as="f" t-key="f[0]">
+                                    <label t-att-for="'o_wh3d_f_' + f[0]" t-esc="f[1]"/>
+                                    <input t-att-id="'o_wh3d_f_' + f[0]" t-att-name="f[0]" type="number" step="0.5"
+                                           class="form-control form-control-sm" t-att-value="row[f[0]]"
+                                           t-on-change="(ev) => this.onFieldInput(f[0], ev)"/>
+                                </t>
+                            </t>
+                            <label for="o_wh3d_f_purpose">Purpose</label>
+                            <select id="o_wh3d_f_purpose" name="purpose" class="form-select form-select-sm"
+                                    t-on-change="(ev) => this.onFieldInput('purpose', ev)">
+                                <option t-foreach="purposes" t-as="o" t-key="o[0]" t-att-value="o[0]"
+                                        t-att-selected="row.purpose === o[0]" t-esc="o[1]"/>
+                            </select>
+                            <label for="o_wh3d_f_inspection_status">Inspection</label>
+                            <select id="o_wh3d_f_inspection_status" name="inspection_status" class="form-select form-select-sm"
+                                    t-on-change="(ev) => this.onFieldInput('inspection_status', ev)">
+                                <option t-foreach="inspection" t-as="o" t-key="o[0]" t-att-value="o[0]"
+                                        t-att-selected="row.inspection_status === o[0]" t-esc="o[1]"/>
+                            </select>
+                            <label for="o_wh3d_f_last_inspection">Inspected on</label>
+                            <input id="o_wh3d_f_last_inspection" name="last_inspection" type="date"
+                                   class="form-control form-control-sm" t-att-value="row.last_inspection or ''"
+                                   t-on-change="(ev) => this.onFieldInput('last_inspection', ev)"/>
+                        </div>
+                        <fieldset class="o_wh3d_hazards">
+                            <legend class="o_wh3d_note">Approved hazard classes</legend>
+                            <label t-foreach="hazardClasses" t-as="h" t-key="h[0]" class="o_wh3d_chk d-block">
+                                <input type="checkbox" t-att-name="'hazard_' + h[0]" t-att-checked="row['hazard_' + h[0]]"
+                                       t-on-change="(ev) => this.onFieldInput('hazard_' + h[0], ev)"/>
+                                <t t-esc="h[1]"/>
+                            </label>
+                        </fieldset>
                         <div class="d-flex gap-2 flex-wrap">
                             <button type="button" class="btn btn-secondary btn-sm" name="view_in_3d"
                                     t-att-disabled="row.id &lt; 0 or dirty" t-on-click="viewIn3d"
