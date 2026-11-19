@@ -13,3 +13,4 @@ from . import test_template
 from . import test_inventory_flow
 from . import test_warehouse_list
 from . import test_special_goods_fields
+from . import test_putaway_rules
