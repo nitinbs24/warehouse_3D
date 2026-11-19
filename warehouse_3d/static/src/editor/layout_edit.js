@@ -41,7 +41,8 @@ export function goodsInfo(row) {
 
 const EDITABLE = ["code", "kind", "x", "y", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level",
     ...Object.keys(GOODS_DEFAULTS)];
-const AREA_EDITABLE = ["name", "kind", "x", "y", "width", "depth", "color"];
+const AREA_EDITABLE = ["name", "kind", "x", "y", "width", "depth", "color", "role"];
+export const DOCK_ROLES = [["both", "Both"], ["inbound", "Inbound (receiving)"], ["outbound", "Outbound (dispatch)"]];
 const MIN_AREA_SIZE = 0.5; // metres, when resizing by dragging
 
 // The handoff's template rows (docs/CLAUDE.md), used for rows added in the editor.
@@ -172,7 +173,7 @@ const round2 = (value) => Math.round(value * 100) / 100;
 export function newArea(type, [px, py], building, tmpId) {
     const { width, depth } = type;
     return {
-        id: tmpId, name: type.label, kind: "area", color: type.color, width, depth,
+        id: tmpId, name: type.label, kind: "area", color: type.color, width, depth, role: "both",
         x: round2(Math.max(0, Math.min(snap(px - width / 2), building.length - width))),
         y: round2(Math.max(0, Math.min(snap(py - depth / 2), building.width - depth))),
     };
@@ -281,7 +282,7 @@ export function setDockOpening(dock, opening, building) {
 export function newDock(point, building, tmpId, areas) {
     const used = areas.filter((a) => a.kind === "dock").map((a) => parseInt(/(\d+)$/.exec(a.name)?.[1] ?? 0, 10));
     return {
-        id: tmpId, name: `Dock door ${Math.max(0, ...used) + 1}`, kind: "dock", color: DOCK_COLOR,
+        id: tmpId, name: `Dock door ${Math.max(0, ...used) + 1}`, kind: "dock", color: DOCK_COLOR, role: "both",
         ...snapDockToWall(point, building),
     };
 }

@@ -23,6 +23,7 @@ import {
 } from "@warehouse_3d/common/warehouse_picker";
 import {
     AREA_TYPES,
+    DOCK_ROLES,
     HAZARD_CLASSES,
     INSPECTION,
     PURPOSES,
@@ -67,7 +68,7 @@ export class LayoutEditor extends Component {
         this.planRef = useRef("plan");
         this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false, warehouseId: 0 });
         this.areaTypes = AREA_TYPES;
-        Object.assign(this, { tempBands: TEMP_BANDS, purposes: PURPOSES, inspection: INSPECTION, hazardClasses: HAZARD_CLASSES });
+        Object.assign(this, { dockRoles: DOCK_ROLES, tempBands: TEMP_BANDS, purposes: PURPOSES, inspection: INSPECTION, hazardClasses: HAZARD_CLASSES });
         this.drag = null; // panning the floor
         this.itemDrag = null; // moving a row or an area
         this.resizeDrag = null; // dragging an area's edge or corner
@@ -444,6 +445,8 @@ export class LayoutEditor extends Component {
             area.name = raw.trim() || area.name;
         } else if (field === "opening") {
             Object.assign(area, setDockOpening(area, parseFloat(raw), this.layout.building));
+        } else if (field === "role") {
+            area.role = raw;
         } else if (field === "color") {
             area.color = /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : area.color;
         } else {

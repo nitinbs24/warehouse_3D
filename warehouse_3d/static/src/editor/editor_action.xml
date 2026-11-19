@@ -131,6 +131,12 @@
                             <input id="o_wh3d_a_opening" name="area_opening" type="number" min="2" step="0.1"
                                    class="form-control form-control-sm" t-att-value="dockOpening(area)"
                                    t-on-change="(ev) => this.onAreaField('opening', ev)"/>
+                            <label for="o_wh3d_a_role">Used for</label>
+                            <select id="o_wh3d_a_role" name="area_role" class="form-select form-select-sm"
+                                    t-on-change="(ev) => this.onAreaField('role', ev)">
+                                <option t-foreach="dockRoles" t-as="o" t-key="o[0]" t-att-value="o[0]"
+                                        t-att-selected="area.role === o[0]" t-esc="o[1]"/>
+                            </select>
                         </t>
                     </div>
                     <p t-if="area.kind === 'dock'" class="o_wh3d_note">Drag the door along any wall; it jumps to the nearest wall.</p>
