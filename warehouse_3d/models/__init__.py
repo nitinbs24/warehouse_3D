@@ -5,3 +5,5 @@ from . import warehouse_layout_area
 from . import product_template
 from . import stock_quant
 from . import stock_putaway_rule
+from . import stock_move_line
+from . import putaway_explain

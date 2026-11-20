@@ -1,9 +1,13 @@
-from collections import defaultdict
+import logging
+from collections import Counter, defaultdict
 
-from odoo import api, models
+from odoo import api, fields, models
 
+from ..putaway import score
 from ..putaway.goods import HAZARD_CLASSES
-from ..putaway.rules import allowed
+from ..putaway.rules import HEAVY_KG, allowed
+
+_logger = logging.getLogger(__name__)
 
 
 def _product_info(product):
@@ -16,6 +20,87 @@ def _product_info(product):
 
 class StockPutawayRule(models.Model):
     _inherit = 'stock.putaway.rule'
+
+    sublocation = fields.Selection(selection_add=[('wh3d_smart', 'Smart (Warehaven)')],
+                                   ondelete={'wh3d_smart': 'set default'})
+
+    def _get_putaway_location(self, product, quantity=0, package=None, packaging=None, qty_by_location=None):
+        # One rule at a time, in Odoo's order (first non-empty wins). Odoo's own loop only shares a "checked"
+        # cache between rules, which never changes the answer.
+        for rule in self:
+            if rule.sublocation == 'wh3d_smart':
+                location = rule._wh3d_smart_location(product, quantity, package)
+            else:
+                location = super(StockPutawayRule, rule)._get_putaway_location(
+                    product, quantity, package, packaging, qty_by_location)
+            if location:
+                return location
+        return None
+
+    def _wh3d_smart_location(self, product, quantity, package):
+        """The best allowed slot under 'Store to', or an empty recordset (Odoo then keeps the destination)."""
+        self.ensure_one()
+        slots = self.env['stock.location'].search(
+            [('id', 'child_of', self.location_out_id.id), ('wh3d_node', '=', 'slot')])
+        # The goods' purpose (quarantine …) follows from the rule's own 'when received in' location, which
+        # is where Odoo asked for a putaway.
+        ranked, removed = self._wh3d_rank_slots(product, quantity, slots, self.location_in_id, package)
+        if ranked:
+            return ranked[0]['slot']
+        _logger.info("Smart putaway: no allowed slot under %s for %s (%d slots, removed by rule: %s)",
+                     self.location_out_id.display_name, (product or self.env.context.get('products')).display_name,
+                     len(slots), dict(removed))
+        return self.env['stock.location']
+
+    @api.model
+    def _wh3d_rank_slots(self, product, quantity, slots, dest, package=None):
+        """Rank ``slots`` for these goods: ``(ranked, removed)``.
+
+        ``ranked``: best first, a list of {'slot': record, 'score': TOPSIS closeness 0..1, 'criteria': {'travel'
+        (m to dispatch), 'height' (cost, 0 = ideal), 'consolidation' (1 = same product there), 'waste' (m³ left
+        over)}, 'distance': m to the nearest dispatch dock or None, 'level': int, 'z': m}. Slots with no way to
+        a dispatch dock come last with score 0.
+        ``removed``: {hard rule code: number of slots it removed} (see putaway.rules).
+        """
+        checks = self._wh3d_check_slots(product, quantity, slots, dest, package)
+        removed = Counter(reason.code for ok, reason in checks.values() if not ok)
+        slots = slots.filtered(lambda s: checks[s.id][0])
+        if not slots:
+            return [], removed
+        products = (self.env.context.get('products') or self.env['product.product']) | product
+        classes = [p.wh3d_abc_class or score.DEFAULT_ABC for p in products]
+        goods = {'abc': min(classes), 'heavy': any(p.weight > HEAVY_KG for p in products),
+                 'fragile': any(p.wh3d_fragile for p in products)}  # 'A' < 'B' < 'C': the most demanding class
+        # shortcut: a package's own volume is not counted as incoming, and stock on its way is not counted as
+        # used; only what is on hand. Refine if slots are often filled by a batch of receipts.
+        incoming = (product.wh3d_length * product.wh3d_width * product.wh3d_height * max(quantity, 1)
+                    if len(products) == 1 and not package else 0.0)
+        used, there = defaultdict(float), set()
+        for loc, prod, qty in self.env['stock.quant']._read_group(
+                [('location_id', 'in', slots.ids), ('quantity', '>', 0)], ['location_id', 'product_id'], ['quantity:sum']):
+            used[loc.id] += qty * prod.wh3d_length * prod.wh3d_width * prod.wh3d_height
+            if prod in products:
+                there.add(loc.id)
+        distance = {}
+        for warehouse in slots.wh3d_rack_row_id.warehouse_id:
+            distance.update({k: v[0] for k, v in warehouse._wh3d_slot_distances().items()})
+        if all(distance.get(s.id) is None for s in slots):
+            distance = {}  # no dispatch dock at all: distance can't separate the slots
+        candidates = []
+        for s in slots:
+            row = s.wh3d_rack_row_id
+            capacity = row.bay_width / row.slots_per_level * row.depth * row.level_height
+            candidates.append({'dispatch': distance.get(s.id) if distance else 0.0, 'z': (s.wh3d_level - 0.5) * row.level_height,
+                               'has_product': s.id in there, 'free_m3': max(0.0, capacity - used[s.id] - incoming)})
+        reachable = [i for i, c in enumerate(candidates) if c['dispatch'] is not None]
+        scores = dict(zip(reachable, score.score(goods, [candidates[i] for i in reachable])))
+        ranked = [{
+            'slot': s, 'score': scores.get(i, 0.0), 'distance': c['dispatch'] if distance else None,
+            'level': s.wh3d_level, 'z': c['z'],
+            'criteria': dict(zip(score.CRITERIA, score.criteria_row(goods, c))) if i in scores else None,
+        } for i, (s, c) in enumerate(zip(slots, candidates))]
+        ranked.sort(key=lambda r: (-r['score'], r['slot'].id))
+        return ranked, removed
 
     @api.model
     def _wh3d_check_slots(self, product, quantity, slots, dest, package=None, qty_by_location=None):

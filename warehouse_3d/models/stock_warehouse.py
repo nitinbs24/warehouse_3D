@@ -5,6 +5,8 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 from ..putaway.aisles import slot_distances
+from ..putaway.goods import HAZARD_CLASSES
+from ..putaway.rules import HEAVY_KG
 from .warehouse_rack_row import GOODS_FIELDS
 
 
@@ -142,9 +144,13 @@ class StockWarehouse(models.Model):
     def _wh3d_plan_template_stock(self, warehouse, seed=20261023, occupancy=0.65):
         """Decide the opening stock of a template warehouse: [(slot, product, quantity)].
 
-        Pure planning, no writes, deterministic for a given seed: about ``occupancy`` of the slots
-        get one product each (bulk goods on pallet rows, small parts on shelves, fast movers more
-        often), in a quantity that fills the slot to a randomly chosen fill band.
+        Pure planning, no writes, deterministic for a given seed: about ``occupancy`` of the slots get one
+        product each (bulk goods on pallet rows, small parts on shelves, fast movers more often), in a
+        quantity that fills the slot to a randomly chosen fill band. Only placements the hard rules accept
+        are planned: rows that are quarantine, returns or not green stay empty; goods with a temperature
+        or hazard requirement go only to rows that offer it, and ordinary goods only to ordinary rows;
+        the product must fit the slot, the quantity stays under the category's weight limit, and a fragile
+        product never sits directly below a heavy one (the neighbours planned so far are tracked).
         """
         rng = random.Random(seed)
         Product = self.env['product.product']
@@ -152,22 +158,63 @@ class StockWarehouse(models.Model):
             'pallet': Product.search([('categ_id', '=', self.env.ref('warehouse_3d.categ_bulk').id)], order='default_code'),
             'shelf': Product.search([('categ_id', '=', self.env.ref('warehouse_3d.categ_small_parts').id)], order='default_code'),
         }
-        weights = {kind: [self._WH3D_ABC_WEIGHT.get(p.wh3d_abc_class, 1) for p in prods]
-                   for kind, prods in products.items()}
         rows = self.env['warehouse.rack.row'].search([('warehouse_id', '=', warehouse.id)])
+        eligible = {}  # row -> ([product], [weight]); computed once per row
+        for row in rows:
+            if row.purpose != 'normal' or row.inspection_status != 'green':
+                continue
+            pool = [p for p in products[row.kind] if self._wh3d_template_row_takes(row, p)]
+            eligible[row] = (pool, [self._WH3D_ABC_WEIGHT.get(p.wh3d_abc_class, 1) for p in pool])
         slots = self.env['stock.location'].search(
             [('wh3d_rack_row_id', 'in', rows.ids), ('wh3d_node', '=', 'slot')], order='complete_name')
+        planned = {}  # (row id, bay, level, position) -> product, for the stacking rule
         plan = []
         for slot in slots:
-            if rng.random() >= occupancy:
-                continue
             row = slot.wh3d_rack_row_id
-            product = rng.choices(products[row.kind], weights=weights[row.kind])[0]
+            if row not in eligible or rng.random() >= occupancy:
+                continue
+            key = (row.id, slot.wh3d_bay, slot.wh3d_level, slot.wh3d_position)
+            below, above = (planned.get(key[:2] + (key[2] + d, key[3])) for d in (-1, 1))
+            pool, weights = eligible[row]
             capacity = row.bay_width / row.slots_per_level * row.depth * row.level_height
+            limit = row.storage_category_id.max_weight or 1e9  # no limit
+            band = rng.choice(self._WH3D_FILL_BANDS)
+
+            def reaches(p):  # can the weight limit still let this product fill the slot to the band?
+                return limit / p.weight * p.wh3d_length * p.wh3d_width * p.wh3d_height / capacity >= band[0]
+
+            choices = [(p, w) for p, w in zip(pool, weights)
+                       if not (p.wh3d_fragile and above and above.weight > HEAVY_KG)
+                       and not (p.weight > HEAVY_KG and below and below.wh3d_fragile)]
+            choices = [(p, w) for p, w in choices if reaches(p)] or choices
+            if not choices:
+                continue
+            product = rng.choices([p for p, _w in choices], weights=[w for _p, w in choices])[0]
             unit = product.wh3d_length * product.wh3d_width * product.wh3d_height
-            target = rng.uniform(*rng.choice(self._WH3D_FILL_BANDS))
-            plan.append((slot, product, max(1, math.floor(target * capacity / unit))))
+            qty = max(1, min(math.floor(rng.uniform(*band) * capacity / unit), math.floor(limit / product.weight)))
+            planned[key] = product
+            plan.append((slot, product, qty))
         return plan
+
+    @api.model
+    def _wh3d_template_row_takes(self, row, product):
+        """May this product be stocked in this row of the template? (the hard rules' temperature, hazard and fit
+        checks, as fields; tests/test_template.py proves the plan against putaway.rules itself)"""
+        eps = 1e-6
+        row_special = row.temp_band != 'ambient' or any(row[f'hazard_{key}'] for key, _label in HAZARD_CLASSES)
+        product_special = product.wh3d_temp_band != 'none' or product.wh3d_hazard_class != 'none'
+        if row_special != product_special:
+            return False  # cold and hazard rows hold only goods that need them; ordinary rows only ordinary goods
+        if product.wh3d_temp_band != 'none' and (
+                row.temp_band == 'ambient' or row.temp_min < product.wh3d_temp_min - eps
+                or row.temp_max > product.wh3d_temp_max + eps):
+            return False
+        if product.wh3d_hazard_class != 'none' and not row[f'hazard_{product.wh3d_hazard_class}']:
+            return False
+        width, depth, height = row.bay_width / row.slots_per_level, row.depth, row.level_height
+        l, w, h = product.wh3d_length, product.wh3d_width, product.wh3d_height
+        return h <= height + eps and ((l <= width + eps and w <= depth + eps) or (w <= width + eps and l <= depth + eps)) \
+            and product.weight <= (row.storage_category_id.max_weight or float('inf'))
 
     @api.model
     def _wh3d_fill_template_stock(self, warehouse_id, seed=20261023):
