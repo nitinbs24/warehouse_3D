@@ -630,8 +630,8 @@ warehouses have racks both ways and the Phase 9 floor-plan import will bring suc
 - **Verification:** labels match drawn pixels on rendered samples (automatic check); 10 samples eyeballed and saved under `ml/samples/`. **Scope:** M
 
 ### T40: Train and evaluate YOLOX-S
-- [ ] Colab notebook (T4): unzip dataset from Drive, train with FP16 and per-epoch checkpoints to Drive (resumable), evaluate precision/recall/mAP@0.5 and @0.5:0.95 on the synthetic test set and on real plans when available; export ONNX; RT-DETR as fallback if YOLOX fails.
-- **Verification:** the notebook's metric cells; `docs/results-floorplan.md` table vs the T38 baseline. **Depends:** T39 · **Scope:** L (mostly waiting)
+- [ ] Training script `ml/train.py` on the college server (4× NVIDIA A2 16 GB, dedicated, SSH only when on campus): `scp` the T39 dataset up, run inside `tmux`/`nohup` so it survives a dropped session, FP16, per-epoch checkpoints to a server folder (resumable), one GPU by default (multi-GPU only if too slow); `scp` the ONNX back. Check first: `nvidia-smi`, CUDA version, venv/conda without root. Colab stays the fallback. Evaluate precision/recall/mAP@0.5 and @0.5:0.95 on the synthetic test set and on real plans when available; export ONNX; RT-DETR as fallback if YOLOX fails.
+- **Verification:** the notebook's metric cells; `docs/results-floorplan.md` table vs the T38 baseline. **Depends:** T39 · **Scope:** L (mostly waiting; start and collect runs while in college)
 
 ### T41: Detector + OCR inside Odoo
 - [ ] `onnxruntime` (CPU) runs the model on the uploaded image; Tesseract reads names inside areas and dock numbers; output via T36; falls back to T38 when the model file is missing; < 5 s per plan on a laptop CPU.

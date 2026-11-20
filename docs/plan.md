@@ -158,7 +158,7 @@ T24 zone/product fields ─┬─ T25 hard rules ─┐
                                                                           └─ T30 template special zones ── Checkpoint E
 T27+T30 ── T32 experiment harness ── T33 metrics ── T34 runs + results ── Checkpoint F
 T35 background + scale ── T36 draft import ─┬─ T37 DXF
-                                            ├─ T38 classical CV ── T39 synthetic generator ── T40 train (Colab) ── T41 ONNX + OCR in Odoo
+                                            ├─ T38 classical CV ── T39 synthetic generator ── T40 train (college server) ── T41 ONNX + OCR in Odoo
                                             └────────────────────────────────────────────────── T42 wrap-up ── Checkpoint G
 Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 ```
@@ -185,7 +185,7 @@ Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 - [ ] T37: DXF importer
 - [ ] T38: Classical-CV importer (OpenCV)
 - [ ] T39: Synthetic warehouse floor-plan generator (COCO labels)
-- [ ] T40: Train and evaluate YOLOX-S on Colab; export ONNX
+- [ ] T40: Train and evaluate YOLOX-S on the college GPU server (4× NVIDIA A2, SSH); export ONNX
 - [ ] T41: ONNX detector + OCR in Odoo, CV fallback
 - [ ] T42: Wrap-up: README, notes, `docs/results-floorplan.md`
 - [ ] **Checkpoint G**
