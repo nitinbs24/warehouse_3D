@@ -29,7 +29,10 @@ def _temperature(goods, slot):
     zone = slot['row']
     for p in goods['products']:
         if p['temp_band'] == 'none':
-            continue  # no requirement: any zone, controlled or not
+            if zone['temp_band'] != 'ambient':
+                # Cold space is scarce and costly, and ambient goods can be harmed by cold (decided 20 Nov).
+                return "this row is temperature-controlled; it is kept for goods that need it"
+            continue
         if zone['temp_band'] == 'ambient':
             return f"needs {p['temp_min']:g}…{p['temp_max']:g} °C; this row is not temperature-controlled"
         if zone['temp_min'] < p['temp_min'] - EPS or zone['temp_max'] > p['temp_max'] + EPS:
