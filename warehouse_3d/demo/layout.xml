@@ -54,6 +54,37 @@
         <field name="width">19.5</field>
         <field name="depth">13.5</field>
     </record>
+    <!-- Special zones, drawn on the cross aisle beside their rows (an area may not overlap a rack). -->
+    <record id="area_cold" model="warehouse.layout.area">
+        <field name="name">Cold room</field>
+        <field name="kind">area</field>
+        <field name="color">#9ed8e6</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">0.2</field>
+        <field name="y">20.2</field>
+        <field name="width">6.5</field>
+        <field name="depth">3.6</field>
+    </record>
+    <record id="area_hazard" model="warehouse.layout.area">
+        <field name="name">Hazardous goods</field>
+        <field name="kind">area</field>
+        <field name="color">#f0a35e</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">32.6</field>
+        <field name="y">20.2</field>
+        <field name="width">5.2</field>
+        <field name="depth">3.6</field>
+    </record>
+    <record id="area_quarantine" model="warehouse.layout.area">
+        <field name="name">Quarantine and returns</field>
+        <field name="kind">area</field>
+        <field name="color">#d9a7e0</field>
+        <field name="warehouse_id" ref="warehouse_template"/>
+        <field name="x">25.9</field>
+        <field name="y">20.2</field>
+        <field name="width">2.4</field>
+        <field name="depth">3.6</field>
+    </record>
     <record id="dock_1" model="warehouse.layout.area">
         <field name="name">Inbound dock 1</field>
         <field name="kind">dock</field>
@@ -122,6 +153,7 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="temp_band">frozen</field>
         <field name="x">0.2</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -137,6 +169,7 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="temp_band">chilled</field>
         <field name="x">4.3</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -152,6 +185,7 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="temp_band">pharma_fridge</field>
         <field name="x">5.6</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -212,6 +246,8 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="inspection_status">amber</field>
+        <field name="last_inspection">2026-09-14</field>
         <field name="x">16.4</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -255,8 +291,9 @@
         <field name="code">P10</field>
         <field name="kind">pallet</field>
         <field name="warehouse_id" ref="warehouse_template"/>
-        <field name="location_id" ref="zone_pr"/>
+        <field name="location_id" ref="zone_qu"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="purpose">quarantine</field>
         <field name="x">25.9</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -270,8 +307,9 @@
         <field name="code">P11</field>
         <field name="kind">pallet</field>
         <field name="warehouse_id" ref="warehouse_template"/>
-        <field name="location_id" ref="zone_pr"/>
+        <field name="location_id" ref="zone_rt"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="purpose">returns</field>
         <field name="x">27.2</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -302,6 +340,9 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="hazard_corrosive" eval="True"/>
+        <field name="hazard_toxic" eval="True"/>
+        <field name="hazard_oxidiser" eval="True"/>
         <field name="x">32.6</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>
@@ -317,6 +358,8 @@
         <field name="warehouse_id" ref="warehouse_template"/>
         <field name="location_id" ref="zone_pr"/>
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
+        <field name="hazard_flammable_liquid" eval="True"/>
+        <field name="hazard_flammable_solid" eval="True"/>
         <field name="x">36.7</field>
         <field name="y">1.0</field>
         <field name="bays">7</field>

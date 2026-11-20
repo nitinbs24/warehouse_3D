@@ -77,15 +77,53 @@
         <field name="usage">internal</field>
         <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
     </record>
+    <!-- Quarantine and returns: zones of their own, so the purpose rule can tell "sent into the zone". -->
+    <record id="zone_qu" model="stock.location">
+        <field name="name">QU</field>
+        <field name="usage">internal</field>
+        <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
+    </record>
+    <record id="zone_rt" model="stock.location">
+        <field name="name">RT</field>
+        <field name="usage">internal</field>
+        <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
+    </record>
     <record id="zone_sh" model="stock.location">
         <field name="name">SH</field>
         <field name="usage">internal</field>
         <field name="location_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
     </record>
 
-    <!-- Putaway (Odoo standard): goods arriving in WHV/Stock go to the first slot of their zone
+    <!-- Putaway. The Smart rules (Warehaven) rank the slots that pass the hard rules; the same category split
+         as before keeps bulk goods on pallets and small parts on shelves. The two Closest Location rules of
+         the earlier template stay, inactive, for the experiment (switch: README, Smart putaway). Quarantine
+         and returns goods are sent into their own zones, which have a Smart rule of their own. -->
+    <record id="putaway_smart_bulk" model="stock.putaway.rule">
+        <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
+        <field name="category_id" ref="categ_bulk"/>
+        <field name="location_out_id" ref="zone_pr"/>
+        <field name="sublocation">wh3d_smart</field>
+    </record>
+    <record id="putaway_smart_small_parts" model="stock.putaway.rule">
+        <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
+        <field name="category_id" ref="categ_small_parts"/>
+        <field name="location_out_id" ref="zone_sh"/>
+        <field name="sublocation">wh3d_smart</field>
+    </record>
+    <record id="putaway_smart_quarantine" model="stock.putaway.rule">
+        <field name="location_in_id" ref="zone_qu"/>
+        <field name="location_out_id" ref="zone_qu"/>
+        <field name="sublocation">wh3d_smart</field>
+    </record>
+    <record id="putaway_smart_returns" model="stock.putaway.rule">
+        <field name="location_in_id" ref="zone_rt"/>
+        <field name="location_out_id" ref="zone_rt"/>
+        <field name="sublocation">wh3d_smart</field>
+    </record>
+    <!-- The earlier template rules, inactive (Odoo standard): goods arriving in WHV/Stock go to the first slot of their zone
          that has the matching storage category and room ("Closest Location"). -->
     <record id="putaway_bulk" model="stock.putaway.rule">
+        <field name="active" eval="False"/>
         <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
         <field name="category_id" ref="categ_bulk"/>
         <field name="location_out_id" ref="zone_pr"/>
@@ -93,6 +131,7 @@
         <field name="storage_category_id" ref="storcat_pallet_bulk"/>
     </record>
     <record id="putaway_small_parts" model="stock.putaway.rule">
+        <field name="active" eval="False"/>
         <field name="location_in_id" model="stock.warehouse" eval="obj().env.ref('warehouse_3d.warehouse_template').lot_stock_id.id"/>
         <field name="category_id" ref="categ_small_parts"/>
         <field name="location_out_id" ref="zone_sh"/>
