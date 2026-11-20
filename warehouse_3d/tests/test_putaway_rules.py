@@ -59,16 +59,16 @@ class TestPutawayRules(TransactionCase):
         fridge = product(temp_band='pharma_fridge', temp_min=2.0, temp_max=8.0)
         self.assertRefused(allowed(goods(fridge), slot(), []), 'temperature')
 
-    def test_temperature_product_without_requirement_may_use_a_cold_row(self):
-        # Read literally (survey A8.1): no requirement = any range fits. Scoring, not a hard rule, keeps cold space free.
+    def test_temperature_controlled_rows_are_kept_for_goods_that_need_them(self):
+        # Decided 20 Nov: cold space is scarce and ambient goods can be harmed by cold, so no-requirement goods stay out.
         cold = slot(row=row(temp_band='chilled', temp_min=0.0, temp_max=5.0))
-        self.assertAllowed(allowed(goods(), cold, []))
+        self.assertRefused(allowed(goods(), cold, []), 'temperature')
 
-    def test_temperature_frozen_stand_in_floor_refuses_colder_rows(self):
-        # Documents the T24 shortcut: frozen is stored as −30…−18 °C, so a −40…−20 °C row is "outside" it.
-        frozen = product(temp_band='frozen', temp_min=-30.0, temp_max=-18.0)
+    def test_temperature_frozen_takes_a_deep_freeze_row(self):
+        # Frozen is stored as −60…−18 °C (no lower bound in the sources), so a −40…−20 °C row is fine.
+        frozen = product(temp_band='frozen', temp_min=-60.0, temp_max=-18.0)
         deep = slot(row=row(temp_band='custom', temp_min=-40.0, temp_max=-20.0))
-        self.assertRefused(allowed(goods(frozen), deep, []), 'temperature')
+        self.assertAllowed(allowed(goods(frozen), deep, []))
 
     # hazard
     def test_hazard_class_must_be_approved_on_the_row(self):

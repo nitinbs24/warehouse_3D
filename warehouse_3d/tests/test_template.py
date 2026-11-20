@@ -1,3 +1,6 @@
+from collections import defaultdict
+from contextlib import closing
+
 from odoo.tests import Form, TransactionCase
 
 from .common import create_p05, template_rows, template_warehouse
@@ -62,27 +65,23 @@ class TestTemplateCatalogue(TransactionCase):
             zone = self.env.ref(xmlid)
             self.assertEqual((zone.complete_name, zone.usage), (name, 'internal'))
 
-    def test_putaway_rules(self):
-        rules = self.env['stock.putaway.rule'].search([('location_in_id', '=', self.warehouse.lot_stock_id.id)])
-        by_categ = {r.category_id: r for r in rules}
-        self.assertEqual(by_categ[self.bulk].location_out_id, self.env.ref('warehouse_3d.zone_pr'))
-        self.assertEqual(by_categ[self.bulk].sublocation, 'closest_location')
-        self.assertEqual(by_categ[self.small].location_out_id, self.env.ref('warehouse_3d.zone_sh'))
-
-    def test_standard_putaway_fills_empty_pallet_slots_in_order(self):
-        # Odoo's own putaway on the template data: bulk goods go to the first empty pallet slot
-        # (slots are tried in name order; T14's opening stock already fills some).
-        product = self.products.filtered(lambda p: p.categ_id == self.bulk)[:1].product_variant_id
+    def test_putaway_rules_are_smart_and_the_closest_location_ones_are_kept_inactive(self):
+        Rule = self.env['stock.putaway.rule'].with_context(active_test=False)
         stock = self.warehouse.lot_stock_id
-        first = stock._get_putaway_strategy(product, quantity=1)
-        self.assertEqual(first.wh3d_node, 'slot')
-        self.assertFalse(first.quant_ids.filtered(lambda q: q.quantity > 0), "putaway chose a slot with stock")
-        empty_slots = self.env['stock.location'].search(
-            [('location_id', 'child_of', self.env.ref('warehouse_3d.zone_pr').id), ('wh3d_node', '=', 'slot')],
-            order='complete_name').filtered(lambda loc: not loc.quant_ids.filtered(lambda q: q.quantity > 0))
-        self.assertEqual(first, empty_slots[0])
-        self.env['stock.quant']._update_available_quantity(product, first, 1)
-        self.assertEqual(stock._get_putaway_strategy(product, quantity=1), empty_slots[1])  # first one is taken
+        smart = Rule.search([('location_in_id', '=', stock.id), ('sublocation', '=', 'wh3d_smart')])
+        self.assertEqual({r.category_id: r.location_out_id for r in smart},
+                         {self.bulk: self.env.ref('warehouse_3d.zone_pr'), self.small: self.env.ref('warehouse_3d.zone_sh')})
+        self.assertTrue(all(smart.mapped('active')))
+        closest = Rule.search([('location_in_id', '=', stock.id), ('sublocation', '=', 'closest_location')])
+        self.assertEqual(len(closest), 2)
+        self.assertFalse(any(closest.mapped('active')))  # kept for the experiment (T31)
+
+    def test_smart_putaway_sends_bulk_goods_to_an_empty_allowed_pallet_slot(self):
+        product = self.products.filtered(lambda p: p.default_code == 'PR-1001').product_variant_id
+        slot = self.warehouse.lot_stock_id._get_putaway_strategy(product, quantity=1)
+        self.assertEqual(slot.wh3d_node, 'slot')
+        self.assertEqual(slot.wh3d_rack_row_id.kind, 'pallet')
+        self.assertFalse(slot.quant_ids.filtered(lambda q: q.quantity > 0), "putaway chose a slot with stock")
 
     def test_abc_class_on_product_form(self):
         form = Form(self.env['product.template'])
@@ -104,6 +103,11 @@ class TestTemplateLayout(TransactionCase):
     def _slots(self, kind):
         return [s for s in self.scene['slots'] if self.row_kind[s['row_id']] == kind]
 
+    def _stockable_slots(self, kind):
+        """Slots of rows that take putaway: not quarantine/returns, not amber."""
+        closed = {r['id'] for r in self.scene['rows'] if r['purpose'] != 'normal' or r['inspection_status'] != 'green'}
+        return [s for s in self._slots(kind) if s['row_id'] not in closed]
+
     def test_building_and_rows_match_the_handoff(self):
         self.assertEqual((self.warehouse.code, self.warehouse.name), ('WHV', 'Warehaven DC'))
         self.assertEqual(self.scene['building'], {'length': 60.0, 'width': 40.0, 'height': 10.0})
@@ -117,13 +121,15 @@ class TestTemplateLayout(TransactionCase):
 
     def test_areas_and_docks(self):
         areas = [a['name'] for a in self.scene['areas'] if a['kind'] == 'area']
-        self.assertEqual(sorted(areas), ['Charging', 'Office', 'Packing', 'Receiving', 'Shipping'])
+        self.assertEqual(sorted(areas), ['Charging', 'Cold room', 'Hazardous goods', 'Office', 'Packing',
+                                         'Quarantine and returns', 'Receiving', 'Shipping'])
         self.assertEqual(len([a for a in self.scene['areas'] if a['kind'] == 'dock']), 6)
 
     def test_areas_have_their_own_colours_in_the_editor_palette(self):
         colours = {a['name']: a['color'] for a in self.scene['areas'] if a['kind'] == 'area'}
-        self.assertEqual(colours, {'Receiving': '#8fb8de', 'Charging': '#f2d27a', 'Office': '#c9c9c9',
-                                   'Packing': '#e8a79c', 'Shipping': '#a8d5a2'})
+        self.assertEqual({n: colours[n] for n in ('Receiving', 'Charging', 'Office', 'Packing', 'Shipping')},
+                         {'Receiving': '#8fb8de', 'Charging': '#f2d27a', 'Office': '#c9c9c9',
+                          'Packing': '#e8a79c', 'Shipping': '#a8d5a2'})
 
     def test_slots_use_the_template_storage_categories(self):
         pallet = self.env.ref('warehouse_3d.storcat_pallet_bulk')
@@ -136,7 +142,7 @@ class TestTemplateLayout(TransactionCase):
     def test_about_two_thirds_of_slots_are_stocked(self):
         for kind in ('pallet', 'shelf'):
             with self.subTest(kind=kind):
-                slots = self._slots(kind)
+                slots = self._stockable_slots(kind)
                 share = len([s for s in slots if s['stock']]) / len(slots)
                 self.assertTrue(0.60 <= share <= 0.70, f"{kind} occupancy {share:.2f}")
 
@@ -185,3 +191,87 @@ class TestTemplateLayout(TransactionCase):
         wh = self.env.ref('stock.warehouse0')
         create_p05(self.env, wh)
         self.assertEqual(self.env['stock.warehouse'].wh3d_default_warehouse_id(), wh.id)
+
+
+class TestTemplateSpecialZones(TransactionCase):
+    """T30: cold room, hazardous rows, quarantine/returns and an amber row in Warehaven DC; the special products."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.warehouse = template_warehouse(cls.env)
+        cls.rows = {r.code: r for r in cls.env['warehouse.rack.row'].search([('warehouse_id', '=', cls.warehouse.id)])}
+        cls.special = cls.env['product.product'].search([('default_code', '=like', 'SP-%')])
+
+    def test_cold_room_has_chilled_frozen_and_pharma_rows(self):
+        self.assertEqual(self.rows['P01'].temp_band, 'frozen')
+        self.assertEqual(self.rows['P02'].temp_band, 'chilled')
+        self.assertEqual(self.rows['P03'].temp_band, 'pharma_fridge')
+
+    def test_hazard_rows_approve_their_classes(self):
+        flammable = self.rows['P14']
+        self.assertTrue(flammable.hazard_flammable_liquid and flammable.hazard_flammable_solid)
+        corrosive = self.rows['P13']
+        self.assertTrue(corrosive.hazard_corrosive and not corrosive.hazard_flammable_liquid)
+
+    def test_quarantine_and_returns_rows_have_their_own_zone(self):
+        for code, purpose in (('P10', 'quarantine'), ('P11', 'returns')):
+            row = self.rows[code]
+            self.assertEqual(row.purpose, purpose)
+            self.assertEqual(row.location_id.location_id, self.warehouse.lot_stock_id)
+            self.assertNotEqual(row.location_id, self.env.ref('warehouse_3d.zone_pr'))
+        self.assertNotEqual(self.rows['P10'].location_id, self.rows['P11'].location_id)
+
+    def test_exactly_one_amber_row(self):
+        amber = [c for c, r in self.rows.items() if r.inspection_status != 'green']
+        self.assertEqual(len(amber), 1)
+        self.assertEqual(self.rows[amber[0]].inspection_status, 'amber')
+        self.assertTrue(self.rows[amber[0]].last_inspection)
+
+    def test_special_areas_are_drawn_beside_the_rows(self):
+        names = set(self.warehouse.wh3d_area_ids.mapped('name'))
+        self.assertTrue({'Cold room', 'Hazardous goods', 'Quarantine and returns'} <= names)
+
+    def test_about_twenty_special_products_of_each_kind(self):
+        self.assertTrue(18 <= len(self.special) <= 22, len(self.special))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_temp_band == 'chilled'))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_temp_band == 'frozen'))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_temp_band == 'pharma_fridge'))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_hazard_class == 'flammable_liquid'))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_hazard_class == 'corrosive'))
+        self.assertTrue(self.special.filtered(lambda p: p.wh3d_fragile))
+        self.assertTrue(self.special.filtered(lambda p: p.weight > 25))
+
+    def test_opening_stock_holds_special_goods_only_in_matching_rows(self):
+        quants = self.env['stock.quant'].search(
+            [('product_id', 'in', self.special.ids), ('location_id.wh3d_node', '=', 'slot'), ('quantity', '>', 0)])
+        self.assertTrue(quants)
+        for quant in quants:
+            row, product = quant.location_id.wh3d_rack_row_id, quant.product_id
+            if product.wh3d_temp_band != 'none':
+                self.assertNotEqual(row.temp_band, 'ambient', product.default_code)
+            if product.wh3d_hazard_class != 'none':
+                self.assertTrue(row['hazard_' + product.wh3d_hazard_class], product.default_code)
+
+    def test_opening_stock_passes_every_hard_rule(self):
+        # Take a product's own stock away (rolled back afterwards), then ask the hard rules whether that
+        # stock would be allowed where it is. The largest quantity stands for all slots of the product.
+        Rule = self.env['stock.putaway.rule']
+        quants = self.env['stock.quant'].search([
+            ('location_id.wh3d_node', '=', 'slot'), ('quantity', '>', 0),
+            ('location_id.wh3d_rack_row_id.warehouse_id', '=', self.warehouse.id)])
+        self.assertTrue(quants)
+        by_product = defaultdict(lambda: self.env['stock.quant'])
+        for quant in quants:
+            by_product[quant.product_id] |= quant
+        failures = []
+        for product, own in by_product.items():
+            slots, qty, ids = own.location_id, max(own.mapped('quantity')), tuple(own.ids)
+            with closing(self.env.cr.savepoint()):
+                self.env.cr.execute('DELETE FROM stock_quant WHERE id IN %s', (ids,))
+                self.env.invalidate_all()
+                result = Rule._wh3d_check_slots(product, qty, slots, self.warehouse.lot_stock_id)
+                failures += [(product.default_code, loc.name, reason.code, reason.text)
+                             for loc in slots for ok, reason in [result[loc.id]] if not ok]
+            self.env.invalidate_all()
+        self.assertFalse(failures, failures[:5])
