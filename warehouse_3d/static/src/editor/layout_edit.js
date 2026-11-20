@@ -23,6 +23,24 @@ export const GOODS_DEFAULTS = {
     temp_band: "ambient", temp_min: 0, temp_max: 0, purpose: "normal", inspection_status: "green", last_inspection: false,
     ...Object.fromEntries(HAZARD_CLASSES.map(([key]) => [`hazard_${key}`, false])),
 };
+// What a special row is for, shown as the row's colour in the editor and as a floor pad in 3D (T30 template).
+export const ZONES = {
+    cold: { label: "Cold room", color: "#3b8fd0" },
+    hazard: { label: "Hazardous goods", color: "#e07a1f" },
+    quarantine: { label: "Quarantine / returns", color: "#9b59b6" },
+};
+
+/** The row's zone key ("cold", "hazard", "quarantine") or null for an ordinary row. Purpose wins, then temperature. */
+export function rowZone(row) {
+    if (row.purpose && row.purpose !== "normal") {
+        return "quarantine";
+    }
+    if (row.temp_band && row.temp_band !== "ambient") {
+        return "cold";
+    }
+    return HAZARD_CLASSES.some(([key]) => row[`hazard_${key}`]) ? "hazard" : null;
+}
+
 const label = (pairs, key) => pairs.find(([k]) => k === key)?.[1] ?? key;
 
 /** What a row offers special goods, as text for the 3D slot panel: {temperature, purpose, hazards, inspection}. */

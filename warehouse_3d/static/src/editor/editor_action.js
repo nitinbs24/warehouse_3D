@@ -26,8 +26,10 @@ import {
     DOCK_ROLES,
     HAZARD_CLASSES,
     INSPECTION,
+    ZONES,
     PURPOSES,
     TEMP_BANDS,
+    rowZone,
     areaProblems,
     diffAreas,
     diffLayout,
@@ -68,7 +70,7 @@ export class LayoutEditor extends Component {
         this.planRef = useRef("plan");
         this.state = useState({ view: { scale: 10, ox: 0, oy: 0 }, selectedId: null, selectedAreaId: null, rows: [], areas: [], saving: false, warehouseId: 0 });
         this.areaTypes = AREA_TYPES;
-        Object.assign(this, { dockRoles: DOCK_ROLES, tempBands: TEMP_BANDS, purposes: PURPOSES, inspection: INSPECTION, hazardClasses: HAZARD_CLASSES });
+        Object.assign(this, { rowZone, dockRoles: DOCK_ROLES, tempBands: TEMP_BANDS, purposes: PURPOSES, inspection: INSPECTION, hazardClasses: HAZARD_CLASSES });
         this.drag = null; // panning the floor
         this.itemDrag = null; // moving a row or an area
         this.resizeDrag = null; // dragging an area's edge or corner
@@ -352,6 +354,12 @@ export class LayoutEditor extends Component {
             row.x = snap(row.x + move[0]);
             row.y = snap(row.y + move[1]);
         }
+    }
+
+    /** The zone colours used by this layout's rows, for the Floor card's legend. */
+    get zoneLegend() {
+        const used = new Set(this.state.rows.map(rowZone));
+        return Object.entries(ZONES).filter(([key]) => used.has(key)).map(([key, z]) => ({ key, ...z }));
     }
 
     // --- editing ---

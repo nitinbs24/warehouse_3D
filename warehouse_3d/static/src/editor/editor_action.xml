@@ -34,7 +34,7 @@
                         </g>
                         <g t-foreach="state.rows" t-as="row" t-key="row.id"
                            class="o_wh3d_row"
-                           t-att-class="{ o_selected: state.selectedId === row.id, o_shelf: row.kind === 'shelf', o_invalid: rowProblems[row.id], o_new: row.id &lt; 0 }"
+                           t-att-class="{ o_selected: state.selectedId === row.id, o_shelf: row.kind === 'shelf', o_invalid: rowProblems[row.id], o_new: row.id &lt; 0, ['o_zone_' + rowZone(row)]: rowZone(row), ['o_insp_' + row.inspection_status]: row.inspection_status !== 'green' }"
                            t-att-data-code="row.code" tabindex="0" role="button"
                            t-att-aria-label="'Rack row ' + row.code + (rowProblems[row.id] ? ': ' + rowProblems[row.id] : '')"
                            t-att-aria-pressed="state.selectedId === row.id ? 'true' : 'false'"
@@ -222,6 +222,12 @@
                 </section>
                 <section class="o_wh3d_card">
                     <p class="o_wh3d_label">Floor</p>
+                    <ul class="o_wh3d_zone_legend" name="zone_legend">
+                        <li t-foreach="zoneLegend" t-as="z" t-key="z.key">
+                            <span class="o_wh3d_swatch" t-att-style="'background:' + z.color"/><t t-esc="z.label"/>
+                        </li>
+                        <li><span class="o_wh3d_swatch o_wh3d_swatch_amber"/>Amber / red inspection (outline)</li>
+                    </ul>
                     <p class="o_wh3d_note">
                         Building <t t-esc="layout.building.length"/> × <t t-esc="layout.building.width"/> m ·
                         <t t-esc="state.rows.length"/> rack rows · <t t-esc="areaCount"/> areas · <t t-esc="dockCount"/> docks

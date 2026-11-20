@@ -143,6 +143,13 @@ $wh3d-ed-invalid: #b3261e;
             fill: $wh3d-ed-shelf;
         }
 
+        // Special rows (T30): the zone is the fill, a failed inspection the outline (keep in sync with ZONES).
+        &.o_zone_cold rect { fill: #3b8fd0; }
+        &.o_zone_hazard rect { fill: #e07a1f; }
+        &.o_zone_quarantine rect { fill: #9b59b6; }
+        &.o_insp_amber rect { stroke: #e0a800; stroke-opacity: 1; stroke-dasharray: 3 2; }
+        &.o_insp_red rect { stroke: #c0392b; stroke-opacity: 1; stroke-dasharray: 3 2; }
+
         text {
             font-size: 0.7px;
             font-weight: 600;
@@ -250,5 +257,23 @@ $wh3d-ed-invalid: #b3261e;
         margin: 0;
         font-size: 13px;
         color: $o-gray-700;
+    }
+}
+
+.o_wh3d_zone_legend {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .o_wh3d_swatch_amber {
+        background: transparent;
+        border: 2px dashed #e0a800;
     }
 }
