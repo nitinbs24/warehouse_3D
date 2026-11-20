@@ -29,6 +29,7 @@ import {
     ZONES,
     PURPOSES,
     TEMP_BANDS,
+    rotateRow,
     rowZone,
     areaProblems,
     diffAreas,
@@ -348,12 +349,21 @@ export class LayoutEditor extends Component {
 
     /** Arrow keys nudge the focused row by 0.1 m (1 m with Shift). */
     onRowKeydown(ev, row) {
+        if ((ev.key === "r" || ev.key === "R") && "bays" in row) { // areas share this handler; only rows rotate
+            ev.preventDefault();
+            return this.rotateSelected(row);
+        }
         const move = this.arrowMove(ev);
         if (move) {
             ev.preventDefault();
             row.x = snap(row.x + move[0]);
             row.y = snap(row.y + move[1]);
         }
+    }
+
+    /** A quarter turn about the row's corner; an overlap or a wall shows as a problem until fixed (T31). */
+    rotateSelected(row = this.selectedRow) {
+        Object.assign(row, rotateRow(row));
     }
 
     /** The zone colours used by this layout's rows, for the Floor card's legend. */
@@ -379,7 +389,7 @@ export class LayoutEditor extends Component {
             row[field] = ev.target.checked;
             return;
         }
-        if (["temp_band", "purpose", "inspection_status"].includes(field)) {
+        if (["orientation", "temp_band", "purpose", "inspection_status"].includes(field)) {
             row[field] = raw;
             return;
         }

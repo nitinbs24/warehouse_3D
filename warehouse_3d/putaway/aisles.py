@@ -50,7 +50,8 @@ def _bfs(blocked, starts, nx, ny):
 def slot_distances(building, rows, docks):
     """{(row id, bay, position): (metres to the nearest dispatch dock, … receiving dock)}.
 
-    building = (length, width); rows = ((id, x, y, depth, bays, bay_width, slots_per_level), …);
+    building = (length, width); rows = ((id, x, y, depth, bays, bay_width, slots_per_level[, orientation]), …),
+    orientation 'y' (default: depth along x, bays along y) or 'x' (bays along x, depth along y);
     docks = ((x, y, width, depth, role), …) with role 'inbound' | 'outbound' | 'both'.
     A distance is None when no dock has that role or the slot can't be reached.
     """
@@ -58,9 +59,11 @@ def slot_distances(building, rows, docks):
     # A partial cell at a wall that isn't a multiple of CELL is dropped: a strip under CELL is never walkable.
     nx, ny = math.floor(length / CELL + EPS), math.floor(width / CELL + EPS)
     blocked = [[False] * ny for _ in range(nx)]
-    for _id, x, y, depth, bays, bay_width, _spl in rows:
-        for i in _cells(x, x + depth, nx):
-            for j in _cells(y, y + bays * bay_width, ny):
+    rows = [(*r, 'y') if len(r) == 7 else r for r in rows]
+    for _id, x, y, depth, bays, bay_width, _spl, orientation in rows:
+        w, h = (bays * bay_width, depth) if orientation == 'x' else (depth, bays * bay_width)
+        for i in _cells(x, x + w, nx):
+            for j in _cells(y, y + h, ny):
                 blocked[i][j] = True
 
     steps = {}
@@ -70,17 +73,20 @@ def slot_distances(building, rows, docks):
         steps[purpose] = _bfs(blocked, starts, nx, ny) if starts else None
 
     result = {}
-    for row_id, x, y, depth, bays, bay_width, spl in rows:
-        # The free cell just outside each rack face: left of x, right of x + depth.
-        faces = [i for i in (math.floor((x + EPS) / CELL) - 1, math.ceil((x + depth - EPS) / CELL)) if 0 <= i < nx]
+    for row_id, x, y, depth, bays, bay_width, spl, orientation in rows:
+        # Across the depth (a, size, count) and along the length (b, count) of the row, in grid axes.
+        a, b, across_n, along_n = (y, x, ny, nx) if orientation == 'x' else (x, y, nx, ny)
+        # The free cell just outside each rack face: below a, above a + depth.
+        faces = [c for c in (math.floor((a + EPS) / CELL) - 1, math.ceil((a + depth - EPS) / CELL)) if 0 <= c < across_n]
         for bay in range(1, bays + 1):
             for pos in range(1, spl + 1):
-                # Position A is the lower-y part of the bay, as slotBox in static/src/view3d/layout.js.
-                j = min(ny - 1, math.floor((y + (bay - 1) * bay_width + (pos - 0.5) * bay_width / spl) / CELL))
+                # Position A is the lower part of the bay along the row, as slotBox in static/src/view3d/layout.js.
+                k = min(along_n - 1, math.floor((b + (bay - 1) * bay_width + (pos - 0.5) * bay_width / spl) / CELL))
+                cells = [(k, c) if orientation == 'x' else (c, k) for c in faces]
                 pair = []
                 for purpose in ROLES:
                     grid = steps[purpose]
-                    found = [grid[i][j] for i in faces if grid and grid[i][j] is not None]
+                    found = [grid[i][j] for i, j in cells if grid and grid[i][j] is not None]
                     pair.append(min(found) * CELL if found else None)
                 result[(row_id, bay, pos)] = tuple(pair)
     return MappingProxyType(result)

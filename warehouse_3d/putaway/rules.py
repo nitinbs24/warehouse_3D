@@ -16,7 +16,7 @@ from collections import namedtuple
 HEAVY_KG = 25.0  # per unit; heavier never goes directly above something fragile
 EPS = 1e-6
 
-# code: stable key for T28 messages, T29 reasons and T32 violation counts; text: for people.
+# code: stable key for T28 messages, T29 reasons and T33 violation counts; text: for people.
 Reason = namedtuple('Reason', 'code text')
 
 

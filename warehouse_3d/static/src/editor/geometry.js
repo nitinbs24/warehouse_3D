@@ -38,9 +38,12 @@ export function pan(view, dx, dy) {
     return { scale: view.scale, ox: view.ox + dx, oy: view.oy + dy };
 }
 
-/** Rack row on the plan: depth runs along x, its bays along y. */
+/** Rack row on the plan: along y (the default) its depth runs along x and its bays along y; along x, the reverse. */
 export function rowRect(row) {
-    return { x: row.x, y: row.y, w: row.depth, h: row.bays * row.bay_width };
+    const length = row.bays * row.bay_width;
+    return row.orientation === "x"
+        ? { x: row.x, y: row.y, w: length, h: row.depth }
+        : { x: row.x, y: row.y, w: row.depth, h: length };
 }
 
 /** Layout area on the plan: width along x, depth along y. */

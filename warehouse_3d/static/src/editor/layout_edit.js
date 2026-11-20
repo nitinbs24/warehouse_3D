@@ -57,7 +57,7 @@ export function goodsInfo(row) {
     };
 }
 
-const EDITABLE = ["code", "kind", "x", "y", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level",
+const EDITABLE = ["code", "kind", "x", "y", "orientation", "bays", "bay_width", "depth", "levels", "level_height", "slots_per_level",
     ...Object.keys(GOODS_DEFAULTS)];
 const AREA_EDITABLE = ["name", "kind", "x", "y", "width", "depth", "color", "role"];
 export const DOCK_ROLES = [["both", "Both"], ["inbound", "Inbound (receiving)"], ["outbound", "Outbound (dispatch)"]];
@@ -124,7 +124,7 @@ export function nextCode(kind, rows) {
  * (scanning every 0.5 m), or null if it fits nowhere. ``tmpId`` (negative) marks it as unsaved.
  */
 export function newRow(kind, rows, building, tmpId) {
-    const row = { id: tmpId, code: nextCode(kind, rows), kind, x: 0, y: 0, ...TEMPLATE[kind], ...GOODS_DEFAULTS };
+    const row = { id: tmpId, code: nextCode(kind, rows), kind, x: 0, y: 0, orientation: "y", ...TEMPLATE[kind], ...GOODS_DEFAULTS };
     for (let y = 0; y <= building.width; y += 0.5) {
         for (let x = 0; x <= building.length; x += 0.5) {
             Object.assign(row, { x: snap(x), y: snap(y) });
@@ -134,6 +134,11 @@ export function newRow(kind, rows, building, tmpId) {
         }
     }
     return null;
+}
+
+/** The change that turns a row a quarter turn about its corner (T31): along y ↔ along x. */
+export function rotateRow(row) {
+    return { orientation: row.orientation === "x" ? "y" : "x" };
 }
 
 /** What Save must send for a list of records: {create: [{tmp_id, vals}], write: [{id, vals}], delete: [ids]}. */
