@@ -17,11 +17,15 @@ HARD_RULE_TEXT = {
 class StockMoveLine(models.Model):
     _inherit = 'stock.move.line'
 
+    def _wh3d_check_open(self):
+        """Only an open receipt line may be explained or re-slotted: a done line's quants would move unchecked."""
+        if self.state in ('done', 'cancel') or self.picking_code != 'incoming':
+            raise UserError(self.env._("This receipt line is no longer open: only open receipt lines can be explained or moved."))
+
     def action_wh3d_explain_putaway(self):
         """The "Why this slot?" dialog for this receipt line."""
         self.ensure_one()
-        if self.state in ('done', 'cancel') or self.picking_code != 'incoming':
-            raise UserError(self.env._("Only open receipt lines can be explained."))
+        self._wh3d_check_open()
         wizard = self.env['wh3d.putaway.explain']._wh3d_explain(self)
         return {'type': 'ir.actions.act_window', 'name': self.env._("Why this slot?"),
                 'res_model': wizard._name, 'res_id': wizard.id, 'view_mode': 'form', 'target': 'new'}
@@ -103,5 +107,7 @@ class PutawayExplainSlot(models.TransientModel):
 
     def action_choose(self):
         self.ensure_one()
-        self.wizard_id.line_id.location_dest_id = self.slot_id
+        line = self.wizard_id.line_id
+        line._wh3d_check_open()  # the dialog may have been open while someone else validated the receipt
+        line.location_dest_id = self.slot_id
         return {'type': 'ir.actions.act_window_close'}

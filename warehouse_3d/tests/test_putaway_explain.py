@@ -69,6 +69,16 @@ class TestPutawayExplain(TransactionCase):
         second.action_choose()
         self.assertEqual(line.location_dest_id, second.slot_id)
 
+    def test_a_stale_dialog_cannot_change_a_receipt_that_is_already_done(self):
+        line = self.receipt_line()
+        choice = self.explain(line).slot_ids[1]
+        placed = line.location_dest_id
+        line.picking_id.button_validate()  # another session completes the receipt while the dialog is open
+        self.assertEqual(line.state, 'done')
+        with self.assertRaisesRegex(UserError, 'no longer open'):
+            choice.action_choose()
+        self.assertEqual(line.location_dest_id, placed)
+
     def test_without_a_smart_rule_the_slots_under_the_destination_are_ranked(self):
         line = self.receipt_line(smart=False)
         wizard = self.explain(line)

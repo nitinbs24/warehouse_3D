@@ -8,6 +8,7 @@ from ..putaway.goods import BAND_SELECTION, HAZARD_CLASSES, TEMP_BANDS
 CODE_RE = re.compile(r'^[A-Z]\d{2}$')
 # Fields that decide which locations exist and what they're called.
 EPS = 1e-6  # metres; floating-point slack for "touching" comparisons
+SHELF_BASE = 0.1  # shelving starts this far off the floor (static/src/view3d/layout.js draws it so)
 SHAPE_FIELDS = frozenset({'code', 'kind', 'bays', 'levels', 'slots_per_level'})
 # Fields whose change needs the location tree updated.
 SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
@@ -158,14 +159,16 @@ class WarehouseRackRow(models.Model):
     def _check_clear_height(self):
         """Refuse a rack taller (levels × level height) than its building's clear height; touching the roof is fine."""
         for row in self.filtered('active'):
-            height = row.levels * row.level_height
+            base = SHELF_BASE if row.kind == 'shelf' else 0.0
+            height = row.levels * row.level_height + base
             if height > row.warehouse_id.wh3d_height + EPS:
                 raise ValidationError(self.env._(
-                    "Rack row %(code)s is %(h)s m tall (%(levels)s levels × %(lh)s m), more than the %(clear)s m "
-                    "clear height of %(wh)s.", code=row.code, h=round(height, 2), levels=row.levels,
-                    lh=row.level_height, clear=row.warehouse_id.wh3d_height, wh=row.warehouse_id.name))
+                    "Rack row %(code)s is %(h)s m tall (%(levels)s levels × %(lh)s m%(base)s), more than the "
+                    "%(clear)s m clear height of %(wh)s.", code=row.code, h=round(height, 2), levels=row.levels,
+                    lh=row.level_height, base=self.env._(" + %s m shelf base", base) if base else '',
+                    clear=row.warehouse_id.wh3d_height, wh=row.warehouse_id.name))
 
-    @api.constrains('x', 'y', 'orientation', 'bays', 'bay_width', 'depth', 'levels', 'level_height', 'warehouse_id', 'active')
+    @api.constrains('x', 'y', 'orientation', 'kind', 'bays', 'bay_width', 'depth', 'levels', 'level_height', 'warehouse_id', 'active')
     def _check_layout(self):
         if self.env.context.get('wh3d_defer_layout_check'):
             return  # wh3d_save_layout checks the end state once all edits are applied

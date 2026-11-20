@@ -118,6 +118,12 @@ class TestPutawayRules(TransactionCase):
         # Odoo asks with quantity 0 for a new line; a full slot must not be suggested.
         self.assertRefused(allowed(goods(qty=0), slot(), [content(qty=2)]), 'fit')
 
+    def test_fit_fractional_quantity_is_not_rounded_up_to_a_unit(self):
+        # 1.6 m³ already there; 0.1 of a 1.32 m³ unit (0.132 m³) fits the 2.673 m³ slot, a whole unit doesn't.
+        held = [content(qty=1.6, id=2, dims=(1.0, 1.0, 1.0))]
+        self.assertAllowed(allowed(goods(qty=0.1), slot(), held))
+        self.assertRefused(allowed(goods(qty=1), slot(), held), 'fit')
+
     def test_fit_unknown_dimensions_are_not_checked(self):
         self.assertAllowed(allowed(goods(product(dims=(0.0, 0.0, 0.0)), qty=50), slot(), []))
         self.assertAllowed(allowed(goods(qty=2), slot(), [content(dims=(0.0, 0.0, 0.0), id=2)]))

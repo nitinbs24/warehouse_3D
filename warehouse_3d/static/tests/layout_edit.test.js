@@ -57,6 +57,13 @@ describe("rules mirror the server (T10)", () => {
         expect(Object.keys(layoutProblems([{ ...P05, level_height: 2.0 }], BUILDING)).length).toBe(0); // 10.0 m
     });
 
+    test("shelving counts its 0.1 m base: 5 x 0.4 m is 2.1 m tall", () => {
+        const shelf = { ...P05, kind: "shelf", slots_per_level: 1, levels: 5, level_height: 0.4 };
+        expect(layoutProblems([shelf], { ...BUILDING, height: 2.0 })[5]).toMatch(/clear height/);
+        expect(Object.keys(layoutProblems([shelf], { ...BUILDING, height: 2.1 })).length).toBe(0);
+        expect(Object.keys(layoutProblems([{ ...P05, levels: 5, level_height: 0.4 }], { ...BUILDING, height: 2.0 })).length).toBe(0); // a pallet row has no base
+    });
+
     test("touching the walls is inside", () => {
         expect(Object.keys(layoutProblems([{ ...P05, x: 60 - 1.1, y: 40 - 18.9 }], BUILDING)).length).toBe(0);
     });

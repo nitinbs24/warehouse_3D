@@ -1385,3 +1385,30 @@ the location tree don't change: a row's bays, levels and positions are the same 
 
 **Default and compatibility.** `orientation` defaults to `y`, so existing rows, the template and all earlier tests are
 unchanged. Rows created by older JS without the key are treated as `y` (`rowRect` checks for `"x"` only).
+
+## CodeRabbit review of Phase 7 (20 Nov): seven fixes
+
+`coderabbit review --base master` over the 27 commits of `phase-2` found 1 major and 6 minor issues (no security
+findings). All reproduced as failing tests first, then fixed:
+- **Stale "Why this slot?" dialog (major).** `action_choose` wrote the line's destination without re-checking that the
+  receipt was still open. If someone validated it meanwhile, the done line's quants moved with no hard-rule check
+  (editing a done line's destination moves its quants without `_action_done`). The open-line guard now lives in
+  `stock.move.line._wh3d_check_open` and runs when the dialog opens *and* when a slot is chosen.
+- **Fractional quantities.** The fit rule and the ranking's wasted volume counted any quantity under 1 as one whole
+  unit (`max(qty, 1)`). Only quantity 0 (Odoo's "new line without quantity") is now one unit: `qty or 1`.
+- **Unreachable vs no dock.** A dispatch dock that no slot can reach (a door standing over a rack) used to make the
+  ranking ignore distance for every slot; now only a warehouse with *no* dispatch dock falls back. Unreachable slots
+  rank last with `distance None` and no criteria, so T29's "no walkable way" reason shows.
+- **Thin rack in front of a face (aisles.py).** The access cell for a rack face was chosen by coordinates alone, so a
+  second rack closer than one cell could sit between the face and its cell. A face is now skipped when another rack
+  lies between the physical face and the cell, along that cell's stretch.
+- **Zero-weight products in the demo planner.** The weight cap divided by the product's weight; a product without
+  weight now has no cap (`max_units`). Positive weights give the same numbers as before, so the fixed-seed opening
+  stock is unchanged.
+- **Shelving height.** Shelving is drawn 0.1 m off the floor, so 5 × 0.4 m is 2.1 m tall. The clear-height check (server
+  and editor) now adds the same 0.1 m (`SHELF_BASE`); pallet rows are unchanged.
+- **A weak test.** `test_receipt_of_a_fast_mover…` picked its "far" slot by search order; it now takes the empty slot
+  with the largest walking distance.
+- **Second pass: `kind` in the layout constraint.** A row's height depends on its kind since the shelving base was added, so
+  turning a pallet row into shelving through a plain write must recheck the clear height; `kind` is now in
+  `_check_layout`'s `@api.constrains` list (Odoo reruns a constraint only when a declared field is written).

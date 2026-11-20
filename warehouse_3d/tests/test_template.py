@@ -173,6 +173,15 @@ class TestTemplateLayout(TransactionCase):
         share = sum(classes[p] == 'A' for p in stocked) / len(stocked)
         self.assertGreater(share, 0.30, f"A share among stocked slots {share:.2f} (catalogue: 0.20)")
 
+    def test_a_product_without_weight_does_not_break_the_planner(self):
+        self.env['product.product'].create({
+            'name': 'Weightless', 'default_code': 'ZZ-0', 'is_storable': True, 'weight': 0.0,
+            'categ_id': self.env.ref('warehouse_3d.categ_bulk').id,
+            'wh3d_length': 1.0, 'wh3d_width': 1.0, 'wh3d_height': 1.0})
+        plan = self.env['stock.warehouse']._wh3d_plan_template_stock(self.warehouse)
+        self.assertTrue(plan)
+        self.assertTrue(all(qty >= 1 for _slot, _product, qty in plan))
+
     def test_opening_stock_plan_is_deterministic(self):
         Warehouse = self.env['stock.warehouse']
         first = Warehouse._wh3d_plan_template_stock(self.warehouse, seed=7)

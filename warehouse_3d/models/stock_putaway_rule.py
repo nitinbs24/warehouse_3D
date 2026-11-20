@@ -73,7 +73,7 @@ class StockPutawayRule(models.Model):
                  'fragile': any(p.wh3d_fragile for p in products)}  # 'A' < 'B' < 'C': the most demanding class
         # shortcut: a package's own volume is not counted as incoming, and stock on its way is not counted as
         # used; only what is on hand. Refine if slots are often filled by a batch of receipts.
-        incoming = (product.wh3d_length * product.wh3d_width * product.wh3d_height * max(quantity, 1)
+        incoming = (product.wh3d_length * product.wh3d_width * product.wh3d_height * (quantity or 1)
                     if len(products) == 1 and not package else 0.0)
         used, there = defaultdict(float), set()
         for loc, prod, qty in self.env['stock.quant']._read_group(
@@ -84,8 +84,11 @@ class StockPutawayRule(models.Model):
         distance = {}
         for warehouse in slots.wh3d_rack_row_id.warehouse_id:
             distance.update({k: v[0] for k, v in warehouse._wh3d_slot_distances().items()})
-        if all(distance.get(s.id) is None for s in slots):
+        has_dispatch = any(a.kind == 'dock' and a.role in ('outbound', 'both')
+                           for a in slots.wh3d_rack_row_id.warehouse_id.wh3d_area_ids)
+        if not has_dispatch:
             distance = {}  # no dispatch dock at all: distance can't separate the slots
+        # With a dock that nothing can reach, distances stay None: those slots rank last with no criteria.
         candidates = []
         for s in slots:
             row = s.wh3d_rack_row_id

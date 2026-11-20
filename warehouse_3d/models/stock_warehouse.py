@@ -181,8 +181,11 @@ class StockWarehouse(models.Model):
             limit = row.storage_category_id.max_weight or 1e9  # no limit
             band = rng.choice(self._WH3D_FILL_BANDS)
 
+            def max_units(p):  # the weight limit in units of p; a product without weight isn't capped
+                return limit / p.weight if p.weight > 0 else math.inf
+
             def reaches(p):  # can the weight limit still let this product fill the slot to the band?
-                return limit / p.weight * p.wh3d_length * p.wh3d_width * p.wh3d_height / capacity >= band[0]
+                return max_units(p) * p.wh3d_length * p.wh3d_width * p.wh3d_height / capacity >= band[0]
 
             choices = [(p, w) for p, w in zip(pool, weights)
                        if not (p.wh3d_fragile and above and above.weight > HEAVY_KG)
@@ -192,7 +195,7 @@ class StockWarehouse(models.Model):
                 continue
             product = rng.choices([p for p, _w in choices], weights=[w for _p, w in choices])[0]
             unit = product.wh3d_length * product.wh3d_width * product.wh3d_height
-            qty = max(1, min(math.floor(rng.uniform(*band) * capacity / unit), math.floor(limit / product.weight)))
+            qty = max(1, math.floor(min(rng.uniform(*band) * capacity / unit, max_units(product))))
             planned[key] = product
             plan.append((slot, product, qty))
         return plan

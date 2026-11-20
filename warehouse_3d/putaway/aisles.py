@@ -60,8 +60,10 @@ def slot_distances(building, rows, docks):
     nx, ny = math.floor(length / CELL + EPS), math.floor(width / CELL + EPS)
     blocked = [[False] * ny for _ in range(nx)]
     rows = [(*r, 'y') if len(r) == 7 else r for r in rows]
-    for _id, x, y, depth, bays, bay_width, _spl, orientation in rows:
+    rects = {}  # row id -> (x0, y0, x1, y1) on the plan
+    for row_id, x, y, depth, bays, bay_width, _spl, orientation in rows:
         w, h = (bays * bay_width, depth) if orientation == 'x' else (depth, bays * bay_width)
+        rects[row_id] = (x, y, x + w, y + h)
         for i in _cells(x, x + w, nx):
             for j in _cells(y, y + h, ny):
                 blocked[i][j] = True
@@ -77,12 +79,25 @@ def slot_distances(building, rows, docks):
         # Across the depth (a, size, count) and along the length (b, count) of the row, in grid axes.
         a, b, across_n, along_n = (y, x, ny, nx) if orientation == 'x' else (x, y, nx, ny)
         # The free cell just outside each rack face: below a, above a + depth.
-        faces = [c for c in (math.floor((a + EPS) / CELL) - 1, math.ceil((a + depth - EPS) / CELL)) if 0 <= c < across_n]
+        faces = [(c, edge) for c, edge in ((math.floor((a + EPS) / CELL) - 1, a),
+                                           (math.ceil((a + depth - EPS) / CELL), a + depth)) if 0 <= c < across_n]
+
+        def walled_off(c, edge, k):
+            """Is another rack standing between the face (at ``edge``) and cell ``c``, along the cell's stretch?"""
+            centre = (c + 0.5) * CELL
+            lo, hi = (centre, edge) if c * CELL < edge else (edge, centre)
+            for other_id, (x0, y0, x1, y1) in rects.items():
+                a0, a1, b0, b1 = (y0, y1, x0, x1) if orientation == 'x' else (x0, x1, y0, y1)
+                if (other_id != row_id and a0 < hi - EPS and a1 > lo + EPS
+                        and b0 < (k + 1) * CELL - EPS and b1 > k * CELL + EPS):
+                    return True
+            return False
+
         for bay in range(1, bays + 1):
             for pos in range(1, spl + 1):
                 # Position A is the lower part of the bay along the row, as slotBox in static/src/view3d/layout.js.
                 k = min(along_n - 1, math.floor((b + (bay - 1) * bay_width + (pos - 0.5) * bay_width / spl) / CELL))
-                cells = [(k, c) if orientation == 'x' else (c, k) for c in faces]
+                cells = [(k, c) if orientation == 'x' else (c, k) for c, edge in faces if not walled_off(c, edge, k)]
                 pair = []
                 for purpose in ROLES:
                     grid = steps[purpose]

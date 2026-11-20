@@ -6,6 +6,7 @@
 import { areaRect, rowRect } from "@warehouse_3d/editor/geometry";
 
 const EPS = 1e-6;
+const SHELF_BASE = 0.1; // shelving starts this far off the floor, as rackGeometry draws it (and warehouse_rack_row.py)
 // Special goods (T24); mirrors GOODS_FIELDS in models/warehouse_rack_row.py and putaway/goods.py.
 export const HAZARD_CLASSES = [
     ["gas", "Compressed gas"], ["flammable_liquid", "Flammable liquid"], ["flammable_solid", "Flammable solid"],
@@ -99,7 +100,7 @@ export function layoutProblems(rows, building) {
             problems[row.id] = `${row.code} is outside the ${building.length} × ${building.width} m building.`;
             continue;
         }
-        const height = row.levels * row.level_height;
+        const height = row.levels * row.level_height + (row.kind === "shelf" ? SHELF_BASE : 0);
         if (height > building.height + EPS) {
             problems[row.id] = `${row.code} is ${Math.round(height * 100) / 100} m tall, more than the ${building.height} m clear height.`;
             continue;

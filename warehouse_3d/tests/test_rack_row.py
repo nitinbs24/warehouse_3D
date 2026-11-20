@@ -185,6 +185,23 @@ class TestRackRowLayout(TransactionCase):
         with self.assertRaisesRegex(ValidationError, 'clear height'):
             self._row(code='P06', x=20.5, levels=6)
 
+    def test_shelving_counts_its_0_1_m_base_in_the_clear_height(self):
+        # Shelves start 0.1 m off the floor (the 3D view draws them that way): 5 × 0.4 m is 2.1 m tall.
+        self.warehouse.wh3d_height = 2.0
+        with self.assertRaisesRegex(ValidationError, 'clear height'), self.cr.savepoint():
+            self._row(kind='shelf', slots_per_level=1, levels=5, level_height=0.4)
+        self.warehouse.wh3d_height = 2.1
+        self._row(kind='shelf', slots_per_level=1, levels=5, level_height=0.4)
+
+    def test_turning_a_pallet_row_into_shelving_rechecks_the_clear_height(self):
+        # 5 × 0.4 m is 2.0 m as a pallet rack (fits a 2.0 m roof) but 2.1 m as shelving (with its 0.1 m base).
+        self.warehouse.wh3d_height = 2.0
+        row = self._row(slots_per_level=1, levels=5, level_height=0.4)
+        with self.assertRaisesRegex(ValidationError, 'clear height'), self.cr.savepoint():
+            row.kind = 'shelf'
+        self.warehouse.wh3d_height = 2.1
+        row.kind = 'shelf'
+
     def test_raising_a_rack_through_the_roof_is_refused(self):
         row = self._row()
         with self.assertRaisesRegex(ValidationError, 'clear height'):

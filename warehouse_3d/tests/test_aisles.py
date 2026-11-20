@@ -61,6 +61,16 @@ class TestAisles(TransactionCase):
         self.assertEqual(d[(2, 1, 1)], (None, None))
         self.assertIsNotNone(d[(1, 1, 1)][1])
 
+    def test_a_face_behind_a_thin_rack_is_not_reachable(self):
+        # Row 1 (x 0–1.1) has only a 0.1 m gap before row 2 (x 1.2–1.5); the free cell beyond row 2 is not
+        # next to row 1's face. Row 2's own right face is open.
+        row1 = (1, 0.0, 1.0, 1.1, 1, 3.0, 1)
+        row2 = (2, 1.2, 1.0, 0.3, 1, 3.0, 1)
+        d = slot_distances((5.0, 5.0), (row1, row2), ((4.0, 0.0, 1.0, 0.5, 'both'),))
+        self.assertEqual(d[(1, 1, 1)], (None, None))
+        self.assertIsNotNone(d[(2, 1, 1)][0])
+        self.assertIsNotNone(d[(2, 1, 1)][1])
+
     def test_positions_follow_the_3d_view(self):
         # Position A is the lower-y half of a bay (as slotBox in view3d/layout.js).
         row = (1, 4.0, 0.0, 1.0, 4, 2.0, 2)

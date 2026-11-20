@@ -2,7 +2,7 @@ import time
 
 from odoo.tests import TransactionCase
 
-from .common import template_warehouse
+from .common import create_p05, template_warehouse
 
 LOGGER = 'odoo.addons.warehouse_3d.models.stock_putaway_rule'
 
@@ -52,8 +52,9 @@ class TestSmartPutaway(TransactionCase):
         # Both already have a little stock in a far, empty shelf slot (pallet slots take new products only when
         # empty). Consolidation pulls the slow mover there; the fast mover's heavier travel weight takes it to
         # the nearest slots instead.
-        far = self.env['stock.location'].search(
-            [('wh3d_rack_row_id.code', '=', 'S01'), ('wh3d_node', '=', 'slot')]).filtered(lambda s: not s.quant_ids)[:1]
+        empty = self.env['stock.location'].search(
+            [('wh3d_rack_row_id.code', '=', 'S01'), ('wh3d_node', '=', 'slot')]).filtered(lambda s: not s.quant_ids)
+        far = max(empty, key=lambda s: (self.distance[s.id], -s.id))  # by distance, not by search order
         fast, slow = self.product('Fast', wh3d_abc_class='A'), self.product('Slow', wh3d_abc_class='C')
         for product in (fast, slow):
             self.env['stock.quant']._update_available_quantity(product, far, 1)
@@ -119,3 +120,45 @@ class TestSmartPutaway(TransactionCase):
         slot = self.stock._get_putaway_strategy(product, 5)
         self.assertEqual(slot.wh3d_node, 'slot')
         self.assertLess(time.perf_counter() - start, 1.0)
+
+
+class TestSmartPutawayEdges(TransactionCase):
+    """Ranking edge cases on a one-row warehouse (from the CodeRabbit review of Phase 7)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.warehouse = cls.env['stock.warehouse'].create({'name': 'Edge', 'code': 'EDG'})
+        cls.stock = cls.warehouse.lot_stock_id
+        cls.row = create_p05(cls.env, cls.warehouse, x=0.0)  # x 0–1.1, y 1–19.9, against the left wall
+        cls.product = cls.env['product.product'].create({
+            'name': 'Cube', 'is_storable': True, 'weight': 1.0,
+            'wh3d_length': 0.3, 'wh3d_width': 0.3, 'wh3d_height': 0.3})
+        cls.Rule = cls.env['stock.putaway.rule']
+
+    def dock(self, role, **kw):
+        return self.env['warehouse.layout.area'].create({
+            'name': 'Dock', 'kind': 'dock', 'role': role, 'warehouse_id': self.warehouse.id,
+            'x': 0.0, 'y': 5.0, 'width': 1.0, 'depth': 3.0} | kw)
+
+    def rank(self, quantity=1):
+        return self.Rule._wh3d_rank_slots(self.product, quantity, self.row.slot_location_ids, self.stock)[0]
+
+    def test_a_dispatch_dock_that_no_slot_can_reach_ranks_every_slot_last_and_unreachable(self):
+        # A door may stand over a rack: its cells are blocked, so no walkable way leads to it.
+        self.dock('outbound')
+        ranked = self.rank()
+        self.assertEqual(len(ranked), 70)
+        self.assertTrue(all(r['score'] == 0 and r['distance'] is None and r['criteria'] is None for r in ranked))
+
+    def test_without_any_dispatch_dock_distance_is_ignored_and_slots_are_still_scored(self):
+        self.dock('inbound')
+        ranked = self.rank()
+        self.assertTrue(all(r['criteria'] is not None and r['distance'] is None for r in ranked))
+
+    def test_a_fraction_of_a_unit_leaves_more_room_than_a_whole_unit(self):
+        self.dock('outbound', x=0.0, y=30.0, width=3.0, depth=1.6)  # reachable
+        whole = {r['slot'].id: r['criteria']['waste'] for r in self.rank(1)}
+        tenth = {r['slot'].id: r['criteria']['waste'] for r in self.rank(0.1)}
+        slot = next(iter(whole))
+        self.assertAlmostEqual(tenth[slot] - whole[slot], 0.9 * 0.3 ** 3, places=6)
