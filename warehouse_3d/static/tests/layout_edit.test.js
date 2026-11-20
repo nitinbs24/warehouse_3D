@@ -6,6 +6,7 @@ import {
     diffLayout,
     GOODS_DEFAULTS,
     goodsInfo,
+    rowZone,
     layoutProblems,
     newArea,
     newDock,
@@ -129,6 +130,14 @@ describe("special-goods fields (T24)", () => {
             hazard_gas: true, inspection_status: "red", last_inspection: "2026-11-01" });
         expect([cold.temperature, cold.hazards, cold.inspection])
             .toEqual(["-30 to -20 °C", "Compressed gas, Toxic", "Red - offload now (2026-11-01)"]);
+    });
+
+    test("a row's zone colour: purpose first, then temperature, then hazards", () => {
+        expect(rowZone(P05G)).toBe(null);
+        expect(rowZone({ ...P05G, temp_band: "frozen" })).toBe("cold");
+        expect(rowZone({ ...P05G, hazard_toxic: true })).toBe("hazard");
+        expect(rowZone({ ...P05G, purpose: "returns", temp_band: "chilled" })).toBe("quarantine");
+        expect(rowZone({ ...P05G, inspection_status: "amber" })).toBe(null); // inspection is an outline, not a zone
     });
 
     test("an inspection date and status are sent as they are", () => {

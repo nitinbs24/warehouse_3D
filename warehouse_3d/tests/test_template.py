@@ -121,8 +121,7 @@ class TestTemplateLayout(TransactionCase):
 
     def test_areas_and_docks(self):
         areas = [a['name'] for a in self.scene['areas'] if a['kind'] == 'area']
-        self.assertEqual(sorted(areas), ['Charging', 'Cold room', 'Hazardous goods', 'Office', 'Packing',
-                                         'Quarantine and returns', 'Receiving', 'Shipping'])
+        self.assertEqual(sorted(areas), ['Charging', 'Office', 'Packing', 'Receiving', 'Shipping'])
         self.assertEqual(len([a for a in self.scene['areas'] if a['kind'] == 'dock']), 6)
 
     def test_areas_have_their_own_colours_in_the_editor_palette(self):
@@ -228,9 +227,10 @@ class TestTemplateSpecialZones(TransactionCase):
         self.assertEqual(self.rows[amber[0]].inspection_status, 'amber')
         self.assertTrue(self.rows[amber[0]].last_inspection)
 
-    def test_special_areas_are_drawn_beside_the_rows(self):
+    def test_special_zones_are_rows_not_floor_areas(self):
+        # The rows themselves are coloured in the editor and 3D view (rowZone); no separate floor patches.
         names = set(self.warehouse.wh3d_area_ids.mapped('name'))
-        self.assertTrue({'Cold room', 'Hazardous goods', 'Quarantine and returns'} <= names)
+        self.assertFalse({'Cold room', 'Hazardous goods', 'Quarantine and returns'} & names)
 
     def test_about_twenty_special_products_of_each_kind(self):
         self.assertTrue(18 <= len(self.special) <= 22, len(self.special))

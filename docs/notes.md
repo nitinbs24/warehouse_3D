@@ -1337,3 +1337,17 @@ The open questions from T25–T30 were settled (table in `docs/plan.md`, "Phase 
 - **Frozen is stored as −60…−18 °C** (was −30). A −40…−20 °C deep-freeze row now takes frozen food; the old test that
   documented the refusal now asserts the opposite. Existing databases keep the old −30 on products already set to
   "frozen" until the band is chosen again (the range is computed when the band changes).
+
+## Special rows coloured instead of floor patches (20 Nov)
+
+Files: `static/src/editor/layout_edit.js` (`ZONES`, `rowZone`), `static/src/editor/editor_action.{js,xml,scss}`,
+`static/src/view3d/scene.js`, `static/src/view3d/view3d_action.{js,xml}`, `demo/layout.xml`, `tests/test_template.py`,
+`static/tests/layout_edit.test.js`.
+
+T30's "Cold room", "Hazardous goods" and "Quarantine and returns" floor areas sat on the cross aisle below their
+rows (an area may not overlap a rack), so they read as separate zones and their labels overlapped. They are gone;
+the rows themselves carry the zone. `rowZone(row)` (pure, Hoot-tested) gives `cold`, `hazard`, `quarantine` or
+null (purpose wins, then temperature, then hazard approvals). The editor fills the row with the zone colour and
+outlines a failed inspection (dashed amber/red); the 3D view puts a coloured pad under the rack and colours the
+uprights amber/red. Both screens show a legend of the zones used. One list (`ZONES`) feeds both, so the colours
+match; the editor's SCSS repeats the three colours (CSS can't read the JS list).

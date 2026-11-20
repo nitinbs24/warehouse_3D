@@ -54,37 +54,6 @@
         <field name="width">19.5</field>
         <field name="depth">13.5</field>
     </record>
-    <!-- Special zones, drawn on the cross aisle beside their rows (an area may not overlap a rack). -->
-    <record id="area_cold" model="warehouse.layout.area">
-        <field name="name">Cold room</field>
-        <field name="kind">area</field>
-        <field name="color">#9ed8e6</field>
-        <field name="warehouse_id" ref="warehouse_template"/>
-        <field name="x">0.2</field>
-        <field name="y">20.2</field>
-        <field name="width">6.5</field>
-        <field name="depth">3.6</field>
-    </record>
-    <record id="area_hazard" model="warehouse.layout.area">
-        <field name="name">Hazardous goods</field>
-        <field name="kind">area</field>
-        <field name="color">#f0a35e</field>
-        <field name="warehouse_id" ref="warehouse_template"/>
-        <field name="x">32.6</field>
-        <field name="y">20.2</field>
-        <field name="width">5.2</field>
-        <field name="depth">3.6</field>
-    </record>
-    <record id="area_quarantine" model="warehouse.layout.area">
-        <field name="name">Quarantine and returns</field>
-        <field name="kind">area</field>
-        <field name="color">#d9a7e0</field>
-        <field name="warehouse_id" ref="warehouse_template"/>
-        <field name="x">25.9</field>
-        <field name="y">20.2</field>
-        <field name="width">2.4</field>
-        <field name="depth">3.6</field>
-    </record>
     <record id="dock_1" model="warehouse.layout.area">
         <field name="name">Inbound dock 1</field>
         <field name="kind">dock</field>

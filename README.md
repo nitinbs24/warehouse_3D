@@ -41,8 +41,9 @@ stock. It's identical on every machine (fixed random seed). The special zones si
 | P07 | Rack inspection **amber**: no putaway until repaired | none |
 
 Besides these, SP-2015…2017 are fragile (shelves) and SP-2018…2020 heavy (over 25 kg, pallets). The opening stock
-only holds what the hard rules below allow. The Cold room, Hazardous goods and Quarantine and returns areas are
-drawn on the cross aisle beside their rows (an area may not overlap a rack).
+only holds what the hard rules below allow. Special rows are coloured by what they hold: blue = cold room, orange =
+hazardous, purple = quarantine/returns, in the Layout Editor (row fill) and the 3D view (a pad under the rack);
+a failed rack inspection shows as a dashed amber/red outline (editor) and yellow/red uprights (3D).
 
 ### Smart putaway
 
