@@ -1212,3 +1212,128 @@ object is shared by every caller: one caller adding a key would corrupt it for a
 **Dock role.** `role` on `warehouse.layout.area` (inbound, outbound, both; default both). The editor's dock card
 gets a "Used for" select. `onAreaField` parsed everything that isn't name or colour as a number, so the role needed
 its own branch (the same trap as T24's temperatures). Demo docks 1–3 are inbound, 4–6 outbound.
+
+## T27: Criteria, ranking, and the "Smart" putaway option
+
+Files: `putaway/score.py`, `models/stock_putaway_rule.py`, `tests/test_putaway_score.py`, `tests/test_smart_putaway.py`.
+
+**Hooking into Odoo's putaway.** `stock.putaway.rule.sublocation` gains `wh3d_smart` through `selection_add`; the
+required `ondelete` maps it back to `no` if the module is uninstalled. The standard rule list already shows the
+field, so no view was needed. Odoo calls `_get_putaway_location` on the rules sorted by priority and the first
+non-empty answer wins, so the override walks `self` in order: a smart rule ranks the slots under its "Store to"
+location, any other rule goes to `super()` one at a time. If no slot is allowed the rule returns nothing, Odoo
+falls back to the destination (WH/Stock), and an INFO line says how many slots each hard rule removed. The goods'
+purpose (quarantine) is read from the rule's "When received in" location, which is where Odoo asked.
+
+**Hard rules first, then ranking.** `_wh3d_rank_slots(product, quantity, slots, dest, package)` runs
+`_wh3d_check_slots`, then scores the survivors on four criteria: distance to dispatch, height fit, consolidation,
+wasted volume, with the AHP weights 0.53 / 0.20 / 0.18 / 0.09. It returns the ordered list (slot, score, criteria,
+distance, level) and a Counter of slots removed per hard-rule code, which T29's dialog shows.
+
+**The class factor goes on the weight, not the distance.** The plan said distance × (A 1.0, B 0.6, C 0.3). TOPSIS
+divides each column by its norm, so a constant factor on a column cancels and A and C would rank identically. The
+factor scales the travel weight instead (weights renormalised): a fast mover cares about distance, a slow one lets
+consolidation or fit win. A product with no class counts as C.
+
+**Min-max scaling instead of the vector norm.** With about 2,000 slots, vector normalisation shrinks a dense column
+(distance) to about 1/√N while a sparse one (the product is in a single slot) stays at 1, so consolidation beat every
+weight. `score()` scales each column to 0..1 by min-max before TOPSIS. The plain `topsis` keeps the textbook norm and
+is tested on a hand-worked 2×2 example; a test shows the two normalisations disagree on a 1000-slot case. **Report
+this in the paper:** it is a deliberate departure from textbook TOPSIS.
+
+**Height fit.** Cost is the slot's middle height `z = (level − 0.5) × level_height`. Heavy (> 25 kg/unit): z, floor
+best. A-class or fragile: distance from 1.1 m (waist height). Others: neutral. Heavy wins over fragile.
+
+**Edge cases.** Slots with no route to a dispatch dock rank last (score 0, distance None). Columns where every value
+is equal contribute nothing. Limits (`shortcut:` comments): a package's volume isn't counted as incoming; stock on
+its way isn't counted as used volume. Template pallet slots are "empty only" storage, so consolidation only matters
+on shelving. One call over the 2,340-slot template takes under 1 s once distances are cached.
+
+## T28: Block manual moves that break a hard rule
+
+Files: `models/stock_move_line.py`, `models/stock_warehouse.py` (demo key, removed again in T30), `tests/test_move_block.py`.
+
+**One hook.** `stock.move.line._action_done` runs `_wh3d_check_hard_rules()` first. Receipts, internal transfers and
+inventory adjustments all finish there (an adjustment is a move with a virtual source), so one override covers all
+three. Only lines with quantity > 0 into a location with `wh3d_node == 'slot'` are checked; other locations cost nothing.
+
+**Check.** Lines are grouped by (slot, product, purpose destination, package); each group calls `_wh3d_check_slots`
+once with the summed quantity. All lines being validated go into `exclude_sml_ids`, so a line never counts as
+"incoming" against its own slot. The first violation raises `UserError("<product> cannot go into <slot> (<code>
+rule): <reason>")`.
+
+**Purpose destination.** The move's `location_dest_id` (where it was sent, before putaway), not the slot the line
+ended in: a quarantine receipt sent into the zone is allowed, normal goods into a quarantine row are not.
+
+**Override.** Context key `wh3d_override_hard_rules`, honoured only for Inventory managers; a clerk passing it still
+gets the error. Each overridden violation is logged and posted on the picking (user, product, slot, rule, reason);
+inventory adjustments have no picking, so the message goes on the product (locations have no chatter). No UI for it.
+
+## T30: Template warehouse: special zones and products
+
+Files: `demo/catalogue.xml`, `demo/layout.xml`, `demo/product.template.csv`, `models/stock_warehouse.py`
+(`_wh3d_plan_template_stock`, `_wh3d_template_row_takes`), `models/stock_move_line.py`, `tests/test_template.py`,
+`tests/test_inventory_flow.py`, `tests/test_smart_putaway.py`, `README.md`.
+
+**Repurpose rows, draw areas beside.** The floor plan already holds 31 rows and 2,340 slots that earlier tests and
+the timing target depend on, so the special zones are existing rows given new attributes: P01–P03 cold room
+(frozen, chilled, pharma 2–8 °C), P13 and P14 hazardous, P10 quarantine, P11 returns, P07 amber. The plan said "a
+floor area drawn around each", but an area may not overlap a rack row, so the areas sit on the cross aisle
+(y 20.2–23.8) just below their rows. Areas are drawings and don't block aisle distances.
+
+**Quarantine needs its own zone.** The purpose rule asks whether the goods were sent into the row's zone (a
+`parent_path` prefix), so P10 and P11 get zone locations `WHV/Stock/QU` and `…/RT` instead of sharing `PR`, each
+with a Smart rule whose "received in" and "store to" are that zone.
+
+**Opening stock follows the hard rules, no exemption.** T28 let the demo load skip the move check because the old
+plan broke rules (Tea in P01-01-1-A over the 1000 kg category limit). The planner now only plans placements the
+rules accept (tracking its own plan for the fragile/heavy stacking rule, keeping ordinary goods out of cold and
+hazard rows, capping quantity at the category's weight limit), and the exemption key is gone. The fill band is drawn
+before the product so heavy goods don't empty the "high" colour band. The test checks every opening quant against
+the real `_wh3d_check_slots`, taking the product's own quants away inside a rolled-back savepoint (an "empty only"
+category would otherwise refuse the slot because of the stock being checked).
+
+**Four Smart rules instead of one.** A single Smart rule on WH/Stock sent 25 kg bags to snug shelf slots: nothing in
+the hard rules says bulk belongs on pallets. So the template keeps the category split as Smart rules (bulk → `PR`,
+small parts → `SH`) plus the two zone rules. The old Closest-location rules stay, archived, for the experiment (T31).
+Tests that assumed "first empty pallet slot by name" now assert the Smart rule's pick. *Open question for the
+experiment:* "bulk belongs on pallets" is a rule the engine doesn't know; T33 should compare like with like (both
+strategies with the same category split).
+
+**CSV.** Odoo's CSV loader takes the model from the file name, so the 20 new products (SP-2001…2020) are rows of
+`product.template.csv` with three new columns, not a second file.
+
+## T29: "Why this slot?"
+
+Files: `models/putaway_explain.py`, `views/putaway_explain_views.xml`, `security/ir.model.access.csv`,
+`tests/test_putaway_explain.py`, `static/tests/tours/putaway_explain_tour.js`.
+
+**What it is.** On a receipt's detailed operations each open line has a question-mark button. It opens a dialog with
+the top 3 slots for that line: score, metres to dispatch, level and one-line reasons ("12 m from dispatch · waist
+height · already holds this product · 0.40 m³ left"), then a sentence per hard rule saying how many slots it removed
+("70 slots excluded: temperature (product needs 2–8 °C)"). "Use this slot" replaces the line's destination.
+
+**Which slots are ranked.** The Smart rule that applies to the line: `sublocation == 'wh3d_smart'`, its "when
+received in" a parent of the move's destination, filtered by product or category (a product rule beats a category
+rule, as in Odoo). Its "store to" slots are ranked; with no such rule, the slots under the move's destination. The
+goods' purpose comes from the *move's* destination, not the line's (putaway may have changed that), the same value
+T28's `_action_done` check uses, so dialog and validation agree. The line is excluded from its own committed volume
+(`exclude_sml_ids`), so the top slot matches what putaway chose.
+
+**Odoo patterns.** Two TransientModels (`wh3d.putaway.explain` and its `.slot` lines) shown as a dialog: a wizard,
+Odoo's usual way to ask something and write back. Transient models still need access rules in Odoo 19, or the
+dialog raises an Access Error. The button is added to Odoo's own detailed-operations list by view inheritance.
+
+**Choosing is not a rule check.** Picking a slot only writes the destination; validation (T28) still refuses a slot
+that breaks a hard rule. The dialog only offers slots that passed. Limits: the product is ranked alone (a result
+package is ignored); fixed height wording bands (floor < 0.5 m, waist 0.7–1.5 m, high > 1.5 m).
+
+## Phase 7 decisions (20 Nov)
+
+The open questions from T25–T30 were settled (table in `docs/plan.md`, "Phase 7 decisions"). Two changed code:
+- **Cold rows are only for goods that need a temperature.** `rules._temperature` now refuses a product without a
+  requirement in any temperature-controlled row (reason code `temperature`). The T30 demo planner already did this;
+  the rule now matches it, and a test pins it.
+- **Frozen is stored as −60…−18 °C** (was −30). A −40…−20 °C deep-freeze row now takes frozen food; the old test that
+  documented the refusal now asserts the opposite. Existing databases keep the old −30 on products already set to
+  "frozen" until the band is chosen again (the range is computed when the band changes).

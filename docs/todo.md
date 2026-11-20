@@ -518,11 +518,11 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 **Description:** Score allowed slots and plug the engine into Odoo's putaway.
 
 **Acceptance criteria:**
-- [ ] `putaway/score.py`: criteria c1 travel (distance to dispatch × class factor A 1.0 / B 0.6 / C 0.3, lower better), c2 height fit (heavy > 25 kg/unit → level 1–2 best; A and fragile → waist-height levels best), c3 consolidation (same product already there), c4 wasted volume (lower better).
-- [ ] `topsis(matrix, weights, benefit)` and `weighted_sum(...)`; AHP weights from `docs/review/ahp.py` as constants (travel 0.53, height 0.20, consolidation 0.18, space 0.09).
-- [ ] Putaway rule `sublocation` gains **Smart (Warehaven)**; `_get_putaway_location` runs the engine for smart rules and `super()` for others; returns the best slot, or nothing (→ Odoo keeps `WH/Stock`) with a log line.
-- [ ] Handles the product set from `context['products']` (package putaway).
-- [ ] < 1 s per move line on the template warehouse.
+- [x] `putaway/score.py`: criteria c1 travel (distance to dispatch × class factor A 1.0 / B 0.6 / C 0.3, lower better), c2 height fit (heavy > 25 kg/unit → level 1–2 best; A and fragile → waist-height levels best), c3 consolidation (same product already there), c4 wasted volume (lower better).
+- [x] `topsis(matrix, weights, benefit)` and `weighted_sum(...)`; AHP weights from `docs/review/ahp.py` as constants (travel 0.53, height 0.20, consolidation 0.18, space 0.09).
+- [x] Putaway rule `sublocation` gains **Smart (Warehaven)**; `_get_putaway_location` runs the engine for smart rules and `super()` for others; returns the best slot, or nothing (→ Odoo keeps `WH/Stock`) with a log line.
+- [x] Handles the product set from `context['products']` (package putaway).
+- [x] < 1 s per move line on the template warehouse.
 
 **Verification:** `tests/test_putaway_score.py` (TOPSIS on a textbook example; weighted sum; each criterion's direction) and `tests/test_smart_putaway.py` (receipt of an A product lands nearer dispatch than a C product; frozen product only in the cold row; no allowed slot → `WH/Stock` + log; package putaway; timing).
 **Dependencies:** T25, T26
@@ -531,9 +531,9 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 
 ### T28: Block manual moves that break a hard rule
 **Acceptance criteria:**
-- [ ] Validating a move line whose destination slot breaks a hard rule raises a clear error naming the rule ("P05-03-2-A is ambient; Frozen peas needs −25…−18 °C").
-- [ ] Applies to receipts, internal transfers and inventory adjustments into generated slots; locations outside rack rows are untouched.
-- [ ] A manager-only context key allows an override for emergencies (logged in the chatter).
+- [x] Validating a move line whose destination slot breaks a hard rule raises a clear error naming the rule ("P05-03-2-A is ambient; Frozen peas needs −25…−18 °C").
+- [x] Applies to receipts, internal transfers and inventory adjustments into generated slots; locations outside rack rows are untouched.
+- [x] A manager-only context key allows an override for emergencies (logged in the chatter).
 
 **Verification:** `tests/test_move_block.py` (each rule blocks, an allowed move passes, override works and is logged, non-slot locations unaffected).
 **Dependencies:** T25
@@ -541,8 +541,8 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 
 ### T29: "Why this slot?"
 **Acceptance criteria:**
-- [ ] On a receipt's detailed operations, a button per line opens a dialog with the top 3 slots: score, distance to dispatch, level, and one-line reasons; the chosen slot can be swapped for another of the three.
-- [ ] Shows how many slots each hard rule removed ("212 ambient slots excluded: product needs 2–8 °C").
+- [x] On a receipt's detailed operations, a button per line opens a dialog with the top 3 slots: score, distance to dispatch, level, and one-line reasons; the chosen slot can be swapped for another of the three.
+- [x] Shows how many slots each hard rule removed ("212 ambient slots excluded: product needs 2–8 °C").
 
 **Verification:** `tests/test_putaway_explain.py` + a tour (open a receipt, open the dialog, pick the 2nd slot, validate, stock is there in 3D).
 **Dependencies:** T27
@@ -550,11 +550,11 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 
 ### T30: Template warehouse: special zones and products; README
 **Acceptance criteria:**
-- [ ] Warehaven DC gains: a cold room (chilled and frozen pallet rows), a hazardous-goods row set (approved classes), a quarantine/returns row, a floor area drawn around each, one amber-inspected row.
-- [ ] ~20 new products: chilled, frozen, pharma 2–8 °C, flammable, corrosive, fragile, heavy.
-- [ ] One Smart rule on `WH/Stock`; the old Closest-location rules stay (inactive) for the experiment.
-- [ ] Demo install < 3 min; all earlier tests green (fixed-seed opening stock respects the hard rules).
-- [ ] README: smart putaway section, how to switch rules, known limits (lot mixing deferred, no neighbour compatibility matrix).
+- [x] Warehaven DC gains: a cold room (chilled and frozen pallet rows), a hazardous-goods row set (approved classes), a quarantine/returns row, a floor area drawn around each, one amber-inspected row.
+- [x] ~20 new products: chilled, frozen, pharma 2–8 °C, flammable, corrosive, fragile, heavy.
+- [x] One Smart rule on `WH/Stock`; the old Closest-location rules stay (inactive) for the experiment.
+- [x] Demo install < 3 min; all earlier tests green (fixed-seed opening stock respects the hard rules).
+- [x] README: smart putaway section, how to switch rules, known limits (lot mixing deferred, no neighbour compatibility matrix).
 
 **Verification:** `tests/test_template.py` extended (zones exist, every opening-stock quant passes the hard rules); the T15 inventory tour still passes.
 **Dependencies:** T27
@@ -562,7 +562,7 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 
 ### Checkpoint E — Smart putaway
 - [ ] A frozen, a hazardous, a fragile and an ordinary A product received on the template warehouse each land in a correct slot; a wrong manual move is refused; "Why this slot?" explains each.
-- [ ] `TEST` green, nothing skipped; notes.md covers T24–T30. **Nitin reviews before Phase 8.**
+- [ ] `TEST` green, nothing skipped; notes.md covers T24–T30 (both done 20 Nov: 276 tests, 0 failed). **Nitin reviews before Phase 8.**
 
 ## Phase 8 — Evaluation
 

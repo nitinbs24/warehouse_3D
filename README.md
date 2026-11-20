@@ -29,9 +29,42 @@ editor (and a button to its form to set the building size) and "No rack rows in 
 In the editor, switching with unsaved changes asks before discarding them.
 
 **Template warehouse (demo data):** databases created *with demo data* get *Warehaven DC* (code WHV):
-60 × 40 m, 14 pallet rows + 17 shelving rows (980 pallet positions, 1,360 shelf bins), 5 areas,
-6 docks, 120 products with dimensions and ABC class, storage categories, Odoo standard putaway rules,
-and ~65 % opening stock. It's identical on every machine (fixed random seed).
+60 × 40 m, 14 pallet rows + 17 shelving rows (980 pallet positions, 1,360 shelf bins), 8 areas,
+6 docks, 140 products with dimensions and ABC class, storage categories, Smart putaway rules, and ~65 % opening
+stock. It's identical on every machine (fixed random seed). The special zones sit in pallet rows:
+
+| Rows | What | Goods |
+|---|---|---|
+| P01, P02, P03 | Cold room: frozen (≤ −18 °C, stored as −60…−18), chilled (0…5 °C), pharma fridge (2…8 °C) | 9 products (SP-2001…2009) |
+| P13, P14 | Hazardous: corrosive, toxic, oxidiser / flammable liquid, flammable solid | 5 products |
+| P10, P11 | Quarantine and returns, each in a zone of its own (`WHV/Stock/QU`, `…/RT`) | none: for goods sent there |
+| P07 | Rack inspection **amber**: no putaway until repaired | none |
+
+Besides these, SP-2015…2017 are fragile (shelves) and SP-2018…2020 heavy (over 25 kg, pallets). The opening stock
+only holds what the hard rules below allow. The Cold room, Hazardous goods and Quarantine and returns areas are
+drawn on the cross aisle beside their rows (an area may not overlap a rack).
+
+### Smart putaway
+
+Putaway rules (Inventory ▸ Configuration ▸ Putaway Rules) have a new *Store to sublocation* option,
+**Smart (Warehaven)**. For a receipt, Odoo asks the rules in its usual order; a smart rule does this:
+
+1. **Hard rules** drop every slot (under the rule's *Store to* location) that would break one: temperature
+   zone, hazard class (approved for the row, one class per slot), quarantine/returns zones, size and free
+   volume, fragile under heavy, Odoo's storage-category limits, and rack inspection (amber/red).
+2. **Ranking** scores the rest with AHP weights (travel 0.53, height 0.20, consolidation 0.18, space 0.09) and
+   TOPSIS: walking distance to the dispatch dock (the weight is scaled by ABC class A 1.0 / B 0.6 / C 0.3, so fast
+   movers take the nearest slots), height fit (heavy low, fast and fragile at waist height), same product
+   already in the slot, least wasted volume.
+3. The best slot wins. If none is allowed the rule gives no answer and Odoo keeps the destination (WHV/Stock);
+   the server log says how many slots each rule removed.
+
+Moving goods by hand into a slot that breaks a hard rule is refused too (managers can override from code with
+the context key `wh3d_override_hard_rules`; it is logged in the chatter).
+
+**Switching rules.** The template has Smart rules for bulk goods (to `PR`) and small parts (to `SH`), and one each for
+the quarantine and returns zones. The two earlier *Closest Location* rules are still there, archived: open
+*Putaway Rules*, filter on *Archived*, unarchive them, then archive the Smart ones. Smart rules, like all rules, apply per product, category and package type (the most specific wins).
 
 ## Setup
 
@@ -185,8 +218,12 @@ Layout Editor  editor_action.js ── wh3d_get_layout / wh3d_save_layout (all o
 
 ## Known limits
 
-- **Putaway is Odoo's standard** ("Closest Location" by storage category). Custom strategies
-  (3D bin packing, ABC slotting) are the next plan; the ABC class field is there for them.
+- **Smart putaway limits:** products with lots or expiry dates are not kept apart (lot mixing is deferred);
+  there is no TRGS 510 neighbour compatibility matrix (only one hazard class per slot and fragile-under-heavy);
+  "frozen" has no lower bound in the sources, so its floor is a −60 °C stand-in (ultra-low pharma at −80 °C would
+  need its own band); temperature-controlled rows take only goods that need a temperature; the free-volume check counts on-hand stock and
+  moves in progress, but not packaging or stacking patterns; distances are walkable on a 0.5 m grid, so an aisle
+  narrower than 1.0 m may or may not be found walkable; vertical travel is ignored.
 - **Fill % is by volume** (product L×W×H × quantity ÷ slot volume), not weight. Products without
   dimensions show "fill unknown".
 - **One warehouse is shown at a time.** There is no overview of all warehouses and no copying a layout
