@@ -112,6 +112,16 @@
                     </p>
                 </section>
 
+                <section class="o_wh3d_card" t-if="zoneLegend.length" name="zone_legend">
+                    <p class="o_wh3d_label">Special rows</p>
+                    <ul class="o_wh3d_legend">
+                        <li t-foreach="zoneLegend" t-as="z" t-key="z.key">
+                            <span class="o_wh3d_sw" t-att-style="'background:' + z.color" aria-hidden="true"/><t t-esc="z.label"/>
+                        </li>
+                    </ul>
+                    <p class="o_wh3d_note">Coloured pad under the rack. Yellow or red uprights: failed rack inspection.</p>
+                </section>
+
                 <section class="o_wh3d_card" t-if="state.legend">
                     <p class="o_wh3d_label">Stocked slots by fill</p>
                     <ul class="o_wh3d_legend">

@@ -4,7 +4,7 @@ import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
-import { goodsInfo } from "@warehouse_3d/editor/layout_edit";
+import { ZONES, goodsInfo, rowZone } from "@warehouse_3d/editor/layout_edit";
 import { standardActionServiceProps } from "@web/webclient/actions/action_service";
 import {
     WarehousePicker,
@@ -230,6 +230,12 @@ export class View3D extends Component {
     }
 
     // --- selected slot ---
+
+    /** Zone colours used in this warehouse, for the "Special rows" legend. */
+    get zoneLegend() {
+        const used = new Set(Object.values(this.rowsById || {}).map(rowZone));
+        return Object.entries(ZONES).filter(([key]) => used.has(key)).map(([key, z]) => ({ key, ...z }));
+    }
 
     get selectedSlot() {
         return this.state.selected >= 0 ? this.data.slots[this.state.selected] : null;

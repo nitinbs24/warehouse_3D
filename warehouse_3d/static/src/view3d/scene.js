@@ -12,6 +12,7 @@ import {
     slotBox,
     toWorld,
 } from "@warehouse_3d/view3d/layout";
+import { ZONES, rowZone } from "@warehouse_3d/editor/layout_edit";
 import { fillBand, loadBox } from "@warehouse_3d/view3d/occupancy";
 import { EYE_HEIGHT, look, moveVector, rackObstacles, stepWalker, walkKey } from "@warehouse_3d/view3d/walk";
 
@@ -30,6 +31,7 @@ const COLORS = {
     stock: 0x9aa5b1, // neutral load colour
     stripe: 0xd3d9df,
 };
+const INSPECTION_COLORS = { green: COLORS.steel, amber: 0xe0a800, red: 0xc0392b };
 export const BAND_COLORS = { low: 0x1f8a70, mid: 0xcf9b12, high: 0xb3261e };
 const LABEL = { fg: "#1B2430", muted: "#5B6676", bg: "#FFFFFF", line: "#D3D9E0" };
 const FOV = 42;
@@ -168,7 +170,20 @@ export class WarehouseScene {
 
     buildRacks(rows) {
         const parts = rows.map((row) => rackGeometry(row, this.building));
-        this.addInstanced(parts.flatMap((p) => p.uprights), this.material(COLORS.steel));
+        // Uprights show a failed rack inspection (amber/red), as the editor's outline does.
+        for (const status of ["green", "amber", "red"]) {
+            const uprights = parts.filter((p, i) => (rows[i].inspection_status || "green") === status).flatMap((p) => p.uprights);
+            this.addInstanced(uprights, this.material(INSPECTION_COLORS[status]));
+        }
+        // Special rows stand on a coloured pad, 0.3 m wider than the rack all round.
+        for (const [key, zone] of Object.entries(ZONES)) {
+            const pads = rows.filter((row) => rowZone(row) === key).map((row) => areaBox({
+                x: row.x - 0.3, y: row.y - 0.3, width: row.depth + 0.6, depth: row.bays * row.bay_width + 0.6,
+            }, this.building));
+            if (pads.length) {
+                this.addInstanced(pads, this.material(parseInt(zone.color.slice(1), 16)));
+            }
+        }
         this.addInstanced(parts.flatMap((p) => p.beams), this.material(COLORS.beam));
         this.addInstanced(parts.flatMap((p) => p.decks), this.material(COLORS.deck));
     }
