@@ -3,3 +3,5 @@ access_warehouse_rack_row_user,warehouse.rack.row.user,model_warehouse_rack_row,
 access_warehouse_rack_row_manager,warehouse.rack.row.manager,model_warehouse_rack_row,stock.group_stock_manager,1,1,1,1
 access_warehouse_layout_area_user,warehouse.layout.area.user,model_warehouse_layout_area,stock.group_stock_user,1,0,0,0
 access_warehouse_layout_area_manager,warehouse.layout.area.manager,model_warehouse_layout_area,stock.group_stock_manager,1,1,1,1
+access_wh3d_putaway_explain_user,wh3d.putaway.explain.user,model_wh3d_putaway_explain,stock.group_stock_user,1,1,1,1
+access_wh3d_putaway_explain_slot_user,wh3d.putaway.explain.slot.user,model_wh3d_putaway_explain_slot,stock.group_stock_user,1,1,1,1

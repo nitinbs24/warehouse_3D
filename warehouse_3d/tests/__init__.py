@@ -15,3 +15,7 @@ from . import test_warehouse_list
 from . import test_special_goods_fields
 from . import test_putaway_rules
 from . import test_aisles
+from . import test_move_block
+from . import test_putaway_score
+from . import test_smart_putaway
+from . import test_putaway_explain
