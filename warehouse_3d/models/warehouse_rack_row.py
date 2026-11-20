@@ -15,7 +15,7 @@ SYNC_FIELDS = SHAPE_FIELDS | {'location_id', 'storage_category_id', 'active'}
 # What the rows offer special goods (T24); slots inherit it. None of it touches the location tree.
 GOODS_FIELDS = ('temp_band', 'temp_min', 'temp_max', *(f'hazard_{key}' for key, _l in HAZARD_CLASSES),
                 'purpose', 'inspection_status', 'last_inspection')
-EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
+EDITOR_FIELDS = frozenset({'code', 'kind', 'x', 'y', 'orientation', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                            'slots_per_level', *GOODS_FIELDS})
 AREA_EDITOR_FIELDS = frozenset({'name', 'kind', 'x', 'y', 'width', 'depth', 'color', 'role'})
 
@@ -49,6 +49,9 @@ class WarehouseRackRow(models.Model):
     # Position of the row's corner on the floor plan, in metres from the building's origin.
     x = fields.Float(string='X (m)', digits=(6, 2), required=True)
     y = fields.Float(string='Y (m)', digits=(6, 2), required=True)
+    # T31: which way the row runs on the plan. Along Y (the default): depth along x, bays along y; along X: the reverse.
+    orientation = fields.Selection([('y', 'Up–down (along Y)'), ('x', 'Left–right (along X)')],
+                                   required=True, default='y', string='Runs')
     bays = fields.Integer(required=True, default=7)
     bay_width = fields.Float(string='Bay Width (m)', digits=(6, 2), required=True, default=2.7)
     depth = fields.Float(string='Depth (m)', digits=(6, 2), required=True, default=1.1)
@@ -145,9 +148,12 @@ class WarehouseRackRow(models.Model):
                     loc=row.location_id.complete_name, code=row.code, stock=stock.complete_name))
 
     def _wh3d_footprint(self):
-        """Floor rectangle (x0, y0, x1, y1) in metres: depth runs along x, the bays along y."""
+        """Floor rectangle (x0, y0, x1, y1) in metres. Along Y: depth along x, bays along y; along X: the reverse."""
         self.ensure_one()
-        return self.x, self.y, self.x + self.depth, self.y + self.bays * self.bay_width
+        length = self.bays * self.bay_width
+        if self.orientation == 'x':
+            return self.x, self.y, self.x + length, self.y + self.depth
+        return self.x, self.y, self.x + self.depth, self.y + length
 
     def _check_clear_height(self):
         """Refuse a rack taller (levels × level height) than its building's clear height; touching the roof is fine."""
@@ -159,7 +165,7 @@ class WarehouseRackRow(models.Model):
                     "clear height of %(wh)s.", code=row.code, h=round(height, 2), levels=row.levels,
                     lh=row.level_height, clear=row.warehouse_id.wh3d_height, wh=row.warehouse_id.name))
 
-    @api.constrains('x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height', 'warehouse_id', 'active')
+    @api.constrains('x', 'y', 'orientation', 'bays', 'bay_width', 'depth', 'levels', 'level_height', 'warehouse_id', 'active')
     def _check_layout(self):
         if self.env.context.get('wh3d_defer_layout_check'):
             return  # wh3d_save_layout checks the end state once all edits are applied

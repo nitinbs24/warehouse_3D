@@ -69,7 +69,7 @@ class StockWarehouse(models.Model):
             'name': self.name,
             'building': {'length': self.wh3d_length, 'width': self.wh3d_width, 'height': self.wh3d_height},
             'areas': self.wh3d_area_ids.read(['name', 'kind', 'x', 'y', 'width', 'depth', 'color', 'role'], load=None),
-            'rows': rows.read(['code', 'kind', 'x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
+            'rows': rows.read(['code', 'kind', 'x', 'y', 'orientation', 'bays', 'bay_width', 'depth', 'levels', 'level_height',
                                'slots_per_level', *GOODS_FIELDS], load=None),
         }
 
@@ -84,7 +84,7 @@ class StockWarehouse(models.Model):
         docks = self.wh3d_area_ids.filtered(lambda a: a.kind == 'dock')
         distances = slot_distances(
             (self.wh3d_length, self.wh3d_width),
-            tuple((r.id, r.x, r.y, r.depth, r.bays, r.bay_width, r.slots_per_level) for r in rows),
+            tuple((r.id, r.x, r.y, r.depth, r.bays, r.bay_width, r.slots_per_level, r.orientation) for r in rows),
             tuple((d.x, d.y, d.width, d.depth, d.role) for d in docks))
         slots = self.env['stock.location'].search([('wh3d_rack_row_id', 'in', rows.ids), ('wh3d_node', '=', 'slot')])
         return {s.id: distances[(s.wh3d_rack_row_id.id, s.wh3d_bay, s.wh3d_position)] for s in slots}
