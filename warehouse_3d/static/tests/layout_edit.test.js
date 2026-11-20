@@ -52,6 +52,11 @@ describe("rules mirror the server (T10)", () => {
         expect(Object.keys(layoutProblems([P05], BUILDING)).length).toBe(0);
     });
 
+    test("a rack taller than the clear height is a problem; touching the roof is not", () => {
+        expect(layoutProblems([{ ...P05, levels: 6 }], BUILDING)[5]).toMatch(/clear height/); // 10.8 m > 10 m
+        expect(Object.keys(layoutProblems([{ ...P05, level_height: 2.0 }], BUILDING)).length).toBe(0); // 10.0 m
+    });
+
     test("touching the walls is inside", () => {
         expect(Object.keys(layoutProblems([{ ...P05, x: 60 - 1.1, y: 40 - 18.9 }], BUILDING)).length).toBe(0);
     });

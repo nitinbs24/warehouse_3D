@@ -99,6 +99,11 @@ export function layoutProblems(rows, building) {
             problems[row.id] = `${row.code} is outside the ${building.length} × ${building.width} m building.`;
             continue;
         }
+        const height = row.levels * row.level_height;
+        if (height > building.height + EPS) {
+            problems[row.id] = `${row.code} is ${Math.round(height * 100) / 100} m tall, more than the ${building.height} m clear height.`;
+            continue;
+        }
         const other = rows.find((o) => o !== row && rowsOverlap(row, o));
         if (other) {
             problems[row.id] = `${row.code} overlaps ${other.code}.`;

@@ -142,5 +142,5 @@ class TestAislesWarehouse(TransactionCase):
         start = time.perf_counter()
         distances = warehouse._wh3d_slot_distances()
         self.assertLess(time.perf_counter() - start, 2.0)
-        self.assertEqual(len(distances), 980 + 1360)
+        self.assertEqual(len(distances), 896 + 1360)
         self.assertTrue(all(d is not None for pair in distances.values() for d in pair))

@@ -29,7 +29,7 @@ editor (and a button to its form to set the building size) and "No rack rows in 
 In the editor, switching with unsaved changes asks before discarding them.
 
 **Template warehouse (demo data):** databases created *with demo data* get *Warehaven DC* (code WHV):
-60 × 40 m, 14 pallet rows + 17 shelving rows (980 pallet positions, 1,360 shelf bins), 8 areas,
+60 × 40 m, 14 pallet rows + 17 shelving rows (896 pallet positions, 1,360 shelf bins; the cold-room rows P01–P03 have 3 levels × 2.0 m, the others 5 × 1.8 m), 8 areas,
 6 docks, 140 products with dimensions and ABC class, storage categories, Smart putaway rules, and ~65 % opening
 stock. It's identical on every machine (fixed random seed). The special zones sit in pallet rows:
 

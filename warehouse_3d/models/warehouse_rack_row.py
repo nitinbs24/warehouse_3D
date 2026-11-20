@@ -149,11 +149,22 @@ class WarehouseRackRow(models.Model):
         self.ensure_one()
         return self.x, self.y, self.x + self.depth, self.y + self.bays * self.bay_width
 
-    @api.constrains('x', 'y', 'bays', 'bay_width', 'depth', 'warehouse_id', 'active')
+    def _check_clear_height(self):
+        """Refuse a rack taller (levels × level height) than its building's clear height; touching the roof is fine."""
+        for row in self.filtered('active'):
+            height = row.levels * row.level_height
+            if height > row.warehouse_id.wh3d_height + EPS:
+                raise ValidationError(self.env._(
+                    "Rack row %(code)s is %(h)s m tall (%(levels)s levels × %(lh)s m), more than the %(clear)s m "
+                    "clear height of %(wh)s.", code=row.code, h=round(height, 2), levels=row.levels,
+                    lh=row.level_height, clear=row.warehouse_id.wh3d_height, wh=row.warehouse_id.name))
+
+    @api.constrains('x', 'y', 'bays', 'bay_width', 'depth', 'levels', 'level_height', 'warehouse_id', 'active')
     def _check_layout(self):
         if self.env.context.get('wh3d_defer_layout_check'):
             return  # wh3d_save_layout checks the end state once all edits are applied
         self.env['stock.warehouse']._check_wh3d_contains(self)
+        self._check_clear_height()
         for row in self.filtered('active'):
             x0, y0, x1, y1 = row._wh3d_footprint()
             others = self.search([('warehouse_id', '=', row.warehouse_id.id), ('id', '!=', row.id)])

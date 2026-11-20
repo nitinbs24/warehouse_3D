@@ -27,8 +27,9 @@ class StockWarehouse(models.Model):
                     "Warehouse %(wh)s: building length, width and height must be greater than zero.",
                     wh=warehouse.name))
             warehouse._check_wh3d_contains(warehouse.wh3d_area_ids)
-            warehouse._check_wh3d_contains(
-                self.env['warehouse.rack.row'].search([('warehouse_id', '=', warehouse.id)]))
+            rows = self.env['warehouse.rack.row'].search([('warehouse_id', '=', warehouse.id)])
+            warehouse._check_wh3d_contains(rows)
+            rows._check_clear_height()
 
     @api.model
     def wh3d_default_warehouse_id(self):

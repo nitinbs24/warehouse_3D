@@ -179,6 +179,28 @@ class TestRackRowLayout(TransactionCase):
         with self.assertRaisesRegex(ValidationError, 'P05'):
             self.warehouse.wh3d_length = 37.0
 
+    def test_rack_must_fit_under_the_clear_height(self):
+        # 10 m clear height: 5 × 2.0 = 10.0 touches the roof (allowed), 6 × 1.8 = 10.8 doesn't fit.
+        self._row(level_height=2.0)
+        with self.assertRaisesRegex(ValidationError, 'clear height'):
+            self._row(code='P06', x=20.5, levels=6)
+
+    def test_raising_a_rack_through_the_roof_is_refused(self):
+        row = self._row()
+        with self.assertRaisesRegex(ValidationError, 'clear height'):
+            row.level_height = 2.1  # 5 × 2.1 = 10.5 m
+
+    def test_lowering_the_roof_below_a_rack_is_refused(self):
+        self._row()  # 5 × 1.8 = 9.0 m
+        with self.assertRaisesRegex(ValidationError, 'P05'):
+            self.warehouse.wh3d_height = 8.5
+
+    def test_editor_save_checks_the_clear_height(self):
+        row = self._row()
+        with self.assertRaisesRegex(ValidationError, 'clear height'):
+            self.env['warehouse.rack.row'].wh3d_save_layout(
+                self.warehouse.id, {'write': [{'id': row.id, 'vals': {'levels': 7}}]})
+
     def test_all_31_template_rows_are_valid(self):
         Row = self.env['warehouse.rack.row']
         sh = create_zone(self.env, self.warehouse, 'SH')

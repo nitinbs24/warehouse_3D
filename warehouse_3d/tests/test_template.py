@@ -116,7 +116,7 @@ class TestTemplateLayout(TransactionCase):
         self.assertEqual(actual, expected)
 
     def test_slot_counts(self):
-        self.assertEqual(len(self._slots('pallet')), 980)
+        self.assertEqual(len(self._slots('pallet')), 896)  # 980 less two levels of the 3 cold rows
         self.assertEqual(len(self._slots('shelf')), 1360)
 
     def test_areas_and_docks(self):
@@ -226,6 +226,11 @@ class TestTemplateSpecialZones(TransactionCase):
         self.assertEqual(len(amber), 1)
         self.assertEqual(self.rows[amber[0]].inspection_status, 'amber')
         self.assertTrue(self.rows[amber[0]].last_inspection)
+
+    def test_cold_room_is_lower_than_the_bulk_racking(self):
+        for code in ('P01', 'P02', 'P03'):
+            self.assertEqual((self.rows[code].levels, self.rows[code].level_height), (3, 2.0), code)
+        self.assertEqual((self.rows['P04'].levels, self.rows['P04'].level_height), (5, 1.8))
 
     def test_special_zones_are_rows_not_floor_areas(self):
         # The rows themselves are coloured in the editor and 3D view (rowZone); no separate floor patches.

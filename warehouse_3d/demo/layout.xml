@@ -115,7 +115,8 @@
         <field name="depth">1.6</field>
     </record>
 
-    <!-- Pallet racking: 14 faces, 7 bays x 2.7 m, 5 levels x 1.8 m, 2 pallets per bay level = 980 positions. -->
+    <!-- Pallet racking: 14 faces, 7 bays x 2.7 m, 2 pallets per bay level; 5 levels x 1.8 m, except the cold room
+         (P01-P03: 3 levels x 2.0 m, lower as cold rooms usually are) = 896 positions. -->
     <record id="row_p01" model="warehouse.rack.row">
         <field name="code">P01</field>
         <field name="kind">pallet</field>
@@ -128,8 +129,8 @@
         <field name="bays">7</field>
         <field name="bay_width">2.7</field>
         <field name="depth">1.1</field>
-        <field name="levels">5</field>
-        <field name="level_height">1.8</field>
+        <field name="levels">3</field>
+        <field name="level_height">2.0</field>
         <field name="slots_per_level">2</field>
     </record>
     <record id="row_p02" model="warehouse.rack.row">
@@ -144,8 +145,8 @@
         <field name="bays">7</field>
         <field name="bay_width">2.7</field>
         <field name="depth">1.1</field>
-        <field name="levels">5</field>
-        <field name="level_height">1.8</field>
+        <field name="levels">3</field>
+        <field name="level_height">2.0</field>
         <field name="slots_per_level">2</field>
     </record>
     <record id="row_p03" model="warehouse.rack.row">
@@ -160,8 +161,8 @@
         <field name="bays">7</field>
         <field name="bay_width">2.7</field>
         <field name="depth">1.1</field>
-        <field name="levels">5</field>
-        <field name="level_height">1.8</field>
+        <field name="levels">3</field>
+        <field name="level_height">2.0</field>
         <field name="slots_per_level">2</field>
     </record>
     <record id="row_p04" model="warehouse.rack.row">
