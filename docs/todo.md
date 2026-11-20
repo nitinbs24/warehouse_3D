@@ -502,7 +502,7 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 **Scope:** M
 
 ### T26: Aisle graph and dock distances
-**Description:** Walkable distances that treat racks as obstacles, for scoring (T27) and evaluation (T32).
+**Description:** Walkable distances that treat racks as obstacles, for scoring (T27) and evaluation (T33).
 
 **Acceptance criteria:**
 - [x] `putaway/aisles.py`: walkable distance from every slot's access point to the nearest dispatch dock and to the nearest receiving dock. *Changed 20 Nov:* a 0.5 m floor grid (cells overlapping a rack are blocked, rectilinear moves, breadth-first search) instead of a graph on aisle centre lines; it needs no aisle detection, so it handles any layout the editor allows (not compared against an aisle graph). `None` = no dock of that role, or no way to the slot.
@@ -564,9 +564,23 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 - [ ] A frozen, a hazardous, a fragile and an ordinary A product received on the template warehouse each land in a correct slot; a wrong manual move is refused; "Why this slot?" explains each.
 - [ ] `TEST` green, nothing skipped; notes.md covers T24–T30 (both done 20 Nov: 276 tests, 0 failed). **Nitin reviews before Phase 8.**
 
+### T31: Rack row orientation (0° / 90°) *(added 20 Nov)*
+**Description:** A rack row can run along y (today's only direction, the default) or along x, because real
+warehouses have racks both ways and the Phase 9 floor-plan import will bring such plans in. Intent confirmed
+20 Nov (interview): 0° and 90° only, parallel to a wall; the Warehaven DC template stays as it is.
+
+**Acceptance criteria:**
+- [x] `warehouse.rack.row.orientation` (`y` = bays along y, the default; `x` = bays along x); existing rows unchanged. Set on the rack-row form and in the Layout Editor (side-panel field, a Rotate button and the R key; rotating keeps the row's corner and is refused like any move if it overlaps or leaves the building).
+- [x] Every user of the footprint follows it: `_wh3d_footprint` (overlap, building, area checks), the editor's `rowRect`, drag and snapping, `layoutProblems`, labels; the 3D racks (`rackGeometry`), slot boxes and click boxes (`slotBox`), row labels, walk-mode obstacles; `putaway/aisles.py` (blocked cells, the two access faces and the slot's position along the row); putaway, the hard rules (neighbour above/below is unchanged: same bay/position, level ± 1) and T29's reasons. Location names and codes don't change.
+- [x] Position A stays at the row's lower coordinate along its length in both orientations, so 3D, distances and "Why this slot?" agree.
+
+**Verification:** done 20 Nov: full `TEST` 0 failed of 291. `tests/test_rack_orientation.py` (footprint and overlap/building checks for an x row; editor save round-trip; locations identical to a y row; distances on a toy layout with an x row, hand-checked; putaway lands in an x row and a hard rule blocks a move into one); Hoot tests for `rowRect`, rotate, `layoutProblems`, `rackGeometry`/`slotBox` of an x row; a tour step (rotate a row, save, open in 3D, click a slot of it); full `TEST`, template tests unchanged.
+**Dependencies:** T24–T30 (touches the same code) · **Files:** `models/warehouse_rack_row.py`, views, `static/src/editor/*`, `static/src/view3d/{layout,scene,walk}.js`, `putaway/aisles.py`, `models/stock_warehouse.py` (distance glue), tests
+**Scope:** M–L (many small touch points; split editor/3D from distances/putaway if it runs long)
+
 ## Phase 8 — Evaluation
 
-### T31: Experiment harness
+### T32: Experiment harness
 **Acceptance criteria:**
 - [ ] `experiments/run.py` creates a throwaway database from the template, fills it to a target level (30/60/85 %), runs a seeded stream of receipts through a chosen variant, then a seeded pick list (ABC 80/15/5 by default; order lines from a fixed distribution), and writes one JSON result per run.
 - [ ] Variants: `odoo_closest` (baseline), `hard_only` (rules + first allowed slot by name), `weighted_sum`, `topsis` (AHP–TOPSIS), `two_stage` (level first, then TOPSIS within the level, after Micale et al. 2019).
@@ -575,55 +589,55 @@ Intent (interview 13–18 Nov): replace Odoo's slot choice with zone-constrained
 **Verification:** `experiments/tests/` (determinism, DB-name guard, a 20-receipt smoke run per variant).
 **Dependencies:** T27, T30 · **Scope:** M
 
-### T32: Metrics
+### T33: Metrics
 **Acceptance criteria:**
 - [ ] Pick travel: pallets as single-command cycles (2 × dock↔slot), shelving as S-shape tours per order, largest gap as a second figure (Roodbergen & de Koster 2001), on the T26 aisle graph.
 - [ ] *(added 20 Nov)* S-shape and largest gap need the aisles themselves (which rows face which aisle, aisle ends, cross aisles). T26's grid gives distances only, so derive the aisles from the rows here (the rows already say it: faces with a walkable cell next to them).
 - [ ] Putaway travel, space utilisation (goods volume ÷ volume of used slots; slots used), ergonomics (share of A picks at waist height; share of heavy units on levels 1–2), hard-rule violations (independent re-check), failed placements, decision time per line.
 
 **Verification:** `experiments/tests/test_metrics.py` with hand-computed toy cases for each metric, including an S-shape tour checked by hand.
-**Dependencies:** T26, T31 · **Scope:** M
+**Dependencies:** T26, T32 · **Scope:** M
 
-### T33: Runs and results
+### T34: Runs and results
 **Acceptance criteria:**
 - [ ] 5 variants × 3 fill levels × 5 seeds; weight sensitivity (each AHP weight ±50 %, renormalised) for `topsis`.
 - [ ] `docs/results.md`: tables as % change vs `odoo_closest` with mean ± spread over seeds, the sensitivity table, a short discussion, and the exact command to reproduce. CSV next to it.
-**Dependencies:** T32 · **Scope:** S (compute) + writing
+**Dependencies:** T33 · **Scope:** S (compute) + writing
 
 ### Checkpoint F — Results
 - [ ] Violations 0 for every rule-based variant; results reproducible from one command. **Nitin reviews before Phase 9.**
 
 ## Phase 9 — Floor-plan import
 
-### T34: Background plan and scale
+### T35: Background plan and scale
 - [ ] Upload a PNG/JPG/PDF (first page) as the warehouse's plan image; shown under the editor's grid with an opacity slider; scale by clicking two points and typing the real distance; stored per warehouse. Users can trace rows over it with the existing tools.
 - **Verification:** tests for storage, scale maths (Hoot), and a tour (upload, set scale, draw a row on top, save). **Scope:** M
 
-### T35: Draft import
+### T36: Draft import
 - [ ] One server method takes a list of `{type: row|area|dock, x, y, width, depth, name?, confidence?}` in metres and loads it into the editor as **unsaved** objects, marked "imported" (low-confidence ones highlighted); Save/Discard as usual. Rows get default bays/levels from a per-import form (bay width, levels, level height).
-- **Verification:** tests for conversion to rows (bays from length), overlap/wall checks reused, a tour (import a fixture, fix one, save). **Depends:** T34 · **Scope:** M
+- **Verification:** tests for conversion to rows (bays from length), overlap/wall checks reused, a tour (import a fixture, fix one, save). **Depends:** T35 · **Scope:** M
 
-### T36: DXF importer
-- [ ] `ezdxf` reads closed polylines/rectangles and text; a layer-name mapping (defaults: RACK*, AREA*, DOCK*) turns them into T35 objects; units from `$INSUNITS`; no layers → message suggesting the image path.
-- **Verification:** generated DXF fixtures (with and without layers, mm and m units). **Depends:** T35 · **Scope:** M
+### T37: DXF importer
+- [ ] `ezdxf` reads closed polylines/rectangles and text; a layer-name mapping (defaults: RACK*, AREA*, DOCK*) turns them into T36 objects; units from `$INSUNITS`; no layers → message suggesting the image path.
+- **Verification:** generated DXF fixtures (with and without layers, mm and m units). **Depends:** T36 · **Scope:** M
 
-### T37: Classical-CV importer
-- [ ] OpenCV: binarise, clean, contours, rectangles classified by size/aspect/fill into rows, areas, docks (wall gaps); returns T35 objects with confidences.
-- **Verification:** precision/recall on 20 synthetic test images (from T38's generator once it exists; first a few hand-drawn fixtures) recorded as the baseline. **Depends:** T35 · **Scope:** M
+### T38: Classical-CV importer
+- [ ] OpenCV: binarise, clean, contours, rectangles classified by size/aspect/fill into rows, areas, docks (wall gaps); returns T36 objects with confidences.
+- **Verification:** precision/recall on 20 synthetic test images (from T39's generator once it exists; first a few hand-drawn fixtures) recorded as the baseline. **Depends:** T36 · **Scope:** M
 
-### T38: Synthetic floor-plan generator (`warehouse_3D/ml/`)
+### T39: Synthetic floor-plan generator (`warehouse_3D/ml/`)
 - [ ] Random plausible layouts (reusing the layout constraints), rendered with domain randomisation (line width, fonts, hatching, dimension lines, title block, noise, blur, JPEG, small rotation), COCO-format labels (row, area, dock); a seeded split train/val/test.
 - **Verification:** labels match drawn pixels on rendered samples (automatic check); 10 samples eyeballed and saved under `ml/samples/`. **Scope:** M
 
-### T39: Train and evaluate YOLOX-S
+### T40: Train and evaluate YOLOX-S
 - [ ] Colab notebook (T4): unzip dataset from Drive, train with FP16 and per-epoch checkpoints to Drive (resumable), evaluate precision/recall/mAP@0.5 and @0.5:0.95 on the synthetic test set and on real plans when available; export ONNX; RT-DETR as fallback if YOLOX fails.
-- **Verification:** the notebook's metric cells; `docs/results-floorplan.md` table vs the T37 baseline. **Depends:** T38 · **Scope:** L (mostly waiting)
+- **Verification:** the notebook's metric cells; `docs/results-floorplan.md` table vs the T38 baseline. **Depends:** T39 · **Scope:** L (mostly waiting)
 
-### T40: Detector + OCR inside Odoo
-- [ ] `onnxruntime` (CPU) runs the model on the uploaded image; Tesseract reads names inside areas and dock numbers; output via T35; falls back to T37 when the model file is missing; < 5 s per plan on a laptop CPU.
-- **Verification:** tests with a tiny bundled test model or the real one on fixture images; fallback test. **Depends:** T35, T39 · **Scope:** M
+### T41: Detector + OCR inside Odoo
+- [ ] `onnxruntime` (CPU) runs the model on the uploaded image; Tesseract reads names inside areas and dock numbers; output via T36; falls back to T38 when the model file is missing; < 5 s per plan on a laptop CPU.
+- **Verification:** tests with a tiny bundled test model or the real one on fixture images; fallback test. **Depends:** T36, T40 · **Scope:** M
 
-### T41: Wrap-up
+### T42: Wrap-up
 - [ ] README (install of the new deps on Fedora/Windows, how to import a plan, limits: no rotation, heights from defaults, DWG via DXF export), notes.md, `docs/results-floorplan.md`, survey cross-references.
 
 ### Checkpoint G — Floor plan → 3D

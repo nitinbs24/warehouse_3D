@@ -19,3 +19,4 @@ from . import test_move_block
 from . import test_putaway_score
 from . import test_smart_putaway
 from . import test_putaway_explain
+from . import test_rack_orientation

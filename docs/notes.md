@@ -1135,7 +1135,7 @@ is the Odoo side: it reads everything the rules need for all candidate slots at 
 slot. The experiment (Phase 8) can call the pure function on generated data without a database.
 
 **Reason codes.** `inspection`, `purpose`, `temperature`, `hazard`, `fit`, `fragile`, `odoo_capacity`. Stable
-keys, so T28's error message, T29's "why not this slot" and T32's per-rule violation counts can group by them,
+keys, so T28's error message, T29's "why not this slot" and T33's per-rule violation counts can group by them,
 and tests don't depend on the wording. The first failing rule wins (cheapest first).
 
 **What each rule means exactly.**
@@ -1180,7 +1180,7 @@ Files: `putaway/aisles.py`, `models/stock_warehouse.py` (`_wh3d_slot_distances`)
 `static/tests/layout_edit.test.js`, `static/tests/tours/view3d_tour.js`.
 
 **A grid instead of aisle centre lines.** The plan said "nodes on aisle centre lines". Finding aisles in an
-arbitrary layout (rows anywhere, any spacing) is the hard part of that, and only T32's routing needs the aisles
+arbitrary layout (rows anywhere, any spacing) is the hard part of that, and only T33's routing needs the aisles
 themselves. For a distance it's enough to know where one can walk: the floor is cut into 0.5 m squares, a square
 overlapping a rack is blocked, and a breadth-first search from all docks of a role at once gives every square's
 distance to the nearest such dock. With equal step costs, BFS *is* Dijkstra. Moves are rectilinear (up/down/
@@ -1295,9 +1295,9 @@ category would otherwise refuse the slot because of the stock being checked).
 
 **Four Smart rules instead of one.** A single Smart rule on WH/Stock sent 25 kg bags to snug shelf slots: nothing in
 the hard rules says bulk belongs on pallets. So the template keeps the category split as Smart rules (bulk → `PR`,
-small parts → `SH`) plus the two zone rules. The old Closest-location rules stay, archived, for the experiment (T31).
+small parts → `SH`) plus the two zone rules. The old Closest-location rules stay, archived, for the experiment (T32).
 Tests that assumed "first empty pallet slot by name" now assert the Smart rule's pick. *Open question for the
-experiment:* "bulk belongs on pallets" is a rule the engine doesn't know; T33 should compare like with like (both
+experiment:* "bulk belongs on pallets" is a rule the engine doesn't know; T34 should compare like with like (both
 strategies with the same category split).
 
 **CSV.** Odoo's CSV loader takes the model from the file name, so the 20 new products (SP-2001…2020) are rows of
@@ -1351,3 +1351,37 @@ null (purpose wins, then temperature, then hazard approvals). The editor fills t
 outlines a failed inspection (dashed amber/red); the 3D view puts a coloured pad under the rack and colours the
 uprights amber/red. Both screens show a legend of the zones used. One list (`ZONES`) feeds both, so the colours
 match; the editor's SCSS repeats the three colours (CSS can't read the JS list).
+
+## Clear height and a lower cold room (20 Nov)
+
+Files: `models/warehouse_rack_row.py` (`_check_clear_height`), `models/stock_warehouse.py`, `static/src/editor/layout_edit.js`
+(`layoutProblems`), `demo/layout.xml`, tests.
+
+A rack (levels × level height) may not be taller than the building's clear height; touching the roof is fine.
+Checked when a row changes, when the building's height changes, on the editor's Save, and live in the editor's
+problem list. The template cold room (P01–P03) now has 3 levels × 2.0 m, lower as cold rooms usually are: 896
+pallet places instead of 980.
+
+## T31: Rack row orientation (0° / 90°)
+
+Files: `models/warehouse_rack_row.py` (`orientation`, `_wh3d_footprint`), `models/stock_warehouse.py`,
+`putaway/aisles.py`, `views/warehouse_rack_row_views.xml`, `static/src/editor/{geometry,layout_edit,editor_action}.js`,
+`editor_action.xml`, `static/src/view3d/{layout,occupancy,walk,scene}.js`, `tests/test_rack_orientation.py`,
+`static/tests/orientation.test.js`, tour `warehouse_3d_editor_rotate`.
+
+**One idea: an x row is a y row with the plan's x and y swapped.** Every 3D helper (`rackGeometry`, `slotBox`,
+`loadBox`, `rowLabelPosition`, `openSide`, `aisleClearance`, `walkStartAtSlot`) starts with "if the row runs along x,
+solve it in the swapped frame and swap the answer back" (`swapRow`, `swapBuilding`, `swapBox`). The original y-row
+code is untouched, so everything already tested for y rows holds for x rows by construction. A heading swaps too:
+θ in the swapped frame is π/2 − θ on the plan (a reflection, not a rotation).
+
+**Footprints.** Code that only needs the rectangle (server overlap/building checks, the editor's `rowRect`, walk
+obstacles, zone pads, the floor grid in `aisles.py`) reads it from one place that knows the orientation. The grid
+finds a slot's access cells across the row's depth and its position along its length, in whichever axis that is.
+
+**Editor.** A "Runs" select in the side panel, a Rotate button and the R key: a quarter turn about the row's corner.
+If the turned row hits a wall or another row, it shows as a problem until moved, like any drag. Location names and
+the location tree don't change: a row's bays, levels and positions are the same whichever way it runs.
+
+**Default and compatibility.** `orientation` defaults to `y`, so existing rows, the template and all earlier tests are
+unchanged. Rows created by older JS without the key are treated as `y` (`rowRect` checks for `"x"` only).

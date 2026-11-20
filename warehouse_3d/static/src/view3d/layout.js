@@ -5,8 +5,25 @@
  * Floor plan: metres from one building corner, x along the length, y along the width.
  * World (Three.js): the building is centred on the origin, x → x, plan y → z, height → y.
  * A "box" is [centreX, centreY, centreZ, sizeX, sizeY, sizeZ] in world units.
- * Rack rows run along plan y: depth along x, bays along y.
+ * Rack rows run along plan y (depth along x, bays along y) or, with ``orientation: "x"``, along plan x. An x row
+ * is a y row with the plan's x and y swapped, so the row helpers compute it in that swapped frame and swap back.
  */
+import { rowRect } from "@warehouse_3d/editor/geometry";
+
+/** The row in the frame with plan x and y swapped: an x row becomes a y row and the other way round. */
+export function swapRow(row) {
+    return { ...row, x: row.y, y: row.x, orientation: row.orientation === "x" ? "y" : "x" };
+}
+export const swapBuilding = (b) => ({ ...b, length: b.width, width: b.length });
+/** A world box [cx, cy, cz, sx, sy, sz] with x and z swapped (the swapped frame back to the real one). */
+export const swapBox = (b) => [b[2], b[1], b[0], b[5], b[4], b[3]];
+const alongX = (row) => row.orientation === "x";
+
+/** {x0, y0, x1, y1} of a row on the plan, whichever way it runs. */
+export function rowFootprint(row) {
+    const r = rowRect(row);
+    return { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+}
 
 export function toWorld(building, x, y) {
     return [x - building.length / 2, y - building.width / 2];
@@ -91,6 +108,10 @@ export function dockGeometry(dock, building) {
 
 /** Steel of one rack row: uprights, beams (pallet racks) or shelf decks (shelving). */
 export function rackGeometry(row, building) {
+    if (alongX(row)) {
+        const g = rackGeometry(swapRow(row), swapBuilding(building));
+        return { uprights: g.uprights.map(swapBox), beams: g.beams.map(swapBox), decks: g.decks.map(swapBox), topHeight: g.topHeight };
+    }
     const [x0, z0] = toWorld(building, row.x, row.y);
     const length = row.bays * row.bay_width;
     const isPallet = row.kind === "pallet";
@@ -126,6 +147,10 @@ export function rackGeometry(row, building) {
  * ``base`` is the height of the slot's floor (beam top or shelf deck).
  */
 export function slotBox(row, slot, building) {
+    if (alongX(row)) {
+        const { base, box } = slotBox(swapRow(row), slot, swapBuilding(building));
+        return { base, box: swapBox(box) };
+    }
     const [x0, z0] = toWorld(building, row.x, row.y);
     const b = slot.bay - 1;
     const l = slot.level - 1;
@@ -145,6 +170,10 @@ export function slotBox(row, slot, building) {
 
 /** Where a row's code label floats: above the rack, at alternating ends so neighbours don't overlap. */
 export function rowLabelPosition(row, index, building) {
+    if (alongX(row)) {
+        const [x, y, z] = rowLabelPosition(swapRow(row), index, swapBuilding(building));
+        return [z, y, x];
+    }
     const [x0, z0] = toWorld(building, row.x, row.y);
     const { topHeight } = rackGeometry(row, building);
     const isPallet = row.kind === "pallet";
@@ -169,14 +198,19 @@ export function cameraView(mode, building, fovDeg, aspect) {
 }
 
 /**
- * Which side of a row faces an aisle: -1 (towards -x) or +1. A row with a back-to-back partner
- * less than 1 m away on one side is looked at from the other; a lone row from -x.
+ * Which side of a row faces an aisle: -1 (towards its lower face across the depth: -x for a y row, -y for an x
+ * row) or +1. A row with a back-to-back partner less than 1 m away on one side is looked at from the other; a lone
+ * row from -1.
  */
 export function openSide(row, rows) {
-    const yEnd = row.y + row.bays * row.bay_width;
+    if (alongX(row)) {
+        return openSide(swapRow(row), rows.map(swapRow));
+    }
+    const me = rowFootprint(row);
     const partnerOnMinus = rows.some((r) => {
-        const gap = row.x - (r.x + r.depth); // free space between r's back and this row's front
-        const sameStretch = r.y < yEnd && row.y < r.y + r.bays * r.bay_width;
+        const o = rowFootprint(r);
+        const gap = me.x0 - o.x1; // free space between r's back and this row's front
+        const sameStretch = o.y0 < me.y1 && me.y0 < o.y1;
         return r.code !== row.code && sameStretch && gap >= -1e-9 && gap < 1;
     });
     return partnerOnMinus ? 1 : -1;
@@ -184,13 +218,17 @@ export function openSide(row, rows) {
 
 /** Free floor in front of a row's face on ``side`` (-1 / +1): up to the next row in the same stretch, or the wall. */
 export function aisleClearance(row, rows, building, side) {
-    const yEnd = row.y + row.bays * row.bay_width;
-    let clearance = side < 0 ? row.x : building.length - (row.x + row.depth);
+    if (alongX(row)) {
+        return aisleClearance(swapRow(row), rows.map(swapRow), swapBuilding(building), side);
+    }
+    const me = rowFootprint(row);
+    let clearance = side < 0 ? me.x0 : building.length - me.x1;
     for (const r of rows) {
-        if (r.code === row.code || !(r.y < yEnd && row.y < r.y + r.bays * r.bay_width)) {
+        const o = rowFootprint(r);
+        if (r.code === row.code || !(o.y0 < me.y1 && me.y0 < o.y1)) {
             continue;
         }
-        const gap = side < 0 ? row.x - (r.x + r.depth) : r.x - (row.x + row.depth);
+        const gap = side < 0 ? me.x0 - o.x1 : o.x0 - me.x1;
         if (gap >= -1e-9) {
             clearance = Math.min(clearance, gap);
         }

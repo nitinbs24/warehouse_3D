@@ -4,7 +4,7 @@
  * width), so it is unit-tested without Three.js. A pose is {x, y, yaw}: yaw is the heading on the
  * plan, 0 = towards +x, π/2 = towards +y.
  */
-import { aisleClearance, openSide } from "@warehouse_3d/view3d/layout";
+import { aisleClearance, openSide, rowFootprint, swapBuilding, swapRow } from "@warehouse_3d/view3d/layout";
 
 export const EYE_HEIGHT = 1.7; // metres
 export const RADIUS = 0.3; // the walker is a circle this wide on the floor
@@ -20,6 +20,11 @@ const WALK_KEYS = {
 
 /** Stand in the aisle in front of a slot, mid-aisle (at most 2.5 m back), facing the rack. */
 export function walkStartAtSlot(row, slot, rows, building) {
+    if (row.orientation === "x") {
+        // Solve in the swapped frame; a heading θ there is π/2 − θ on the plan (x and y swap).
+        const p = walkStartAtSlot(swapRow(row), slot, rows.map(swapRow), swapBuilding(building));
+        return { x: p.y, y: p.x, yaw: Math.PI / 2 - p.yaw };
+    }
     const side = openSide(row, rows);
     const clearance = aisleClearance(row, rows, building, side);
     const standOff = Math.min(MAX_STAND_OFF, Math.max(RADIUS + 0.05, clearance / 2));
@@ -64,7 +69,7 @@ export function moveVector(keys, yaw, dt) {
 
 /** Rack footprints the walker can't enter: {x0, y0, x1, y1} per row. */
 export function rackObstacles(rows) {
-    return rows.map((r) => ({ x0: r.x, y0: r.y, x1: r.x + r.depth, y1: r.y + r.bays * r.bay_width }));
+    return rows.map(rowFootprint);
 }
 
 function blocked(x, y, obstacles, building) {

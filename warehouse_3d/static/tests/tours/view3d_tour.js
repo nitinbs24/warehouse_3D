@@ -548,6 +548,36 @@ registry.category("web_tour.tours").add("warehouse_3d_editor_goods", {
     ],
 });
 
+// T31: rotate a row in the editor, save, and find one of its slots in the 3D view.
+registry.category("web_tour.tours").add("warehouse_3d_editor_rotate", {
+    steps: () => [
+        ...stepUtils.goToAppSteps("stock.menu_stock_root", "Open the Inventory app"),
+        ...openEditor(),
+        clickSvgRow("P05"),
+        { trigger: ".o_wh3d_editor_panel select[name='orientation']:value(y)" },
+        { trigger: ".o_wh3d_editor_panel button[name='rotate']", run: "click" },
+        { trigger: ".o_wh3d_editor_panel select[name='orientation']:value(x)" },
+        {
+            content: "P05 is now drawn wider than it is deep",
+            trigger: ".o_wh3d_editor svg .o_wh3d_row[data-code='P05'] rect",
+            run() {
+                if (!(parseFloat(this.anchor.getAttribute("width")) > parseFloat(this.anchor.getAttribute("height")))) {
+                    throw new Error("rotated row is not horizontal");
+                }
+            },
+        },
+        { trigger: ".o_wh3d_savebar button[name='save']:enabled", run: "click" },
+        { trigger: ".o_notification:contains(Layout saved)" },
+        { trigger: ".o_wh3d_editor[data-dirty='0']" },
+        { trigger: "button[data-menu-xmlid='warehouse_3d.menu_wh3d_root']", run: "click" },
+        { trigger: ".o-dropdown-item[data-menu-xmlid='warehouse_3d.menu_wh3d_view3d']", run: "click" },
+        { trigger: ".o_wh3d_view .o_wh3d_canvas canvas" },
+        { trigger: ".o_wh3d_find input", run: "edit P05-03-2-A" },
+        { trigger: ".o_wh3d_find button[type='submit']", run: "click" },
+        { trigger: ".o_wh3d_selected .o_wh3d_code:text(P05-03-2-A)" },
+    ],
+});
+
 // Areas: add from the palette, move, resize, edit, save, refuse an overlap with a rack row, delete.
 registry.category("web_tour.tours").add("warehouse_3d_editor_areas", {
     steps: () => [

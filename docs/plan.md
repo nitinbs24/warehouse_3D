@@ -107,7 +107,7 @@ T4 is the riskiest (third-party lib inside Odoo's asset pipeline + OWL lifecycle
 
 # Plan 2: Smart putaway, evaluation, floor-plan import (18 Nov 2026)
 
-Status: **awaiting approval**. Tasks T24–T41 in `docs/todo.md` (Phases 7–10).
+Status: **awaiting approval**. Tasks T24–T42 in `docs/todo.md` (Phases 7–10).
 
 ## Confirmed intent (interview, 13–18 Nov 2026)
 - **Outcome:** (1) a smart putaway engine that replaces Odoo's slot choice: hard rules filter slots, AHP-weighted TOPSIS ranks the rest, the top 3 are shown with reasons, and manual moves that break a hard rule are blocked; (2) its evaluation against standard Odoo; (3) 2D floor-plan import (DXF, then images via classical CV and a locally trained detector) into a reviewable draft in the Layout Editor; (4) the mentor's feature list afterwards.
@@ -142,12 +142,12 @@ Status: **awaiting approval**. Tasks T24–T41 in `docs/todo.md` (Phases 7–10)
 ### Phase 7 decisions (20 Nov 2026, Claude decided at Nitin's request)
 | Question | Decision | Why |
 |---|---|---|
-| Aisle graph vs floor grid (T26) | **Grid** | Works for any layout the editor allows; distances are what T27 needs; T32 derives aisles for routing separately |
+| Aisle graph vs floor grid (T26) | **Grid** | Works for any layout the editor allows; distances are what T27 needs; T33 derives aisles for routing separately |
 | Free-volume check in the fit rule (T25) | **Keep** | Template categories set no per-product capacity; without it consolidation stacks 50 pallets into one slot |
 | Goods without a temperature requirement in cold rows (T25) | **Refused (hard rule)** | Cold space is scarce and costly, ambient goods can be harmed by cold, and the T30 demo already kept them out; now the rule and the demo agree |
 | Frozen lower bound (T24) | **−60 °C** (was −30) | No lower bound in the sources; −60 is below any food deep-freeze/blast room (−40), so real frozen zones are never refused. Ultra-low pharma (−80) would be its own band |
 | ABC factor on the travel weight, min-max scaling before TOPSIS (T27) | **Keep** | The textbook forms don't work here (a column factor cancels; vector norm lets a sparse column dominate over ~2,000 slots); state both in the paper |
-| Four Smart rules (bulk → pallets, small parts → shelving, quarantine, returns) (T30) | **Keep** | No hard rule says bulk belongs on pallets; the experiment (T33) gives both strategies the same split |
+| Four Smart rules (bulk → pallets, small parts → shelving, quarantine, returns) (T30) | **Keep** | No hard rule says bulk belongs on pallets; the experiment (T34) gives both strategies the same split |
 | Floor areas beside the special rows, not around (T30) | **Keep** | An area may not overlap a rack row; areas are drawings only |
 
 ### Dependency graph (Plan 2)
@@ -156,10 +156,10 @@ T24 zone/product fields ─┬─ T25 hard rules ─┐
                          └─ T26 aisle graph ─┴─ T27 scoring + smart rule ─┬─ T28 block manual moves
                                                                           ├─ T29 "why this slot" top 3
                                                                           └─ T30 template special zones ── Checkpoint E
-T27+T30 ── T31 experiment harness ── T32 metrics ── T33 runs + results ── Checkpoint F
-T34 background + scale ── T35 draft import ─┬─ T36 DXF
-                                            ├─ T37 classical CV ── T38 synthetic generator ── T39 train (Colab) ── T40 ONNX + OCR in Odoo
-                                            └────────────────────────────────────────────────── T41 wrap-up ── Checkpoint G
+T27+T30 ── T32 experiment harness ── T33 metrics ── T34 runs + results ── Checkpoint F
+T35 background + scale ── T36 draft import ─┬─ T37 DXF
+                                            ├─ T38 classical CV ── T39 synthetic generator ── T40 train (Colab) ── T41 ONNX + OCR in Odoo
+                                            └────────────────────────────────────────────────── T42 wrap-up ── Checkpoint G
 Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 ```
 
@@ -173,20 +173,21 @@ Phase 10 (mentor's list) after Checkpoint G, planned in detail then.
 - [x] T29: "Why this slot?": top 3 with reasons, pick another
 - [x] T30: Template warehouse: cold room, hazardous area, quarantine, special products; README
 - [ ] **Checkpoint E**
+- [x] T31: Rack row orientation (0° / 90°): editor, 3D, distances, putaway *(added 20 Nov)*
 ### Phase 8: Evaluation
-- [ ] T31: Experiment harness: seeded receipts and pick lists on a throwaway database
-- [ ] T32: Metrics: travel (single-command, S-shape, largest gap), space, ergonomics, violations, failures, decision time
-- [ ] T33: Runs (5 variants × 3 fill levels × seeds, ±50 % weight sensitivity) and `docs/results.md`
+- [ ] T32: Experiment harness: seeded receipts and pick lists on a throwaway database
+- [ ] T33: Metrics: travel (single-command, S-shape, largest gap), space, ergonomics, violations, failures, decision time
+- [ ] T34: Runs (5 variants × 3 fill levels × seeds, ±50 % weight sensitivity) and `docs/results.md`
 - [ ] **Checkpoint F**
 ### Phase 9: Floor-plan import
-- [ ] T34: Background plan image and two-click scale in the editor
-- [ ] T35: Draft import into the editor (common output of all importers)
-- [ ] T36: DXF importer
-- [ ] T37: Classical-CV importer (OpenCV)
-- [ ] T38: Synthetic warehouse floor-plan generator (COCO labels)
-- [ ] T39: Train and evaluate YOLOX-S on Colab; export ONNX
-- [ ] T40: ONNX detector + OCR in Odoo, CV fallback
-- [ ] T41: Wrap-up: README, notes, `docs/results-floorplan.md`
+- [ ] T35: Background plan image and two-click scale in the editor
+- [ ] T36: Draft import into the editor (common output of all importers)
+- [ ] T37: DXF importer
+- [ ] T38: Classical-CV importer (OpenCV)
+- [ ] T39: Synthetic warehouse floor-plan generator (COCO labels)
+- [ ] T40: Train and evaluate YOLOX-S on Colab; export ONNX
+- [ ] T41: ONNX detector + OCR in Odoo, CV fallback
+- [ ] T42: Wrap-up: README, notes, `docs/results-floorplan.md`
 - [ ] **Checkpoint G**
 ### Phase 10: Mentor's feature list (planned after Checkpoint G)
 

@@ -74,7 +74,7 @@ class TestTemplateCatalogue(TransactionCase):
         self.assertTrue(all(smart.mapped('active')))
         closest = Rule.search([('location_in_id', '=', stock.id), ('sublocation', '=', 'closest_location')])
         self.assertEqual(len(closest), 2)
-        self.assertFalse(any(closest.mapped('active')))  # kept for the experiment (T31)
+        self.assertFalse(any(closest.mapped('active')))  # kept for the experiment (T32)
 
     def test_smart_putaway_sends_bulk_goods_to_an_empty_allowed_pallet_slot(self):
         product = self.products.filtered(lambda p: p.default_code == 'PR-1001').product_variant_id

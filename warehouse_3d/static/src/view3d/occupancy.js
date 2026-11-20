@@ -2,7 +2,7 @@
  * Stock in the 3D view, as plain numbers (unit-tested, no Three.js).
  * A slot's ``stock`` comes from stock.warehouse.wh3d_get_scene: {used_m3, fill, ...} or null.
  */
-import { slotBox } from "@warehouse_3d/view3d/layout";
+import { slotBox, swapBox, swapBuilding, swapRow } from "@warehouse_3d/view3d/layout";
 
 /** Occupancy band of a fill ratio: "low" < 50 % ≤ "mid" ≤ 90 % < "high"; null fill → "nodims". */
 export function fillBand(fill) {
@@ -20,6 +20,9 @@ export function fillBand(fill) {
  * (volume ÷ floor area), never taller than the slot. Unknown volume → half the slot's height.
  */
 export function loadBox(row, slot, stock, building) {
+    if (row.orientation === "x") {
+        return swapBox(loadBox(swapRow(row), slot, stock, swapBuilding(building)));
+    }
     const { base, box } = slotBox(row, slot, building);
     const slotWidth = row.bay_width / row.slots_per_level;
     const maxHeight = box[4];

@@ -11,6 +11,7 @@
                 <field name="location_id"/>
                 <field name="x"/>
                 <field name="y"/>
+                <field name="orientation" optional="hide"/>
                 <field name="bays"/>
                 <field name="levels"/>
                 <field name="slots_per_level"/>
@@ -51,6 +52,7 @@
                             <field name="storage_category_id"/>
                             <field name="x"/>
                             <field name="y"/>
+                            <field name="orientation" widget="radio" options="{'horizontal': true}"/>
                             <field name="active" invisible="1"/>
                         </group>
                         <group string="Dimensions">

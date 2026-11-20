@@ -78,6 +78,11 @@ class TestView3dTour(HttpCase):
         self.start_tour('/odoo', 'warehouse_3d_editor_edit', login='admin')
 
 
+    def test_editor_rotate_row_and_find_it_in_3d(self):
+        row = create_p05(self.env, self.env['stock.warehouse'].search([], limit=1))
+        self.start_tour('/odoo', 'warehouse_3d_editor_rotate', login='admin')
+        self.assertEqual(row.orientation, 'x')
+
     def test_editor_special_goods_fields(self):
         create_p05(self.env, self.env['stock.warehouse'].search([], limit=1))
         self.start_tour('/odoo', 'warehouse_3d_editor_goods', login='admin')

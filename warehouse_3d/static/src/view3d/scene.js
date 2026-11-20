@@ -8,6 +8,7 @@ import {
     floorGeometry,
     openSide,
     rackGeometry,
+    rowFootprint,
     rowLabelPosition,
     slotBox,
     toWorld,
@@ -177,9 +178,10 @@ export class WarehouseScene {
         }
         // Special rows stand on a coloured pad, 0.3 m wider than the rack all round.
         for (const [key, zone] of Object.entries(ZONES)) {
-            const pads = rows.filter((row) => rowZone(row) === key).map((row) => areaBox({
-                x: row.x - 0.3, y: row.y - 0.3, width: row.depth + 0.6, depth: row.bays * row.bay_width + 0.6,
-            }, this.building));
+            const pads = rows.filter((row) => rowZone(row) === key).map((row) => {
+                const f = rowFootprint(row);
+                return areaBox({ x: f.x0 - 0.3, y: f.y0 - 0.3, width: f.x1 - f.x0 + 0.6, depth: f.y1 - f.y0 + 0.6 }, this.building);
+            });
             if (pads.length) {
                 this.addInstanced(pads, this.material(parseInt(zone.color.slice(1), 16)));
             }
@@ -359,7 +361,11 @@ export class WarehouseScene {
         const distance = row.depth / 2 + standOff;
         const target = new THREE.Vector3(box[0], box[1], box[2]);
         const lift = Math.min(1.5, distance * 0.35);
-        this.animateTo(target.clone().add(new THREE.Vector3(side * distance, lift, distance * 0.3)), target);
+        // The aisle is across the row's depth: along x for a y row, along z (plan y) for an x row.
+        const offset = row.orientation === "x"
+            ? new THREE.Vector3(distance * 0.3, lift, side * distance)
+            : new THREE.Vector3(side * distance, lift, distance * 0.3);
+        this.animateTo(target.clone().add(offset), target);
     }
 
     buildLabels(areas, rows) {
